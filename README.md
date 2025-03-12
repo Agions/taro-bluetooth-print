@@ -477,7 +477,7 @@ await printer.printer.cut();
 
 ## 📚 API 文档
 
-完整的 API 文档请参考：[API文档](https://github.com/Agions/taro-bluetooth-print/blob/main/docs/API.md)
+完整的 API 文档请参考：[API文档](docs/API.md)
 
 ## 🤝 贡献指南
 
