@@ -3,6 +3,9 @@ import { Commands } from './commands';
 import { textToBuffer } from '../utils/encoding';
 import { PrinterImage } from './image';
 import { logger } from '../utils/logger';
+import { templateManager } from './templates';
+import { PrintTemplate } from './templates';
+import { eventManager, EVENTS } from '../utils/events';
 
 export interface PrintOptions {
   align?: 'left' | 'center' | 'right';
@@ -51,22 +54,90 @@ export class PrinterManager {
   }
   
   /**
-   * 发送指令
-   * @param commands 指令数组
+   * 发送打印命令
+   * @param commands 命令数组
+   * @param options 发送选项
    */
-  async sendCommands(commands: Uint8Array[]): Promise<boolean> {
+  async sendCommands(
+    commands: Uint8Array[], 
+    options: { 
+      retries?: number,   // 重试次数
+      chunkSize?: number, // 数据块大小
+      interval?: number   // 命令间隔(ms)
+    } = {}
+  ): Promise<boolean> {
     this.lastError = null;
+
+    // 默认选项
+    const { 
+      retries = 1, 
+      chunkSize = 512,  // 大部分打印机支持的安全值
+      interval = 20     // 命令之间的间隔时间(ms)
+    } = options;
     
     try {
+      // 将命令合并为较大的块以减少蓝牙传输次数
+      const chunks: ArrayBuffer[] = [];
+      let currentChunk = new Uint8Array(0);
+      
+      // 处理每个命令，将它们合并成适当大小的块
       for (const command of commands) {
-        const result = await this.bluetooth.writeData(command.buffer);
-        if (!result) {
-          this.lastError = new Error('发送命令失败');
+        // 如果当前块加上新命令会超过块大小，则添加当前块到chunks
+        if (currentChunk.length + command.length > chunkSize) {
+          chunks.push(currentChunk.buffer);
+          currentChunk = new Uint8Array(0);
+        }
+        
+        // 将当前命令添加到当前块
+        const newChunk = new Uint8Array(currentChunk.length + command.length);
+        newChunk.set(currentChunk, 0);
+        newChunk.set(command, currentChunk.length);
+        currentChunk = newChunk;
+      }
+      
+      // 添加最后一个块（如果非空）
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.buffer);
+      }
+      
+      // 发送每个块
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        let success = false;
+        let lastError: Error | null = null;
+        
+        // 重试逻辑
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          try {
+            const result = await this.bluetooth.writeData(chunk);
+            if (result) {
+              success = true;
+              break;
+            }
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            logger.warn(`发送命令块 ${i+1}/${chunks.length} 失败 (尝试 ${attempt+1}/${retries+1})`, error);
+            
+            // 最后一次重试前暂停
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+            }
+          }
+        }
+        
+        // 如果块发送失败
+        if (!success) {
+          this.lastError = lastError || new Error(`发送命令块 ${i+1}/${chunks.length} 失败`);
+          logger.error('发送命令失败', this.lastError);
           return false;
         }
-        // 添加延迟以确保命令被处理
-        await new Promise(resolve => setTimeout(resolve, 20));
+        
+        // 添加块之间的间隔
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, interval));
+        }
       }
+      
       return true;
     } catch (error) {
       this.lastError = error instanceof Error ? error : new Error(String(error));
@@ -434,5 +505,63 @@ export class PrinterManager {
       logger.error('打印测试页失败', error);
       return false;
     }
+  }
+
+  /**
+   * 使用模板打印
+   * @param templateName 模板名称
+   * @param data 模板数据
+   */
+  async printWithTemplate<T>(templateName: string, data: T): Promise<boolean> {
+    try {
+      // 获取指定模板
+      const template = templateManager.getTemplate(templateName, data);
+      
+      logger.debug(`使用模板 "${templateName}" 打印数据`);
+      
+      // 触发打印开始事件
+      eventManager.emit(EVENTS.PRINTER_PRINT_STARTED, { 
+        template: templateName, 
+        data 
+      });
+      
+      // 构建模板命令
+      const commands = await template.build();
+      
+      // 发送命令
+      const result = await this.sendCommands(commands);
+      
+      // 触发打印完成事件
+      eventManager.emit(EVENTS.PRINTER_PRINT_COMPLETED, { 
+        template: templateName,
+        success: result 
+      });
+      
+      return result;
+    } catch (error) {
+      this.lastError = error instanceof Error ? error : new Error(String(error));
+      logger.error(`使用模板 "${templateName}" 打印失败:`, error);
+      
+      // 触发错误事件
+      eventManager.emit(EVENTS.PRINTER_ERROR, this.lastError);
+      
+      return false;
+    }
+  }
+
+  /**
+   * 获取可用模板列表
+   */
+  getAvailableTemplates(): string[] {
+    return templateManager.getTemplateNames();
+  }
+
+  /**
+   * 注册自定义模板
+   * @param name 模板名称
+   * @param templateClass 模板类
+   */
+  registerTemplate<T>(name: string, templateClass: new (data: T) => PrintTemplate<T>): void {
+    templateManager.register(name, templateClass);
   }
 } 
