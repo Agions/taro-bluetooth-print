@@ -31,19 +31,36 @@
 
 ## 🔄 最近更新
 
+### v1.0.5 (2024-03-14)
+
+#### 文档
+- 添加了CHANGELOG.md文件，记录所有版本更新历史
+- 优化了文档结构，提供更详细的修复说明
+- 改进了API文档，更新了最近版本的修复内容描述
+
 ### v1.0.4 (2024-03-13)
 
 #### 修复
 - 修复了多个TypeScript类型错误和接口不匹配的问题
-- 合并了重复的`writeDataInChunks`方法实现，优化了代码结构
-- 修复了`adapter.write`方法的参数调用不匹配问题
-- 修复了只读属性访问和修改的问题
-- 优化了代码中的重复定义，提高了代码质量
+  - 修复了`adapter.write`方法的参数调用不匹配问题
+  - 修正了`BluetoothAdapter`接口中不存在的`getRSSI`方法调用
+  - 修复了`BluetoothDevice`接口中不存在的`deviceClass`属性
+  - 修复了只读属性`RECOVERY_DELAY`的访问和修改问题
+- 合并了重复的`writeDataInChunks`方法实现，保留了功能更完善的版本
+- 解决了重复定义的问题，如`performanceConfig`、`currentRecoveryDelay`等
+- 增加了缺失的`reconnectDelay`属性
+- 修复了`currentQualityCheckInterval`属性不存在的问题，使用`qualityCheckInterval`代替
 
 #### 改进
 - 增强了蓝牙数据传输的稳定性
 - 优化了内存使用和缓冲区管理
 - 完善了错误处理和恢复机制
+- 提高了代码质量和可维护性
+- 增强了类型安全性，确保接口和实现之间的一致性
+
+#### 其他
+- 更新了API文档，添加了最近修复的内容说明
+- 代码结构优化，改进了方法命名和参数传递的一致性
 
 ## ✨ 特性
 

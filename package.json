@@ -1,6 +1,6 @@
 {
   "name": "taro-bluetooth-print",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "跨平台蓝牙打印库，支持微信小程序、H5、React Native和鸿蒙等平台",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -52,6 +52,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ]
 } 
