@@ -26,12 +26,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agions/taro-bluetooth-print.git"
+    "url": "git+https://github.com/agions/taro-bluetooth-print.git"
   },
   "bugs": {
-    "url": "https://github.com/Agions/taro-bluetooth-print/issues"
+    "url": "https://github.com/agions/taro-bluetooth-print/issues"
   },
-  "homepage": "https://github.com/Agions/taro-bluetooth-print#readme",
+  "homepage": "https://github.com/agions/taro-bluetooth-print#readme",
   "peerDependencies": {
     "@tarojs/taro": ">=3.0.0"
   },

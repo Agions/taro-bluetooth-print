@@ -509,7 +509,7 @@ await printer.printer.cut();
 
 ```bash
 # 克隆仓库
-git clone https://github.com/agons/taro-bluetooth-print.git
+git clone https://github.com/agions/taro-bluetooth-print.git
 
 # 安装依赖
 cd taro-bluetooth-print
