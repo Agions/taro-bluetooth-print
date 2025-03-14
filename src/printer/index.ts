@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { templateManager } from './templates';
 import { PrintTemplate } from './templates';
 import { eventManager, EVENTS } from '../utils/events';
+import { PrinterError, ErrorCode } from '../types';
 
 export interface PrintOptions {
   align?: 'left' | 'center' | 'right';
@@ -563,5 +564,45 @@ export class PrinterManager {
    */
   registerTemplate<T>(name: string, templateClass: new (data: T) => PrintTemplate<T>): void {
     templateManager.register(name, templateClass);
+  }
+
+  async print(text: string, deviceId?: string): Promise<boolean> {
+    try {
+      // 发送打印开始事件
+      eventManager.emit(EVENTS.PRINTER_PRINT_START, {
+        text,
+        deviceId,
+        timestamp: Date.now()
+      });
+
+      // 打印文本
+      const result = await this.printText(text);
+
+      // 发送打印完成事件
+      if (result) {
+        eventManager.emit(EVENTS.PRINTER_PRINT_COMPLETED, {
+          success: true,
+          timestamp: Date.now()
+        });
+      } else {
+        eventManager.emit(EVENTS.PRINTER_PRINT_FAILED, {
+          success: false,
+          error: new PrinterError(
+            ErrorCode.UNKNOWN_ERROR,
+            '打印失败'
+          ),
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } catch (error) {
+      // 发送错误事件
+      eventManager.emit(EVENTS.PRINTER_ERROR, {
+        error,
+        timestamp: Date.now()
+      });
+      return false;
+    }
   }
 } 

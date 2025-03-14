@@ -145,16 +145,54 @@ export const eventManager = EventManager.getInstance();
 export const EVENTS = {
   // 蓝牙相关事件
   BLUETOOTH_INITIALIZED: 'bluetooth:initialized',
-  BLUETOOTH_DISCOVERY_STARTED: 'bluetooth:discovery_started',
-  BLUETOOTH_DISCOVERY_STOPPED: 'bluetooth:discovery_stopped',
-  BLUETOOTH_DEVICE_FOUND: 'bluetooth:device_found',
+  BLUETOOTH_DISCOVERY_STARTED: 'bluetooth:discovery:started',
+  BLUETOOTH_DISCOVERY_STOPPED: 'bluetooth:discovery:stopped',
+  BLUETOOTH_DEVICE_FOUND: 'bluetooth:device:found',
   BLUETOOTH_CONNECTED: 'bluetooth:connected',
   BLUETOOTH_DISCONNECTED: 'bluetooth:disconnected',
+  BLUETOOTH_CONNECTION_FAILED: 'bluetooth:connection:failed',
+  BLUETOOTH_WRITE_FAILED: 'bluetooth:write:failed',
+  BLUETOOTH_READ_FAILED: 'bluetooth:read:failed',
+  BLUETOOTH_STATE_CHANGED: 'bluetooth:state:changed',
   BLUETOOTH_ERROR: 'bluetooth:error',
-  
+  BLUETOOTH_WRITE_INCOMPLETE: 'bluetooth:write:incomplete',
+  BLUETOOTH_BATCH_INCOMPLETE: 'bluetooth:batch:incomplete',
+  BLUETOOTH_TRANSMISSION_COMPLETE: 'bluetooth:transmission:complete',
+  BLUETOOTH_BATTERY_UPDATE: 'bluetooth:battery:update',
+  BLUETOOTH_LOW_BATTERY: 'bluetooth:battery:low',
+  BLUETOOTH_QUALITY_UPDATE: 'bluetooth:quality:update',
+  BLUETOOTH_WEAK_SIGNAL: 'bluetooth:signal:weak',
+  BLUETOOTH_POOR_QUALITY: 'bluetooth:quality:poor',
+
   // 打印机相关事件
-  PRINTER_COMMAND_SENT: 'printer:command_sent',
-  PRINTER_PRINT_STARTED: 'printer:print_started',
-  PRINTER_PRINT_COMPLETED: 'printer:print_completed',
-  PRINTER_ERROR: 'printer:error'
-}; 
+  PRINTER_READY: 'printer:ready',
+  PRINTER_BUSY: 'printer:busy',
+  PRINTER_ERROR: 'printer:error',
+  PRINTER_PRINT_START: 'printer:print:start',
+  PRINTER_PRINT_STARTED: 'printer:print:started',
+  PRINTER_PRINT_PROGRESS: 'printer:print:progress',
+  PRINTER_PRINT_COMPLETED: 'printer:print:completed',
+  PRINTER_PRINT_FAILED: 'printer:print:failed',
+  PRINTER_OUT_OF_PAPER: 'printer:out:of:paper',
+  PRINTER_OVERHEATED: 'printer:overheated',
+  
+  // 性能相关事件
+  PERFORMANCE_WARNING: 'performance:warning',
+  PERFORMANCE_ERROR: 'performance:error',
+  PERFORMANCE_OPTIMIZED: 'performance:optimized',
+  
+  // 电池相关事件
+  BATTERY_LOW: 'battery:low',
+  BATTERY_CRITICAL: 'battery:critical',
+  BATTERY_NORMAL: 'battery:normal',
+  
+  // 诊断相关事件
+  DIAGNOSTIC_START: 'diagnostic:start',
+  DIAGNOSTIC_COMPLETE: 'diagnostic:complete',
+  DIAGNOSTIC_ERROR: 'diagnostic:error',
+  
+  // 缓存相关事件
+  CACHE_CLEARED: 'cache:cleared',
+  CACHE_OPTIMIZED: 'cache:optimized',
+  CACHE_ERROR: 'cache:error'
+} as const; 
