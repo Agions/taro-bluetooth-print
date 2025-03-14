@@ -90,7 +90,7 @@ export default class TaroBluePrint {
     // 参数验证
     if (!text || !deviceId) {
       const error = new PrinterError(
-        ErrorCode.INVALID_PARAM, 
+        ErrorCode.INVALID_PARAM,
         '快速打印失败: 文本内容或设备ID不能为空'
       );
       logger.error(error.message);
@@ -99,7 +99,7 @@ export default class TaroBluePrint {
 
     try {
       // 触发打印开始事件
-      eventManager.emit(EVENTS.PRINTER_PRINT_STARTED, { text, deviceId });
+      eventManager.emit(EVENTS.PRINTER_PRINT_START, { text, deviceId });
       
       // 确保蓝牙已初始化
       await this.bluetooth.init();
@@ -135,7 +135,7 @@ export default class TaroBluePrint {
       const printerError = error instanceof PrinterError 
         ? error 
         : new PrinterError(
-            ErrorCode.UNKNOWN_ERROR, 
+            ErrorCode.UNKNOWN_ERROR,
             error instanceof Error ? error.message : String(error)
           );
       
@@ -192,6 +192,42 @@ export default class TaroBluePrint {
       logger.info('Taro蓝牙打印库已销毁');
     } catch (error) {
       logger.error('销毁Taro蓝牙打印库实例时出错:', error);
+    }
+  }
+
+  async print(text: string, deviceId?: string): Promise<boolean> {
+    try {
+      if (!text) {
+        throw new PrinterError(
+          ErrorCode.INVALID_PARAM,
+          '打印内容不能为空'
+        );
+      }
+
+      // 发送打印开始事件
+      eventManager.emit(EVENTS.PRINTER_PRINT_START, { text, deviceId });
+
+      const result = await this.printer.print(text, deviceId);
+
+      // 发送打印完成事件
+      if (result) {
+        eventManager.emit(EVENTS.PRINTER_PRINT_COMPLETED, { success: true });
+      } else {
+        eventManager.emit(EVENTS.PRINTER_PRINT_FAILED, { 
+          success: false,
+          error: new PrinterError(
+            ErrorCode.UNKNOWN_ERROR,
+            '打印失败'
+          ),
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } catch (error) {
+      // 发送错误事件
+      eventManager.emit(EVENTS.PRINTER_ERROR, { error });
+      return false;
     }
   }
 }

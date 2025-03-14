@@ -29,6 +29,22 @@
 - [贡献指南](#贡献指南)
 - [许可证](#许可证)
 
+## 🔄 最近更新
+
+### v1.0.4 (2024-03-13)
+
+#### 修复
+- 修复了多个TypeScript类型错误和接口不匹配的问题
+- 合并了重复的`writeDataInChunks`方法实现，优化了代码结构
+- 修复了`adapter.write`方法的参数调用不匹配问题
+- 修复了只读属性访问和修改的问题
+- 优化了代码中的重复定义，提高了代码质量
+
+#### 改进
+- 增强了蓝牙数据传输的稳定性
+- 优化了内存使用和缓冲区管理
+- 完善了错误处理和恢复机制
+
 ## ✨ 特性
 
 - 🌐 **多平台支持**：微信小程序、H5、React Native、鸿蒙OS
@@ -493,7 +509,7 @@ await printer.printer.cut();
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Agions/taro-bluetooth-print.git
+git clone https://github.com/agons/taro-bluetooth-print.git
 
 # 安装依赖
 cd taro-bluetooth-print

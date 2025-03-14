@@ -46,6 +46,10 @@ export interface DiscoveryOptions {
   timeout?: number;
   services?: string[];
   allowDuplicatesKey?: boolean;
+  namePrefix?: string;
+  filterByName?: boolean;
+  namePrefixes?: string[];
+  onlyPrinters?: boolean;
 }
 
 // 蓝牙连接选项
@@ -139,23 +143,34 @@ export interface ReceiptOptions {
 export enum ErrorCode {
   // 通用错误
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
   INVALID_PARAM = 'INVALID_PARAM',
   
-  // 蓝牙错误
+  // 蓝牙相关错误
   BLUETOOTH_UNAVAILABLE = 'BLUETOOTH_UNAVAILABLE',
   BLUETOOTH_INIT_FAILED = 'BLUETOOTH_INIT_FAILED',
   BLUETOOTH_CONNECT_FAILED = 'BLUETOOTH_CONNECT_FAILED',
-  BLUETOOTH_DISCONNECT_FAILED = 'BLUETOOTH_DISCONNECT_FAILED',
-  BLUETOOTH_SERVICE_NOT_FOUND = 'BLUETOOTH_SERVICE_NOT_FOUND',
-  BLUETOOTH_CHARACTERISTIC_NOT_FOUND = 'BLUETOOTH_CHARACTERISTIC_NOT_FOUND',
   BLUETOOTH_WRITE_FAILED = 'BLUETOOTH_WRITE_FAILED',
+  BLUETOOTH_READ_FAILED = 'BLUETOOTH_READ_FAILED',
   
-  // 打印机错误
+  // 打印机相关错误
   PRINTER_NOT_CONNECTED = 'PRINTER_NOT_CONNECTED',
-  PRINTER_COMMAND_FAILED = 'PRINTER_COMMAND_FAILED',
-  PRINTER_IMAGE_PROCESS_FAILED = 'PRINTER_IMAGE_PROCESS_FAILED',
-  PRINTER_INVALID_FORMAT = 'PRINTER_INVALID_FORMAT'
+  PRINTER_BUSY = 'PRINTER_BUSY',
+  PRINTER_OUT_OF_PAPER = 'PRINTER_OUT_OF_PAPER',
+  PRINTER_OVERHEATED = 'PRINTER_OVERHEATED',
+  PRINTER_INVALID_FORMAT = 'PRINTER_INVALID_FORMAT',
+  
+  // 命令队列相关错误
+  COMMAND_QUEUE_FULL = 'COMMAND_QUEUE_FULL',
+  COMMAND_FAILED = 'COMMAND_FAILED',
+  QUEUE_CLEARED = 'QUEUE_CLEARED',
+  
+  // 性能相关错误
+  PERFORMANCE_DEGRADED = 'PERFORMANCE_DEGRADED',
+  MEMORY_LIMIT_EXCEEDED = 'MEMORY_LIMIT_EXCEEDED',
+  
+  // 电池相关错误
+  BATTERY_LOW = 'BATTERY_LOW',
+  BATTERY_CRITICAL = 'BATTERY_CRITICAL'
 }
 
 // 自定义错误类
@@ -167,4 +182,113 @@ export class PrinterError extends Error {
     this.name = 'PrinterError';
     this.code = code;
   }
+}
+
+// 蓝牙相关类型增强
+export interface TransmissionStats {
+  totalBytes: number;
+  successfulBytes: number;
+  startTime: number;
+  endTime: number;
+  totalCommands: number;
+  successfulCommands: number;
+  retryCount: number;
+  lastTransmissionSpeed: number;
+  successRate?: number;
+  duration?: number;
+  transmissionSpeed?: number;
+}
+
+export interface FlowControlParams {
+  chunkSize: number;
+  chunkDelay: number;
+  commandDelay: number;
+  autoAdjust: boolean;
+  minChunkDelay: number;
+  maxChunkDelay: number;
+  minChunkSize: number;
+  maxChunkSize: number;
+  qualityThreshold: number;
+  lastQuality: number;
+  delayBetweenChunks?: number;
+}
+
+export interface BatchWriteOptions {
+  useChunks?: boolean;
+  chunkSize?: number;
+  delayBetweenCommands?: number;
+  delayBetweenChunks?: number;
+  retries?: number;
+  autoAdjustParams?: boolean;
+  batchSize?: number;
+  parallel?: boolean;
+  maxParallel?: number;
+  highPriority?: boolean;
+  commandDelay?: number;
+}
+
+export interface BatchWriteResult {
+  success: boolean;
+  failed: number;
+  stats?: TransmissionStats;
+}
+
+export interface ConnectionHistoryEntry {
+  deviceId: string;
+  name?: string;
+  lastConnected: number;
+  connectCount: number;
+  successRate: number;
+  favorite: boolean;
+}
+
+export interface DeviceHealthInfo {
+  status: 'healthy' | 'warning' | 'error';
+  issues: string[];
+  details: {
+    deviceId: string | null;
+    isInitialized: boolean;
+    isConnected: boolean;
+    transmissionQuality: number;
+    batteryLevel: number | null;
+    signalStrength: number | null;
+    device?: BluetoothDevice;
+    transmissionStats?: TransmissionStats;
+    canWrite?: boolean;
+    error?: any;
+    [key: string]: any;
+  };
+}
+
+// 新增：连接质量相关接口
+export interface ConnectionQualityInfo {
+  deviceId: string | null;
+  signalStrength?: number;
+  transmissionQuality: number;
+  timestamp: number;
+}
+
+export interface SignalStrengthInfo {
+  deviceId: string | null;
+  signalStrength: number;
+  threshold: number;
+}
+
+export interface TransmissionQualityInfo {
+  deviceId: string | null;
+  quality: number;
+  threshold: number;
+}
+
+export interface QueuedCommand {
+  id: string;
+  command: ArrayBuffer;
+  priority: number;
+  timestamp: number;
+  retries: number;
+  maxRetries: number;
+  resolve: (value: boolean) => void;
+  reject: (reason: any) => void;
+  useChunks: boolean;
+  description?: string;
 } 
