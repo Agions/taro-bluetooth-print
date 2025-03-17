@@ -187,7 +187,7 @@ export default class CameraPage extends Component {
 
 ```bash
 # 克隆仓库
-git clone https://github.com/你的用户名/taro-bluetooth-print.git
+git clone https://github.com/agions/taro-bluetooth-print.git
 
 # 进入示例目录
 cd taro-bluetooth-print/example
