@@ -31,7 +31,10 @@ export interface BluetoothDevice {
 
 // 蓝牙适配器接口
 export interface BluetoothAdapter {
-  init(): Promise<boolean>;
+  initialize(): Promise<boolean>;
+  onBluetoothAdapterStateChange(callback: (state: { available: boolean, discovering: boolean }) => void): void;
+  onBluetoothDeviceFound(callback: (device: BluetoothDevice) => void): void;
+  onBluetoothDeviceConnectionChange(callback: (deviceId: string, connected: boolean) => void): void;
   startDiscovery(options?: DiscoveryOptions): Promise<boolean>;
   stopDiscovery(): Promise<boolean>;
   getDiscoveredDevices(): Promise<BluetoothDevice[]>;
@@ -185,6 +188,25 @@ export class PrinterError extends Error {
 }
 
 // 蓝牙相关类型增强
+
+// 蓝牙打印机相关类型
+export interface DeviceInfo {
+  deviceId: string;
+  name: string;
+  localName?: string;
+  RSSI?: number;
+  advertisData?: ArrayBuffer;
+  manufacturerData?: ArrayBuffer;
+  serviceData?: Record<string, ArrayBuffer>;
+  connectable?: boolean;
+}
+
+export interface IBlueToothPrinter {
+  deviceId?: string | number;
+  serviceId?: string;
+  characteristicId?: string;
+}
+
 export interface TransmissionStats {
   totalBytes: number;
   successfulBytes: number;
@@ -291,4 +313,4 @@ export interface QueuedCommand {
   reject: (reason: any) => void;
   useChunks: boolean;
   description?: string;
-} 
+}

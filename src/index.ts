@@ -1,7 +1,7 @@
 import { BluetoothManager } from './bluetooth';
 import { PrinterManager } from './printer';
 import { Commands } from './printer/commands';
-import { logger, LogLevel, setLogLevel } from './utils/logger';
+import { logger } from './utils/logger';
 import { configManager, PrinterOptions } from './utils/config';
 import { eventManager, EVENTS } from './utils/events';
 import { Result, ErrorCode, PrinterError } from './types';

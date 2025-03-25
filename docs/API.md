@@ -4,6 +4,13 @@
 
 ## 最近更新
 
+### v1.0.8
+- 添加了 `Platform` 类，用于跨平台功能检测
+- 添加参数校验逻辑，提高代码健壮性
+- 改进了 `BluetoothAdapter` 接口，确保跨平台兼容
+- 优化了 `H5BluetoothAdapter` 的设备ID处理
+- 添加了适配器方法的空值检查
+
 ### v1.0.5
 - 添加了CHANGELOG.md文件，记录所有版本更新历史
 - 优化了文档结构，提供更详细的修复说明
@@ -43,6 +50,9 @@
   - [获取设备列表](#获取设备列表)
   - [连接设备](#连接设备)
   - [断开连接](#断开连接)
+  - [获取服务](#获取服务)
+  - [获取特征值](#获取特征值)
+  - [读写数据](#读写数据)
   - [监听器](#蓝牙监听器)
 - [打印模块 (printer)](#打印模块-printer)
   - [基本打印功能](#基本打印功能)
@@ -226,11 +236,17 @@ if (connected) {
 
 ### 断开连接
 
-断开当前蓝牙连接。
+断开当前蓝牙连接或指定设备的连接。
 
 ```typescript
-async disconnect(): Promise<boolean>
+async disconnect(deviceId?: string): Promise<boolean>
 ```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| deviceId | string (可选) | 要断开连接的设备ID，如果不提供则断开当前连接 |
 
 #### 返回值
 
@@ -239,7 +255,12 @@ async disconnect(): Promise<boolean>
 #### 示例
 
 ```typescript
+// 断开当前连接
 const disconnected = await printer.bluetooth.disconnect();
+
+// 断开指定设备的连接
+const disconnected = await printer.bluetooth.disconnect('XX:XX:XX:XX:XX:XX');
+```
 ```
 
 ### 获取连接状态
@@ -259,6 +280,153 @@ isConnected(): boolean
 ```typescript
 const isConnected = printer.bluetooth.isConnected();
 console.log(`当前连接状态: ${isConnected ? '已连接' : '未连接'}`);
+```
+
+### 获取服务
+
+获取蓝牙设备的服务列表。
+
+```typescript
+async getServices(deviceId: string): Promise<any>
+```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| deviceId | string | 要获取服务的设备ID |
+
+#### 返回值
+
+返回一个 Promise，解析为服务列表。
+
+#### 示例
+
+```typescript
+const services = await printer.bluetooth.getServices('XX:XX:XX:XX:XX:XX');
+console.log(`设备有 ${services.length} 个服务`);
+```
+
+### 获取特征值
+
+获取蓝牙设备服务的特征值列表。
+
+```typescript
+async getCharacteristics(deviceId: string, serviceId: string): Promise<any>
+```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| deviceId | string | 设备ID |
+| serviceId | string | 服务ID |
+
+#### 返回值
+
+返回一个 Promise，解析为特征值列表。
+
+#### 示例
+
+```typescript
+const characteristics = await printer.bluetooth.getCharacteristics('XX:XX:XX:XX:XX:XX', 'service-uuid');
+console.log(`服务有 ${characteristics.length} 个特征值`);
+```
+
+### 读写数据
+
+#### 读取数据
+
+从蓝牙设备的特征值读取数据。
+
+```typescript
+async read(deviceId: string, serviceId: string, characteristicId: string): Promise<ArrayBuffer>
+```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| deviceId | string | 设备ID |
+| serviceId | string | 服务ID |
+| characteristicId | string | 特征值ID |
+
+#### 返回值
+
+返回一个 Promise，解析为包含读取数据的 ArrayBuffer。
+
+#### 示例
+
+```typescript
+const data = await printer.bluetooth.read('XX:XX:XX:XX:XX:XX', 'service-uuid', 'characteristic-uuid');
+console.log(`读取到 ${data.byteLength} 字节数据`);
+```
+
+#### 写入数据
+
+向蓝牙设备的特征值写入数据。
+
+```typescript
+async write(deviceId: string, serviceId: string, characteristicId: string, data: ArrayBuffer): Promise<boolean>
+```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| deviceId | string | 设备ID |
+| serviceId | string | 服务ID |
+| characteristicId | string | 特征值ID |
+| data | ArrayBuffer | 要写入的数据 |
+
+#### 返回值
+
+返回一个 Promise，解析为布尔值，表示写入是否成功。
+
+#### 示例
+
+```typescript
+// 创建数据并发送
+const data = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x01]).buffer; // ESC @ ESC a 1
+const success = await printer.bluetooth.write('XX:XX:XX:XX:XX:XX', 'service-uuid', 'characteristic-uuid', data);
+
+if (success) {
+  console.log('数据发送成功');
+} else {
+  console.log('数据发送失败');
+}
+```
+
+#### 直接写入数据（打印机专用）
+
+这是一个简化的写入方法，为打印机设计，会自动检测并使用可写入的服务和特征值。
+
+```typescript
+async writeData(data: ArrayBuffer): Promise<boolean>
+```
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| data | ArrayBuffer | 要写入的数据 |
+
+#### 返回值
+
+返回一个 Promise，解析为布尔值，表示写入是否成功。
+
+#### 示例
+
+```typescript
+// 创建数据并发送
+const data = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x01]).buffer; // ESC @ ESC a 1
+const success = await printer.bluetooth.writeData(data);
+
+if (success) {
+  console.log('数据发送成功');
+} else {
+  console.log('数据发送失败');
+}
 ```
 
 ### 蓝牙监听器
