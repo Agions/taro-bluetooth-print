@@ -1,3 +1,8 @@
+/**
+ * H5 平台蓝牙适配器实现
+ * 使用 Web Bluetooth API 提供蓝牙功能支持
+ */
+
 import { BluetoothAdapter, BluetoothDevice } from './adapter';
 import { logger } from '../utils/logger';
 
@@ -10,7 +15,6 @@ declare global {
     };
   }
 
-  // Web Bluetooth API 的类型
   interface BluetoothRemoteGATTServer {
     connected: boolean;
     device: any;
@@ -50,339 +54,301 @@ declare global {
 
   type BluetoothServiceUUID = string | number;
   type BluetoothCharacteristicUUID = string | number;
+
+  // Web Bluetooth API 的设备类型
+  interface WebBluetoothDevice {
+    id: string;
+    name: string;
+    gatt: BluetoothRemoteGATTServer;
+  }
 }
 
-export class H5BluetoothAdapter implements BluetoothAdapter {
+export default class H5BluetoothAdapter implements BluetoothAdapter {
   private bluetooth: any = null;
-  private device: any = null;
+  private device: WebBluetoothDevice | null = null;
   private gattServer: BluetoothRemoteGATTServer | null = null;
   private services: Map<string, BluetoothRemoteGATTService> = new Map();
   private characteristics: Map<string, Map<string, BluetoothRemoteGATTCharacteristic>> = new Map();
   private eventListeners: Map<string, EventListener> = new Map();
-  
-  async init(): Promise<boolean> {
-    try {
-      if (!navigator.bluetooth) {
-        throw new Error('当前浏览器不支持Web Bluetooth API');
-      }
-      
-      // 检查蓝牙是否可用
-      const available = await navigator.bluetooth.getAvailability();
-      if (!available) {
-        throw new Error('蓝牙不可用');
-      }
-      
-      this.bluetooth = navigator.bluetooth;
-      return true;
-    } catch (error) {
-      logger.error('初始化蓝牙模块失败', error);
-      return false;
-    }
+
+  constructor() {
+    this.bluetooth = navigator.bluetooth;
   }
-  
+
+  /**
+   * 初始化蓝牙适配器
+   * @returns {Promise<boolean>} 初始化是否成功
+   */
+  async initialize(): Promise<boolean> {
+    if (!this.bluetooth) {
+      throw new Error('Web Bluetooth API 不可用');
+    }
+    return Promise.resolve(true);
+  }
+
+  /**
+   * 监听蓝牙状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothAdapterStateChange(callback: (state: { available: boolean, discovering: boolean }) => void): void {
+    const listener = () => {
+      const state = {
+        available: !!this.bluetooth,
+        discovering: false // H5 平台不支持主动发现
+      };
+      callback(state);
+    };
+    this.eventListeners.set('adapterStateChange', listener);
+    window.addEventListener('load', listener as EventListener);
+  }
+
+  /**
+   * 监听设备发现
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceFound(callback: (device: BluetoothDevice) => void): void {
+    const listener = (event: Event) => {
+      const device = event.target as unknown as WebBluetoothDevice;
+      callback({
+        deviceId: device.id,
+        name: device.name || '未知设备',
+        deviceName: device.name
+      });
+    };
+    this.eventListeners.set('deviceFound', listener);
+    window.addEventListener('devicefound', listener as EventListener);
+  }
+
+  /**
+   * 监听连接状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceConnectionChange(callback: (deviceId: string, connected: boolean) => void): void {
+    const listener = (event: Event) => {
+      const device = event.target as unknown as WebBluetoothDevice;
+      callback(device.id, device.gatt?.connected || false);
+    };
+    this.eventListeners.set('connectionChange', listener);
+    window.addEventListener('connectionchange', listener as EventListener);
+  }
+
+  /**
+   * 获取蓝牙适配器状态
+   * @returns {Promise<any>} 适配器状态
+   */
   async getAdapterState(): Promise<any> {
-    try {
-      if (!this.bluetooth) {
-        throw new Error('蓝牙模块未初始化');
-      }
-      
-      const available = await navigator.bluetooth?.getAvailability();
-      return { available: available || false };
-    } catch (error) {
-      logger.error('获取蓝牙适配器状态失败', error);
-      throw error;
-    }
+    return {
+      available: !!this.bluetooth,
+      discovering: false // H5 平台不支持主动发现
+    };
   }
-  
+
+  /**
+   * 开始搜索蓝牙设备
+   * @returns {Promise<boolean>} 是否成功开始搜索
+   */
   async startDiscovery(): Promise<boolean> {
     try {
-      if (!this.bluetooth) {
-        await this.init();
-      }
-      
-      // 打印机通常使用的服务 (这些值可能需要根据具体打印机调整)
-      const printerServices = [
-        '000018f0-0000-1000-8000-00805f9b34fb', // 常见热敏打印机服务
-        '49535343-fe7d-4ae5-8fa9-9fafd205e455', // 常见蓝牙打印机服务
-        '00001101-0000-1000-8000-00805f9b34fb', // SPP服务
-        '0000180a-0000-1000-8000-00805f9b34fb'  // 设备信息服务
-      ];
-      
-      // Web Bluetooth API使用requestDevice方法触发设备选择
-      this.device = await this.bluetooth.requestDevice({
-        // 过滤器用于找到打印机设备
-        filters: [
-          { services: printerServices },
-          { namePrefix: 'Printer' },
-          { namePrefix: 'printer' },
-          { namePrefix: 'POS' },
-          { namePrefix: 'pos' },
-          { namePrefix: 'BT' }
-        ],
-        // 添加可选服务以便于访问
-        optionalServices: printerServices
-      });
-      
-      if (this.device) {
-        return true;
-      }
-      return false;
+      const options = {
+        filters: [{ services: ['0000180f-0000-1000-8000-00805f9b34fb'] }], // 心率服务
+        optionalServices: ['0000180f-0000-1000-8000-00805f9b34fb']
+      };
+      const device = await this.bluetooth.requestDevice(options);
+      this.device = device;
+      return true;
     } catch (error) {
-      logger.error('开始搜索蓝牙设备失败', error);
+      logger.error('开始搜索设备失败:', error);
       return false;
     }
   }
-  
+
+  /**
+   * 停止搜索蓝牙设备
+   * @returns {Promise<boolean>} 是否成功停止搜索
+   */
   async stopDiscovery(): Promise<boolean> {
-    // Web Bluetooth API没有停止搜索的方法，因为搜索已经在设备选择完成后结束
+    // H5 平台不支持主动发现，无需实现
     return true;
   }
-  
+
+  /**
+   * 获取已发现的蓝牙设备
+   * @returns {Promise<BluetoothDevice[]>} 已发现的设备列表
+   */
   async getDiscoveredDevices(): Promise<BluetoothDevice[]> {
     if (!this.device) {
       return [];
     }
-    
     return [{
       deviceId: this.device.id,
       name: this.device.name || '未知设备',
       deviceName: this.device.name
     }];
   }
-  
+
+  /**
+   * 连接蓝牙设备
+   * @param deviceId 设备ID
+   * @returns {Promise<boolean>} 是否成功连接
+   */
   async connect(deviceId: string): Promise<boolean> {
     try {
-      if (!this.device || this.device.id !== deviceId) {
-        logger.error('设备未找到或ID不匹配');
-        return false;
+      if (this.device?.id !== deviceId) {
+        throw new Error('设备ID不匹配');
       }
       
-      // 连接到GATT服务器
       this.gattServer = await this.device.gatt.connect();
-      
-      // 连接后自动发现服务
-      if (this.gattServer) {
-        await this.getServices(deviceId);
-      }
-      
-      return this.gattServer?.connected || false;
+      return true;
     } catch (error) {
-      logger.error('连接蓝牙设备失败', error);
+      logger.error('连接设备失败:', error);
       return false;
     }
   }
-  
+
+  /**
+   * 断开连接
+   * @returns {Promise<boolean>} 是否成功断开连接
+   */
   async disconnect(deviceId?: string): Promise<boolean> {
     try {
-      if (this.gattServer && this.gattServer.connected) {
+      if (deviceId && this.device?.id !== deviceId) {
+        throw new Error('设备ID不匹配');
+      }
+      
+      if (this.gattServer) {
         this.gattServer.disconnect();
-        this.services.clear();
-        this.characteristics.clear();
+        this.gattServer = null;
       }
       return true;
     } catch (error) {
-      logger.error('断开蓝牙连接失败', error);
+      logger.error('断开连接失败:', error);
       return false;
     }
   }
-  
+
+  /**
+   * 获取服务
+   * @returns {Promise<any>} 服务列表
+   */
   async getServices(deviceId: string): Promise<any> {
-    try {
-      if (!this.gattServer) {
-        throw new Error('未连接到GATT服务器');
-      }
-      
-      const services = await this.gattServer.getPrimaryServices();
-      const result: any = { services: [] };
-      
-      for (const service of services) {
-        this.services.set(service.uuid, service);
-        result.services.push({
-          uuid: service.uuid,
-          isPrimary: service.isPrimary
-        });
-        
-        // 自动获取每个服务的特征值
-        await this.getCharacteristics(deviceId, service.uuid);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('获取服务失败', error);
-      throw error;
+    if (!this.gattServer) {
+      throw new Error('未连接设备');
     }
+    
+    if (this.device?.id !== deviceId) {
+      throw new Error('设备ID不匹配');
+    }
+    const services = await this.gattServer.getPrimaryServices();
+    services.forEach(service => {
+      this.services.set(service.uuid, service);
+    });
+    return services;
   }
-  
+
+  /**
+   * 获取特征值
+   * @param serviceId 服务ID
+   * @returns {Promise<any>} 特征值列表
+   */
   async getCharacteristics(deviceId: string, serviceId: string): Promise<any> {
-    try {
-      const service = this.services.get(serviceId);
-      if (!service) {
-        throw new Error(`服务${serviceId}未找到`);
-      }
-      
-      const characteristics = await service.getCharacteristics();
-      const result: any = { characteristics: [] };
-      
-      if (!this.characteristics.has(serviceId)) {
-        this.characteristics.set(serviceId, new Map());
-      }
-      
-      const serviceChars = this.characteristics.get(serviceId)!;
-      
-      for (const char of characteristics) {
-        serviceChars.set(char.uuid, char);
-        result.characteristics.push({
-          uuid: char.uuid,
-          properties: {
-            read: char.properties.read,
-            write: char.properties.write,
-            notify: char.properties.notify,
-            writeWithoutResponse: char.properties.writeWithoutResponse
-          }
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('获取特征值失败', error);
-      throw error;
+    if (this.device?.id !== deviceId) {
+      throw new Error('设备ID不匹配');
     }
+    
+    const service = this.services.get(serviceId);
+    if (!service) {
+      throw new Error('服务不存在');
+    }
+    const characteristics = await service.getCharacteristics();
+    const serviceMap = this.characteristics.get(serviceId) || new Map();
+    characteristics.forEach(characteristic => {
+      serviceMap.set(characteristic.uuid, characteristic);
+    });
+    this.characteristics.set(serviceId, serviceMap);
+    return characteristics;
   }
-  
+
+  /**
+   * 写入数据
+   * @param serviceId 服务ID
+   * @param characteristicId 特征值ID
+   * @param data 要写入的数据
+   * @returns {Promise<boolean>} 是否成功写入
+   */
   async write(deviceId: string, serviceId: string, characteristicId: string, data: ArrayBuffer): Promise<boolean> {
     try {
-      if (!this.characteristics.has(serviceId)) {
-        await this.getCharacteristics(deviceId, serviceId);
+      if (this.device?.id !== deviceId) {
+        throw new Error('设备ID不匹配');
       }
       
-      const serviceChars = this.characteristics.get(serviceId);
-      if (!serviceChars) {
-        throw new Error(`服务${serviceId}的特征值未找到`);
+      const service = this.services.get(serviceId);
+      if (!service) {
+        throw new Error('服务不存在');
       }
-      
-      const characteristic = serviceChars.get(characteristicId);
+
+      const characteristic = this.characteristics.get(serviceId)?.get(characteristicId);
       if (!characteristic) {
-        throw new Error(`特征值${characteristicId}未找到`);
+        throw new Error('特征值不存在');
       }
-      
+
       await characteristic.writeValue(data);
       return true;
     } catch (error) {
-      logger.error('写入数据失败', error);
+      logger.error('写入数据失败:', error);
       return false;
     }
   }
-  
+
+  /**
+   * 读取数据
+   * @param serviceId 服务ID
+   * @param characteristicId 特征值ID
+   * @returns {Promise<ArrayBuffer>} 读取的数据
+   */
   async read(deviceId: string, serviceId: string, characteristicId: string): Promise<ArrayBuffer> {
     try {
-      if (!this.characteristics.has(serviceId)) {
-        await this.getCharacteristics(deviceId, serviceId);
+      if (this.device?.id !== deviceId) {
+        throw new Error('设备ID不匹配');
       }
       
-      const serviceChars = this.characteristics.get(serviceId);
-      if (!serviceChars) {
-        throw new Error(`服务${serviceId}的特征值未找到`);
+      const service = this.services.get(serviceId);
+      if (!service) {
+        throw new Error('服务不存在');
       }
-      
-      const characteristic = serviceChars.get(characteristicId);
+
+      const characteristic = this.characteristics.get(serviceId)?.get(characteristicId);
       if (!characteristic) {
-        throw new Error(`特征值${characteristicId}未找到`);
+        throw new Error('特征值不存在');
       }
-      
-      const value = await characteristic.readValue();
-      return value.buffer;
+
+      const data = await characteristic.readValue();
+      return data.buffer;
     } catch (error) {
-      logger.error('读取数据失败', error);
+      logger.error('读取数据失败:', error);
       throw error;
     }
   }
-  
-  async notifyCharacteristicValueChange(
-    deviceId: string, 
-    serviceId: string, 
-    characteristicId: string, 
-    state: boolean
-  ): Promise<boolean> {
-    try {
-      if (!this.characteristics.has(serviceId)) {
-        await this.getCharacteristics(deviceId, serviceId);
-      }
-      
-      const serviceChars = this.characteristics.get(serviceId);
-      if (!serviceChars) {
-        throw new Error(`服务${serviceId}的特征值未找到`);
-      }
-      
-      const characteristic = serviceChars.get(characteristicId);
-      if (!characteristic) {
-        throw new Error(`特征值${characteristicId}未找到`);
-      }
-      
-      if (state) {
-        await characteristic.startNotifications();
-        
-        // 创建并存储事件监听器，以便以后可以移除
-        const listenerKey = `${deviceId}_${serviceId}_${characteristicId}`;
-        
-        // 创建类型安全的事件监听器
-        const listener = function(event: Event) {
-          // 安全地转换类型
-          if (event.target && event.target instanceof EventTarget) {
-            // Web Bluetooth API中，值在characteristicvaluechanged事件中
-            if ('readValue' in (event.target as any)) {
-              try {
-                const characteristic = event.target as any;
-                characteristic.readValue().then((dataView: DataView) => {
-                  logger.debug('特征值变化:', new Uint8Array(dataView.buffer));
-                });
-              } catch (error) {
-                logger.error('读取特征值变化失败', error);
-              }
-            }
-          }
-        };
-        
-        this.eventListeners.set(listenerKey, listener as EventListener);
-        
-        // 添加通知事件监听器
-        characteristic.addEventListener('characteristicvaluechanged', this.eventListeners.get(listenerKey)!);
-      } else {
-        await characteristic.stopNotifications();
-        
-        // 获取并移除事件监听器
-        const listenerKey = `${deviceId}_${serviceId}_${characteristicId}`;
-        const listener = this.eventListeners.get(listenerKey);
-        if (listener) {
-          characteristic.removeEventListener('characteristicvaluechanged', listener);
-          this.eventListeners.delete(listenerKey);
-        }
-      }
-      
-      return true;
-    } catch (error) {
-      logger.error('监听特征值变化失败', error);
-      return false;
-    }
-  }
-  
+
+  /**
+   * 销毁适配器
+   * @returns {Promise<boolean>} 是否成功销毁
+   */
   async destroy(): Promise<boolean> {
-    try {
-      if (this.gattServer && this.gattServer.connected) {
-        this.gattServer.disconnect();
-      }
-      
-      // 清除所有事件监听器
-      this.eventListeners.clear();
-      
-      this.device = null;
-      this.gattServer = null;
-      this.services.clear();
-      this.characteristics.clear();
-      
-      return true;
-    } catch (error) {
-      logger.error('销毁蓝牙适配器失败', error);
-      return false;
-    }
+    // 清理事件监听器
+    this.eventListeners.forEach((listener, key) => {
+      window.removeEventListener(key, listener as EventListener);
+    });
+    this.eventListeners.clear();
+
+    // 断开连接
+    await this.disconnect();
+
+    // 清理资源
+    this.device = null;
+    this.gattServer = null;
+    this.services.clear();
+    this.characteristics.clear();
+
+    return true;
   }
-} 
+}
