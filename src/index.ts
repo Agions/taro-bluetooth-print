@@ -2,20 +2,22 @@ import { BluetoothManager } from './bluetooth';
 import { PrinterManager } from './printer';
 import { Commands } from './printer/commands';
 import { logger } from './utils/logger';
-import { configManager, PrinterOptions } from './utils/config';
+import { configManager, type PrinterOptions } from './utils/config';
 import { eventManager, EVENTS } from './utils/events';
 import { Result, ErrorCode, PrinterError } from './types';
 
 // 导出类型和类
-export { 
+export {
   BluetoothManager,
   PrinterManager,
   Commands,
   EVENTS,
-  PrinterOptions,
   ErrorCode,
   PrinterError
 };
+
+// 导出类型定义
+export type { PrinterOptions };
 
 /**
  * Taro蓝牙打印库主类
@@ -48,7 +50,7 @@ export default class TaroBluePrint {
    * 获取库版本号
    */
   public getVersion(): string {
-    return '1.0.0'; // 每次发布更新此版本号
+    return '1.0.9'; // 每次发布更新此版本号
   }
 
   /**

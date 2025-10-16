@@ -1,10 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "module": "es2015",
-    "lib": ["es2015", "es2016", "es2017", "dom"],
+    "target": "es2018",
+    "module": "esnext",
+    "lib": ["es2018", "es2019", "es2020", "dom"],
     "declaration": true,
     "declarationDir": "dist/types",
+    "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
     "strict": true,
@@ -14,10 +15,11 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations":"6.0",
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
@@ -26,11 +28,17 @@
     },
     "typeRoots": ["./node_modules/@types", "./src/types", "./src/**/*.d.ts"],
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "removeComments": true,
-    "importHelpers": true
+    "removeComments": false,
+    "importHelpers": false,
+    "isolatedModules": true,
+    "noEmit": false,
+    "composite": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": ["src"],
-  "exclude": ["dist", "node_modules", "**/__tests__/*"]
+  "exclude": ["dist", "node_modules", "**/__tests__/*", "build", "docs"]
 }

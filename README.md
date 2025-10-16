@@ -4,9 +4,9 @@
 
 ## 最新版本
 
-[![npm version](https://img.shields.io/badge/npm-1.0.8-blue.svg)](https://www.npmjs.com/package/taro-bluetooth-print)
+[![npm version](https://img.shields.io/badge/npm-1.0.9-blue.svg)](https://www.npmjs.com/package/taro-bluetooth-print)
 
-最新版本（1.0.8）优化了代码结构和性能，包括模块化重构、错误处理改进和构建流程优化。详见[更新日志](./CHANGELOG.md)。
+最新版本（1.0.9）进行了重大更新，包括构建系统重构（Vite + webpack）、文档系统升级（VitePress + PWA）、跨平台兼容性优化和性能提升。详见[更新日志](./CHANGELOG.md)。
 
 ## 特性
 

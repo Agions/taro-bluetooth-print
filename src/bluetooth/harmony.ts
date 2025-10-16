@@ -46,7 +46,8 @@ declare global {
     harmony?: HarmonyContext;
   }
 
-  var global: any;
+  // 使用类型断言来避免冲突
+  // var global: any;
   
   namespace NodeJS {
     interface ProcessEnv {
@@ -67,8 +68,7 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
   private deviceList: Map<string, any> = new Map();
   private connectedDevice: any = null;
   private bleManager: any = null;
-  private serviceCache: Map<string, any[]> = new Map();
-  private characteristicCache: Map<string, Map<string, any[]>> = new Map();
+  private eventListeners: Map<string, Function> = new Map();
   
   /**
    * 获取鸿蒙运行时环境
@@ -85,9 +85,9 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
     }
     
     // 检查全局对象中是否有鸿蒙特有的API
-    const globalObj = typeof global !== 'undefined' ? global : 
-                      typeof window !== 'undefined' ? window : 
-                      typeof self !== 'undefined' ? self : 
+    const globalObj = typeof globalThis !== 'undefined' ? globalThis :
+                      typeof window !== 'undefined' ? window :
+                      typeof self !== 'undefined' ? self :
                       {};
                       
     if ('harmony' in globalObj) {
@@ -96,8 +96,58 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
     
     return null;
   }
-  
-  async init(): Promise<boolean> {
+
+  /**
+   * 监听蓝牙状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothAdapterStateChange(callback: (state: { available: boolean, discovering: boolean }) => void): void {
+    const listener = () => {
+      const state = {
+        available: !!this.bleManager,
+        discovering: false // 鸿蒙平台暂不支持发现状态检测
+      };
+      callback(state);
+    };
+    this.eventListeners.set('adapterStateChange', listener);
+    window.addEventListener('load', listener as EventListener);
+  }
+
+  /**
+   * 监听设备发现
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceFound(callback: (device: BluetoothDevice) => void): void {
+    const listener = (device: any) => {
+      callback({
+        deviceId: device.deviceId,
+        name: device.name || device.localName || '未知设备',
+        deviceName: device.name || device.localName,
+        RSSI: device.RSSI,
+        localName: device.localName
+      });
+    };
+    this.eventListeners.set('deviceFound', listener);
+    if (this.bleManager) {
+      this.bleManager.on('BLEDeviceFind', listener);
+    }
+  }
+
+  /**
+   * 监听连接状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceConnectionChange(callback: (deviceId: string, connected: boolean) => void): void {
+    const listener = (deviceId: string, connected: boolean) => {
+      callback(deviceId, connected);
+    };
+    this.eventListeners.set('connectionChange', listener);
+    if (this.bleManager) {
+      this.bleManager.on('BLEConnectionChange', listener);
+    }
+  }
+
+  async initialize(): Promise<boolean> {
     try {
       // 获取鸿蒙运行时
       const harmonyRuntime = this.getHarmonyRuntime();
@@ -206,7 +256,7 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
   async getAdapterState(): Promise<any> {
     try {
       if (!this.bleManager) {
-        await this.init();
+        await this.initialize();
       }
       
       // 鸿蒙OS获取蓝牙状态
@@ -221,7 +271,7 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
   async startDiscovery(): Promise<boolean> {
     try {
       if (!this.bleManager) {
-        await this.init();
+        await this.initialize();
       }
       
       // 清空设备列表
@@ -273,7 +323,7 @@ export class HarmonyBluetoothAdapter implements BluetoothAdapter {
   async connect(deviceId: string): Promise<boolean> {
     try {
       if (!this.bleManager) {
-        await this.init();
+        await this.initialize();
       }
       
       const device = this.deviceList.get(deviceId);

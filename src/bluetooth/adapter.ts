@@ -19,6 +19,8 @@ export interface BluetoothDevice {
   deviceId: string;
   name: string;
   deviceName: string;
+  RSSI?: number; // 信号强度（可选）
+  localName?: string; // 本地名称（可选）
   gatt?: any; // H5 平台特有属性
 }
 

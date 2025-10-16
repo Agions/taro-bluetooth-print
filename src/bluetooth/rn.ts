@@ -24,25 +24,6 @@ declare global {
   function importScripts(...urls: string[]): void;
 }
 
-// 声明模块类型，使用条件导入
-interface BleManagerType {
-  constructor(): any;
-  state(): Promise<string>;
-  startDeviceScan(serviceUUIDs: string[] | null, options: any | null, listener: (error: any, device: any) => void): void;
-  stopDeviceScan(): void;
-  connectToDevice(deviceId: string, options?: any): Promise<any>;
-  cancelDeviceConnection(deviceId: string): Promise<any>;
-  devices(deviceIds: string[]): Promise<any[]>;
-  discoverAllServicesAndCharacteristicsForDevice(deviceId: string): Promise<any>;
-  servicesForDevice(deviceId: string): Promise<any[]>;
-  characteristicsForDevice(deviceId: string, serviceUUID: string): Promise<any[]>;
-  readCharacteristicForDevice(deviceId: string, serviceUUID: string, characteristicUUID: string): Promise<any>;
-  writeCharacteristicWithResponseForDevice(deviceId: string, serviceUUID: string, characteristicUUID: string, value: string): Promise<any>;
-  writeCharacteristicWithoutResponseForDevice(deviceId: string, serviceUUID: string, characteristicUUID: string, value: string): Promise<any>;
-  monitorCharacteristicForDevice(deviceId: string, serviceUUID: string, characteristicUUID: string, listener: (error: any, characteristic: any) => void, transactionId?: string): any;
-  cancelTransaction(transactionId: string): void;
-  destroy(): void;
-}
 
 // 替代声明模块，直接定义接口类型
 let BleManager: any = null;
@@ -111,8 +92,57 @@ export class RNBluetoothAdapter implements BluetoothAdapter {
   private connectedDevice: any = null;
   private discoveredDevices: Map<string, any> = new Map();
   private transactionIds: Set<string> = new Set();
-  
-  async init(): Promise<boolean> {
+  private eventListeners: Map<string, Function> = new Map();
+
+  /**
+   * 监听蓝牙状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothAdapterStateChange(callback: (state: { available: boolean, discovering: boolean }) => void): void {
+    const listener = () => {
+      if (this.manager) {
+        this.manager.state().then((state: string) => {
+          callback({
+            available: state === 'PoweredOn',
+            discovering: false // RN 暂不支持发现状态检测
+          });
+        });
+      }
+    };
+    this.eventListeners.set('adapterStateChange', listener);
+  }
+
+  /**
+   * 监听设备发现
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceFound(callback: (device: BluetoothDevice) => void): void {
+    const listener = (error: any, device: any) => {
+      if (!error && device) {
+        callback({
+          deviceId: device.id,
+          name: device.name || device.localName || '未知设备',
+          deviceName: device.name || device.localName,
+          RSSI: device.rssi,
+          localName: device.localName
+        });
+      }
+    };
+    this.eventListeners.set('deviceFound', listener);
+  }
+
+  /**
+   * 监听连接状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceConnectionChange(callback: (deviceId: string, connected: boolean) => void): void {
+    const listener = (deviceId: string, connected: boolean) => {
+      callback(deviceId, connected);
+    };
+    this.eventListeners.set('connectionChange', listener);
+  }
+
+  async initialize(): Promise<boolean> {
     try {
       // 尝试加载BleManager
       const BleManagerClass = await loadBleManager();
@@ -140,7 +170,7 @@ export class RNBluetoothAdapter implements BluetoothAdapter {
   async getAdapterState(): Promise<any> {
     try {
       if (!this.manager) {
-        await this.init();
+        await this.initialize();
       }
       
       const state = await this.manager.state();
@@ -157,7 +187,7 @@ export class RNBluetoothAdapter implements BluetoothAdapter {
   async startDiscovery(): Promise<boolean> {
     try {
       if (!this.manager) {
-        await this.init();
+        await this.initialize();
       }
       
       this.discoveredDevices.clear();
@@ -218,7 +248,7 @@ export class RNBluetoothAdapter implements BluetoothAdapter {
   async connect(deviceId: string): Promise<boolean> {
     try {
       if (!this.manager) {
-        await this.init();
+        await this.initialize();
       }
       
       await this.stopDiscovery();
@@ -383,7 +413,7 @@ export class RNBluetoothAdapter implements BluetoothAdapter {
       if (state) {
         const transactionId = `monitor_${serviceId}_${characteristicId}`;
         
-        const subscription = this.manager.monitorCharacteristicForDevice(
+        this.manager.monitorCharacteristicForDevice(
           deviceId,
           serviceId,
           characteristicId,

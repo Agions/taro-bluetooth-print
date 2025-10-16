@@ -6,62 +6,24 @@
 import { BluetoothAdapter, BluetoothDevice } from './adapter';
 import { logger } from '../utils/logger';
 
-// 为 Web Bluetooth API 添加类型定义
-declare global {
-  interface Navigator {
-    bluetooth?: {
-      requestDevice(options?: any): Promise<any>;
-      getAvailability(): Promise<boolean>;
-    };
-  }
+// 类型别名，避免与全局类型冲突
+type WebBluetoothNavigator = Navigator & {
+  bluetooth?: {
+    requestDevice(options?: any): Promise<any>;
+    getAvailability(): Promise<boolean>;
+  };
+};
 
-  interface BluetoothRemoteGATTServer {
-    connected: boolean;
-    device: any;
-    connect(): Promise<BluetoothRemoteGATTServer>;
-    disconnect(): void;
-    getPrimaryServices(service?: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService[]>;
-  }
-
-  interface BluetoothRemoteGATTService {
-    uuid: string;
-    device: any;
-    isPrimary: boolean;
-    getCharacteristics(characteristic?: BluetoothCharacteristicUUID): Promise<BluetoothRemoteGATTCharacteristic[]>;
-  }
-
-  interface BluetoothRemoteGATTCharacteristic {
-    uuid: string;
-    service: BluetoothRemoteGATTService;
-    properties: {
-      broadcast: boolean;
-      read: boolean;
-      writeWithoutResponse: boolean;
-      write: boolean;
-      notify: boolean;
-      indicate: boolean;
-      authenticatedSignedWrites: boolean;
-      reliableWrite: boolean;
-      writableAuxiliaries: boolean;
-    };
-    readValue(): Promise<DataView>;
-    writeValue(value: BufferSource): Promise<void>;
-    startNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
-    stopNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
-    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
-    removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean): void;
-  }
-
-  type BluetoothServiceUUID = string | number;
-  type BluetoothCharacteristicUUID = string | number;
-
-  // Web Bluetooth API 的设备类型
-  interface WebBluetoothDevice {
-    id: string;
-    name: string;
-    gatt: BluetoothRemoteGATTServer;
-  }
+// Web Bluetooth API 的设备类型
+interface WebBluetoothDevice {
+  id: string;
+  name: string;
+  gatt: BluetoothRemoteGATTServer;
 }
+
+// Bluetooth 类型定义（按需使用）
+// type BluetoothServiceUUID = string | number;
+// type BluetoothCharacteristicUUID = string | number;
 
 export default class H5BluetoothAdapter implements BluetoothAdapter {
   private bluetooth: any = null;
@@ -72,7 +34,7 @@ export default class H5BluetoothAdapter implements BluetoothAdapter {
   private eventListeners: Map<string, EventListener> = new Map();
 
   constructor() {
-    this.bluetooth = navigator.bluetooth;
+    this.bluetooth = (navigator as WebBluetoothNavigator).bluetooth;
   }
 
   /**

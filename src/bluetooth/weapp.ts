@@ -3,7 +3,51 @@ import { BluetoothAdapter, BluetoothDevice } from './adapter';
 import { logger } from '../utils/logger';
 
 export class WeappBluetoothAdapter implements BluetoothAdapter {
-  async init(): Promise<boolean> {
+  /**
+   * 监听蓝牙状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothAdapterStateChange(callback: (state: { available: boolean, discovering: boolean }) => void): void {
+    Taro.onBluetoothAdapterStateChange((res) => {
+      callback({
+        available: res.available,
+        discovering: res.discovering
+      });
+    });
+  }
+
+  /**
+   * 监听设备发现
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceFound(callback: (device: BluetoothDevice) => void): void {
+    Taro.onBluetoothDeviceFound((res) => {
+      const devices = res.devices || [];
+      devices.forEach(device => {
+        if (device) {
+          callback({
+            deviceId: device.deviceId,
+            name: device.name || device.localName || '未知设备',
+            deviceName: device.name || device.localName,
+            RSSI: device.RSSI,
+            localName: device.localName
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * 监听连接状态变化
+   * @param callback 回调函数
+   */
+  onBluetoothDeviceConnectionChange(callback: (deviceId: string, connected: boolean) => void): void {
+    Taro.onBLEConnectionStateChange((res) => {
+      callback(res.deviceId, res.connected);
+    });
+  }
+
+  async initialize(): Promise<boolean> {
     try {
       await Taro.openBluetoothAdapter();
       return true;
@@ -50,8 +94,8 @@ export class WeappBluetoothAdapter implements BluetoothAdapter {
       return (res.devices || []).map(device => ({
         deviceId: device.deviceId,
         name: device.name || device.localName || '未知设备',
+        deviceName: device.name || device.localName,
         RSSI: device.RSSI,
-        advertisData: device.advertisData,
         localName: device.localName
       }));
     } catch (error) {
@@ -124,14 +168,14 @@ export class WeappBluetoothAdapter implements BluetoothAdapter {
 
   async read(deviceId: string, serviceId: string, characteristicId: string): Promise<ArrayBuffer> {
     try {
-      const res = await Taro.readBLECharacteristicValue({
+      await Taro.readBLECharacteristicValue({
         deviceId,
         serviceId,
         characteristicId
       });
-      
+
       // 微信小程序需要使用特定的 API 获取特征值
-      return await new Promise<ArrayBuffer>((resolve, reject) => {
+      return await new Promise<ArrayBuffer>((resolve) => {
         Taro.onBLECharacteristicValueChange((result) => {
           if (result.characteristicId === characteristicId) {
             resolve(result.value);

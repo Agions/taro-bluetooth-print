@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated documentation
+docs/api/
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Config files that shouldn't be formatted
+*.config.js
+*.config.ts
+.eslintrc.*
+.prettierrc.*
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Cache
+.cache/
+.swc/
+.turbo/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated or minified files
+*.min.js
+*.min.css
+*.bundle.js
+*.chunk.js
+
+# Test fixtures
+tests/fixtures/
+
+# Documentation build artifacts
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/public/sw.js

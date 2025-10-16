@@ -33,4 +33,24 @@ coverage/
 .cache/
 .swc/
 .npm/
-.pnpm-store/ 
+.pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+
+# 临时文件
+*.tmp
+Thumbs.db
+
+# 文档生成临时文件
+docs/api/
+.temp-api-docs/
+
+# VitePress构建输出
+docs/.vitepress/dist
+docs/.vitepress/cache
+
+.claude
+.specify
+specs
+CLAUDE.md
