@@ -36,7 +36,7 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "docs:api": "node scripts/generate-api-docs.js",
-    "docs:full": "npm run docs:api && npm run docs:build",
+    "docs:full": "npm run docs:build",
     "test": "jest --coverage",
     "test:build": "npm run build && npm run test",
     "analyze": "node scripts/bundle-analyzer.js",
