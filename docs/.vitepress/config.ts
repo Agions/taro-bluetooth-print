@@ -70,7 +70,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/your-repo/taro-bluetooth-print' }
+      { icon: 'github', link: 'https://github.com/Agions/taro-bluetooth-print' }
     ],
 
     footer: {
@@ -83,7 +83,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/your-repo/taro-bluetooth-print/edit/main/docs/:path',
+      pattern: 'https://github.com/Agions/taro-bluetooth-print/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页面'
     }
   },
@@ -126,7 +126,7 @@ export default defineConfig({
     ['meta', { property: 'og:title', content: 'Taro Bluetooth Print' }],
     ['meta', { property: 'og:description', content: '基于 Taro 的蓝牙打印机库文档' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:url', content: 'https://your-repo.github.io/taro-bluetooth-print/' }],
+    ['meta', { property: 'og:url', content: 'https://Agions.github.io/taro-bluetooth-print/' }],
     ['meta', { property: 'og:image', content: '/og-image.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:site', content: '@your-handle' }],

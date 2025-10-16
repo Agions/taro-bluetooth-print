@@ -7,6 +7,7 @@
 ### 开发环境设置
 
 1. **Fork 仓库**
+
    ```bash
    # 在 GitHub 上 fork 项目
    # 然后克隆你的 fork
@@ -15,27 +16,37 @@
    ```
 
 2. **设置上游仓库**
+
    ```bash
    git remote add upstream https://github.com/original-repo/taro-bluetooth-print.git
    ```
 
 3. **安装依赖**
+
    ```bash
    npm install
    ```
 
 4. **创建开发分支**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 5. **进行开发**
+
    ```bash
-   # 启动开发模式
+   # 启动库开发构建（Vite，watch）
    npm run dev
 
-   # 启动文档开发服务器
+   # 启动文档开发服务器（VitePress）
    npm run docs:dev
+
+   # 如有 API 变更，先生成/更新 API 文档
+   npm run docs:api
+
+   # 预览已构建的文档
+   npm run docs:preview
    ```
 
 ## 📝 贡献类型
@@ -120,6 +131,7 @@ npm run format
 ```
 
 **类型 (type)**：
+
 - `feat`: 新功能
 - `fix`: Bug 修复
 - `docs`: 文档更新
@@ -129,6 +141,7 @@ npm run format
 - `chore`: 构建工具、依赖更新等
 
 **示例**：
+
 ```
 feat(bluetooth): 添加设备自动重连功能
 
@@ -151,11 +164,13 @@ Closes #123
 ### 测试要求
 
 1. **运行所有测试**
+
    ```bash
    npm test
    ```
 
 2. **检查测试覆盖率**
+
    ```bash
    npm run test:coverage
    ```
@@ -170,14 +185,26 @@ Closes #123
 提交前请确保：
 
 ```bash
-# 构建项目
+# 构建库（Vite）
 npm run build
 
-# 检查构建输出
+# 生成类型声明
+npm run build:types
+
+# 验证构建产物
 npm run validate
 
-# 构建文档
+# 生成/更新 API 文档（如有 API 变更）
+npm run docs:api
+
+# 构建文档（VitePress）
 npm run docs:build
+
+# 预览文档
+npm run docs:preview
+
+# 一键生成 API 文档并构建站点
+npm run docs:full
 ```
 
 ## 📋 提交流程
@@ -232,28 +259,35 @@ git push origin feature/your-feature-name
 ## 📖 PR 模板
 
 ### Title
+
 ```
 <type>(<scope>): <description>
 ```
 
 ### Description
+
 **解决的问题**：
+
 - 描述这个 PR 解决的问题
 
 **变更内容**：
+
 - 详细说明主要变更
 - 添加的技术债务清理
 
 **测试**：
+
 - [ ] 单元测试通过
 - [ ] 集成测试通过
 - [ ] 手动测试完成
 
 **文档**：
+
 - [ ] 已更新相关文档
 - [ ] 添加了新的示例
 
 **检查清单**：
+
 - [ ] 代码符合项目规范
 - [ ] 提交信息符合规范
 - [ ] 没有引入新的警告
@@ -263,21 +297,23 @@ git push origin feature/your-feature-name
 
 ```
 taro-bluetooth-print/
-├── src/                    # 源代码
-│   ├── bluetooth/         # 蓝牙功能
-│   ├── printer/           # 打印机功能
-│   ├── components/        # UI 组件
-│   ├── utils/             # 工具函数
-│   └── types/             # 类型定义
-├── docs/                   # 文档
-│   ├── .vitepress/        # VitePress 配置
-│   ├── guide/             # 用户指南
-│   ├── examples/          # 示例代码
-│   └── reference/         # 参考文档
-├── tests/                  # 测试文件
-├── build/                  # 构建配置
-├── scripts/                # 脚本文件
-└── specs/                  # 规格文档
+├── src/                      # 源代码（bluetooth/printer/components/utils/types）
+├── docs/                     # 文档站（VitePress）
+│   ├── .vitepress/           # VitePress 配置
+│   ├── guide/                # 用户指南
+│   ├── examples/             # 示例
+│   ├── reference/            # 参考（FAQ/Changelog/Contributing/Migration）
+│   └── api/                  # 由 docs:api 生成的 API 文档（如启用）
+├── scripts/                  # 构建/分析/验证脚本
+├── tests/                    # 测试
+├── vite.config.ts            # Vite 构建配置
+├── webpack.config.js         # webpack 构建配置（可选）
+├── tsconfig.json
+├── tsconfig.build.json
+├── package.json
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
 ```
 
 ## 🧪 测试指南
@@ -286,10 +322,10 @@ taro-bluetooth-print/
 
 ```typescript
 // tests/unit/bluetooth.test.ts
-import { BluetoothManager } from '../../src/bluetooth'
+import { BluetoothManager } from "../../src/bluetooth"
 
-describe('BluetoothManager', () => {
-  test('should initialize successfully', async () => {
+describe("BluetoothManager", () => {
+  test("should initialize successfully", async () => {
     const bluetooth = new BluetoothManager()
     const result = await bluetooth.init()
     expect(result).toBe(true)
@@ -301,10 +337,10 @@ describe('BluetoothManager', () => {
 
 ```typescript
 // tests/integration/print-flow.test.ts
-import { TaroBluePrint } from '../../src/index'
+import { TaroBluePrint } from "../../src/index"
 
-describe('Print Flow Integration', () => {
-  test('should complete print workflow', async () => {
+describe("Print Flow Integration", () => {
+  test("should complete print workflow", async () => {
     const printer = new TaroBluePrint()
     // 集成测试逻辑
   })
@@ -325,8 +361,9 @@ describe('Print Flow Integration', () => {
 - 使用 JSDoc 格式添加注释
 - 包含参数说明和返回值
 - 提供使用示例
+- 如有 API 变更，请运行并提交生成的文档：[shell.bash()](package.json:38) `npm run docs:api`（会更新 [docs/api/](docs/api/)）
 
-```typescript
+````typescript
 /**
  * 连接蓝牙设备
  * @param deviceId 设备ID
@@ -341,7 +378,7 @@ describe('Print Flow Integration', () => {
  * ```
  */
 async connect(deviceId: string, options?: ConnectOptions): Promise<boolean>
-```
+````
 
 ### 示例代码
 
@@ -365,10 +402,12 @@ DEBUG=taro-bluetooth-print* npm run dev
 ### 常见问题
 
 1. **TypeScript 编译错误**
+
    - 检查 tsconfig.json 配置
    - 确保类型定义正确
 
 2. **构建失败**
+
    - 清除缓存：`npm run clean`
    - 重新安装依赖：`rm -rf node_modules && npm install`
 
@@ -381,16 +420,19 @@ DEBUG=taro-bluetooth-print* npm run dev
 项目维护者负责发布新版本：
 
 1. **更新版本号**
+
    ```bash
    npm version patch|minor|major
    ```
 
 2. **生成更新日志**
+
    ```bash
    npm run changelog
    ```
 
 3. **发布到 npm**
+
    ```bash
    npm publish
    ```
@@ -433,15 +475,15 @@ DEBUG=taro-bluetooth-print* npm run dev
 
 ## 📄 许可证
 
-通过贡献代码，您同意您的贡献将在项目的 [MIT 许可证](https://github.com/your-repo/taro-bluetooth-print/blob/main/LICENSE) 下发布。
+通过贡献代码，您同意您的贡献将在项目的 [MIT 许可证](https://github.com/Agions/taro-bluetooth-print/blob/main/LICENSE) 下发布。
 
 ## 📞 联系方式
 
 如果您有任何问题或建议，可以通过以下方式联系我们：
 
-- GitHub Issues: [创建新 Issue](https://github.com/your-repo/taro-bluetooth-print/issues/new)
-- GitHub Discussions: [参与讨论](https://github.com/your-repo/taro-bluetooth-print/discussions)
-- Email: [your-email@example.com]
+- GitHub Issues: [创建新 Issue](https://github.com/Agions/taro-bluetooth-print/issues/new)
+- GitHub Discussions: [参与讨论](https://github.com/Agions/taro-bluetooth-print/discussions)
+- Email: [agions@qq.com]
 
 ---
 

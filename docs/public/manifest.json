@@ -10,7 +10,13 @@
   "scope": "/taro-bluetooth-print/",
   "lang": "zh-CN",
   "dir": "ltr",
-  "categories": ["development", "documentation", "mobile", "bluetooth", "printer"],
+  "categories": [
+    "development",
+    "documentation",
+    "mobile",
+    "bluetooth",
+    "printer"
+  ],
   "shortcuts": [
     {
       "name": "快速开始",
@@ -133,7 +139,7 @@
   "related_applications": [
     {
       "platform": "webapp",
-      "url": "https://github.com/your-repo/taro-bluetooth-print"
+      "url": "https://github.com/Agions/taro-bluetooth-print"
     }
   ],
   "prefer_related_applications": false,
@@ -162,8 +168,13 @@
     {
       "action": "/taro-bluetooth-print/view-file",
       "accept": {
-        "application/json": [".json"],
-        "text/plain": [".txt", ".md"]
+        "application/json": [
+          ".json"
+        ],
+        "text/plain": [
+          ".txt",
+          ".md"
+        ]
       }
     }
   ]

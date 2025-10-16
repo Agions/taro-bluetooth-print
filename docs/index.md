@@ -86,7 +86,7 @@ await printer.disconnect()
 
 ## 📄 许可证
 
-[MIT](https://github.com/your-repo/taro-bluetooth-print/blob/main/LICENSE)
+[MIT](https://github.com/Agions/taro-bluetooth-print/blob/main/LICENSE)
 
 ---
 

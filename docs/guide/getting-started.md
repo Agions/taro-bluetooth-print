@@ -26,7 +26,7 @@ pnpm add taro-bluetooth-print
 ### 1. 导入库
 
 ```typescript
-import { BluetoothPrinter } from 'taro-bluetooth-print'
+import { BluetoothPrinter } from "taro-bluetooth-print"
 ```
 
 ### 2. 创建打印机实例
@@ -35,7 +35,7 @@ import { BluetoothPrinter } from 'taro-bluetooth-print'
 const printer = new BluetoothPrinter({
   // 可选配置
   debug: true, // 开启调试模式
-  timeout: 30000 // 连接超时时间（毫秒）
+  timeout: 30000, // 连接超时时间（毫秒）
 })
 ```
 
@@ -45,13 +45,13 @@ const printer = new BluetoothPrinter({
 try {
   // 获取可用设备列表
   const devices = await printer.getDevices()
-  console.log('可用设备:', devices)
+  console.log("可用设备:", devices)
 
   // 连接到指定设备
   await printer.connect(devices[0].deviceId)
-  console.log('连接成功!')
+  console.log("连接成功!")
 } catch (error) {
-  console.error('连接失败:', error)
+  console.error("连接失败:", error)
 }
 ```
 
@@ -59,22 +59,22 @@ try {
 
 ```typescript
 // 打印文本
-await printer.printText('Hello, Taro Bluetooth Print!')
+await printer.printText("Hello, Taro Bluetooth Print!")
 
 // 打印换行
 await printer.newLine()
 
 // 打印带样式的文本
-await printer.printText('大号文本', {
+await printer.printText("大号文本", {
   fontSize: 24,
   bold: true,
-  align: 'center'
+  align: "center",
 })
 
 // 打印图片
-await printer.printImage('/path/to/image.png', {
+await printer.printImage("/path/to/image.png", {
   width: 200,
-  height: 150
+  height: 150,
 })
 ```
 
@@ -82,13 +82,13 @@ await printer.printImage('/path/to/image.png', {
 
 ```typescript
 await printer.disconnect()
-console.log('已断开连接')
+console.log("已断开连接")
 ```
 
 ## 完整示例
 
 ```typescript
-import { BluetoothPrinter } from 'taro-bluetooth-print'
+import { BluetoothPrinter } from "taro-bluetooth-print"
 
 async function printExample() {
   const printer = new BluetoothPrinter()
@@ -97,23 +97,23 @@ async function printExample() {
     // 获取设备列表
     const devices = await printer.getDevices()
     if (devices.length === 0) {
-      console.log('未找到可用设备')
+      console.log("未找到可用设备")
       return
     }
 
     // 连接设备
     await printer.connect(devices[0].deviceId)
-    console.log('设备连接成功')
+    console.log("设备连接成功")
 
     // 打印内容
-    await printer.printText('=== 测试打印 ===', {
+    await printer.printText("=== 测试打印 ===", {
       fontSize: 20,
       bold: true,
-      align: 'center'
+      align: "center",
     })
 
     await printer.newLine()
-    await printer.printText('这是测试文本内容')
+    await printer.printText("这是测试文本内容")
     await printer.newLine()
 
     // 打印当前时间
@@ -123,10 +123,9 @@ async function printExample() {
     await printer.feedPaper(3) // 走纸3行
     await printer.cutPaper() // 切纸
 
-    console.log('打印完成')
-
+    console.log("打印完成")
   } catch (error) {
-    console.error('打印失败:', error)
+    console.error("打印失败:", error)
   } finally {
     // 断开连接
     await printer.disconnect()
@@ -171,4 +170,4 @@ printExample()
 
 - 查看 [API 文档](/api/)
 - 浏览 [示例代码](/examples/)
-- 提交 [GitHub Issue](https://github.com/your-repo/taro-bluetooth-print/issues)
+- 提交 [GitHub Issue](https://github.com/Agions/taro-bluetooth-print/issues)
