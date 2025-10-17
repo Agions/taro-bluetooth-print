@@ -28,13 +28,23 @@ jobs:
           node-version: "18"
           cache: "npm"
 
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build VitePress site (include API docs)
         run: npm run docs:full
-        # docs:full = docs:api + docs:build
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        # docs:full 目前仅执行 vitepress build（见 package.json）
         # 产物输出目录：docs/.vitepress/dist（已在 docs/.vitepress/config.ts 配置）
+
+      - name: Verify build output
+        run: |
+          ls -la docs/.vitepress
+          ls -la docs/.vitepress/dist
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
