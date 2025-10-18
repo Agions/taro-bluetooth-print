@@ -5,8 +5,12 @@
  * 验证部署后的文档站点是否正常工作
  */
 
-const https = require('https');
-const { execSync } = require('child_process');
+import https from 'https';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const BASE_URL = 'https://agions.github.io/taro-bluetooth-print';
 const PAGES_TO_CHECK = [
@@ -89,8 +93,8 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(console.error);
 }
 
-module.exports = { checkPage, PAGES_TO_CHECK };
+export { checkPage, PAGES_TO_CHECK };

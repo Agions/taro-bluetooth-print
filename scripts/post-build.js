@@ -5,8 +5,12 @@
  * 确保所有GitHub Pages需要的文件都存在
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DIST_DIR = path.join(__dirname, '../docs/.vitepress/dist');
 
@@ -122,8 +126,8 @@ function validateBuild() {
   const criticalPaths = [
     'api/index.html',
     'examples/index.html',
-    'guide/index.html',
-    'reference/index.html'
+    'guide/getting-started.html',
+    'reference/changelog.html'
   ];
 
   let allGood = true;
@@ -137,10 +141,10 @@ function validateBuild() {
   });
 
   console.log('\n📂 检查关键路径:');
-  criticalPaths.forEach(path => {
-    const fullPath = path.join(DIST_DIR, path);
+  criticalPaths.forEach(filePath => {
+    const fullPath = path.join(DIST_DIR, filePath);
     const exists = fs.existsSync(fullPath);
-    console.log(`  ${exists ? '✅' : '❌'} ${path}`);
+    console.log(`  ${exists ? '✅' : '❌'} ${filePath}`);
     if (!exists) allGood = false;
   });
 
@@ -152,9 +156,14 @@ function validateBuild() {
   }
 }
 
-if (require.main === module) {
+// 检查是否直接运行此脚本
+const isMainModule = import.meta.url === `file://${process.argv[1]}` ||
+                   import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` ||
+                   process.argv[1].endsWith('post-build.js');
+
+if (isMainModule) {
   createEssentialFiles();
   validateBuild();
 }
 
-module.exports = { createEssentialFiles, validateBuild };
+export { createEssentialFiles, validateBuild };

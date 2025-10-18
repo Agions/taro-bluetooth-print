@@ -5,8 +5,12 @@
  * 用于诊断GitHub Pages部署问题
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DIST_DIR = path.join(__dirname, '../docs/.vitepress/dist');
 
@@ -131,8 +135,8 @@ function debugBuild() {
   console.log('4. 仓库的GitHub Pages权限');
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   debugBuild();
 }
 
-module.exports = { debugBuild };
+export { debugBuild };
