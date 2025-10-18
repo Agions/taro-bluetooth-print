@@ -9,6 +9,15 @@ export default defineConfig({
   // 暂时忽略死链接检查
   ignoreDeadLinks: true,
 
+  // 优化GitHub Pages部署配置
+  cleanUrls: true,
+  rewrites: {
+    'api/index.html': '/api/',
+    'examples/index.html': '/examples/',
+    'guide/index.html': '/guide/',
+    'reference/index.html': '/reference/'
+  },
+
   // Theme configuration
   themeConfig: {
     nav: [
@@ -191,7 +200,8 @@ export default defineConfig({
           }
         }
       ],
-      navigateFallbackDenylist: [/^\/api\//],
+      navigateFallbackDenylist: [/^\/api\//, /^\/examples\//, /^\/guide\//, /^\/reference\//],
+      navigateFallback: '/taro-bluetooth-print/index.html',
       skipWaiting: true,
       clientsClaim: true
     },

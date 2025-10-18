@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting to /taro-bluetooth-print/</title>
+  <script>
+    // 检测当前路径并重定向到正确的基础路径
+    if (window.location.pathname === '/') {
+      window.location.href = '/taro-bluetooth-print/';
+    } else if (!window.location.pathname.startsWith('/taro-bluetooth-print/')) {
+      window.location.href = '/taro-bluetooth-print' + window.location.pathname;
+    }
+  </script>
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=/taro-bluetooth-print/">
+  </noscript>
+</head>
+<body>
+  <p>Redirecting to documentation...</p>
+</body>
+</html>

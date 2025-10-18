@@ -50,11 +50,27 @@ jobs:
         env:
           NODE_OPTIONS: --max_old_space_size=4096
           CI: true
+          GITHUB_PAGES: true
 
-      - name: Verify build output
+      - name: Copy .nojekyll for GitHub Pages
+        run: |
+          cp .nojekyll docs/.vitepress/dist/
+          echo "Copied .nojekyll to dist directory"
+
+      - name: Verify build output and routing
         run: |
           ls -la docs/.vitepress/dist || exit 1
-          echo "Build artifacts verified successfully"
+
+          # 验证关键文件存在
+          test -f docs/.vitepress/dist/index.html || exit 1
+          test -f docs/.vitepress/dist/404.html || exit 1
+          test -f docs/.vitepress/dist/.nojekyll || exit 1
+          test -f docs/.vitepress/dist/api/index.html || exit 1
+
+          # 验证静态资源路径正确
+          grep -q "/taro-bluetooth-print/" docs/.vitepress/dist/index.html || exit 1
+
+          echo "✅ Build artifacts and routing verified successfully"
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
