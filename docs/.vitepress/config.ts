@@ -75,7 +75,7 @@ export default defineConfig({
 
     footer: {
       message: '基于 MIT 许可证发布',
-      copyright: 'Copyright © 2025 Taro Bluetooth Print'
+      copyright: 'Copyright © 2025 Agions'
     },
 
     search: {
