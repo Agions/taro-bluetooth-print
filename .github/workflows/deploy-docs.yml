@@ -21,13 +21,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: package-lock.json
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
@@ -42,33 +43,41 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          echo "📦 安装依赖..."
+          npm ci --prefer-offline --no-audit --no-fund || npm install --no-audit --no-fund
+          echo "✅ 依赖安装完成"
+          echo "📝 Node 版本: $(node --version)"
+          echo "📝 npm 版本: $(npm --version)"
 
       - name: Build VitePress site
         run: |
+          echo "🏗️  开始构建文档..."
           npm run docs:full
+          echo "✅ 构建完成"
         env:
           NODE_OPTIONS: --max_old_space_size=4096
           CI: true
           GITHUB_PAGES: true
 
-      - name: Copy .nojekyll for GitHub Pages
-        run: |
-          cp .nojekyll docs/.vitepress/dist/
-          echo "Copied .nojekyll to dist directory"
-
       - name: Verify build output and routing
         run: |
-          ls -la docs/.vitepress/dist || exit 1
+          echo "📂 检查构建输出..."
+          ls -la docs/.vitepress/dist/ | head -20
 
           # 验证关键文件存在
-          test -f docs/.vitepress/dist/index.html || exit 1
-          test -f docs/.vitepress/dist/404.html || exit 1
-          test -f docs/.vitepress/dist/.nojekyll || exit 1
-          test -f docs/.vitepress/dist/api/index.html || exit 1
+          echo "✅ 验证关键文件..."
+          test -f docs/.vitepress/dist/index.html || { echo "❌ 缺失: index.html"; exit 1; }
+          test -f docs/.vitepress/dist/404.html || { echo "❌ 缺失: 404.html"; exit 1; }
+          test -f docs/.vitepress/dist/.nojekyll || { echo "❌ 缺失: .nojekyll"; exit 1; }
+          test -f docs/.vitepress/dist/api/index.html || { echo "❌ 缺失: api/index.html"; exit 1; }
 
+          echo "✅ 验证资源路径..."
           # 验证静态资源路径正确
-          grep -q "/taro-bluetooth-print/" docs/.vitepress/dist/index.html || exit 1
+          grep -q "/taro-bluetooth-print/" docs/.vitepress/dist/index.html || { echo "❌ base路径错误"; exit 1; }
+
+          # 验证robots.txt和安全策略文件
+          test -f docs/.vitepress/dist/robots.txt || { echo "⚠️  警告: robots.txt 不存在"; }
+          test -f docs/.vitepress/dist/.well-known/security.txt || { echo "⚠️  警告: security.txt 不存在"; }
 
           echo "✅ Build artifacts and routing verified successfully"
 
@@ -87,3 +96,15 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "🚀 部署完成"
+          echo "📍 页面 URL: ${{ steps.deployment.outputs.page_url }}"
+          echo ""
+          echo "📋 检查清单:"
+          echo "- 基础页面: ${{ steps.deployment.outputs.page_url }}"
+          echo "- API文档: ${{ steps.deployment.outputs.page_url }}api/"
+          echo "- 示例: ${{ steps.deployment.outputs.page_url }}examples/"
+          echo "- 指南: ${{ steps.deployment.outputs.page_url }}guide/getting-started"
