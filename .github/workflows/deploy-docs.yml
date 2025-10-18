@@ -8,8 +8,8 @@ on:
 
 permissions:
   contents: read
-  pages: write # 部署到 GitHub Pages 需要
-  id-token: write # 部署器需要 OIDC token
+  pages: write
+  id-token: write
 
 concurrency:
   group: "pages"
@@ -25,26 +25,36 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Cache VitePress build cache
+        uses: actions/cache@v4
+        with:
+          path: docs/.vitepress/cache
+          key: ${{ runner.os }}-vitepress-${{ hashFiles('docs/.vitepress/config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-vitepress-
 
-      - name: Build VitePress site (include API docs)
-        run: npm run docs:full
+      - name: Install dependencies
+        run: |
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Build VitePress site
+        run: |
+          npm run docs:full
         env:
           NODE_OPTIONS: --max_old_space_size=4096
-        # docs:full 目前仅执行 vitepress build（见 package.json）
-        # 产物输出目录：docs/.vitepress/dist（已在 docs/.vitepress/config.ts 配置）
+          CI: true
 
       - name: Verify build output
         run: |
-          ls -la docs/.vitepress
-          ls -la docs/.vitepress/dist
+          ls -la docs/.vitepress/dist || exit 1
+          echo "Build artifacts verified successfully"
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
