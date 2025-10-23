@@ -1,0 +1,42 @@
+{
+  "scripts": {
+    "clean": "rimraf dist coverage",
+    "lint": "eslint 'src/**/*.{js,ts}' --fix",
+    "format": "prettier --write 'src/**/*.{js,ts}'",
+    "type-check": "tsc --noEmit --project tsconfig.build.json",
+
+    "prebuild": "npm run clean && npm run type-check",
+
+    "build": "rollup -c rollup.config.js",
+    "build:rollup": "rollup -c rollup.config.js",
+    "build:vite": "vite build",
+    "build:webpack": "webpack --mode production",
+
+    "build:dev": "NODE_ENV=development rollup -c rollup.config.js",
+    "build:prod": "NODE_ENV=production rollup -c rollup.config.js",
+
+    "build:analyze": "rollup -c rollup.config.js --configPlugin rollup-plugin-visualizer",
+    "build:vite:analyze": "vite build --mode analyze",
+
+    "build:all": "npm run build:rollup && npm run build:vite && npm run build:webpack",
+
+    "dev": "rollup -c rollup.config.js -w",
+    "dev:vite": "vite --mode development",
+    "dev:webpack": "webpack serve --mode development",
+
+    "start": "npm run dev",
+    "preview": "vite preview",
+
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --coverage --ci --watchAll=false",
+
+    "validate": "npm run lint && npm run type-check && npm run test:ci",
+
+    "prepare": "npm run build:prod",
+
+    "release": "npm run validate && npm run build:prod && npm publish",
+
+    "size-check": "npm run build:prod && bundlesize"
+  }
+}

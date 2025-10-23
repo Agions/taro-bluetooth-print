@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated files
+docs/api/
+*.d.ts
+*.js.map
+
+# Config files
+*.config.js
+*.config.ts
+
+# Documentation
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Cache directories
+.cache/
+.swc/
+.turbo/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Testing
+tests/fixtures/
+tests/temp/

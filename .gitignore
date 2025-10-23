@@ -1,0 +1,56 @@
+# 依赖包
+node_modules/
+
+# 构建输出
+dist/
+build/
+
+# 日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*-lock
+# 编辑器和IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 环境变量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 测试覆盖率
+coverage/
+
+# 缓存
+.cache/
+.swc/
+.npm/
+.pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+
+# 临时文件
+*.tmp
+Thumbs.db
+
+# 文档生成临时文件
+docs/api/
+.temp-api-docs/
+
+# VitePress构建输出
+docs/.vitepress/dist
+docs/.vitepress/cache
+
+.claude
+.specify
+specs
+CLAUDE.md

@@ -1,0 +1,85 @@
+{
+  "name": "taro-bluetooth-print",
+  "version": "1.0.9",
+  "description": "基于 Taro 的蓝牙打印机库，支持微信小程序平台的蓝牙打印功能",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.es.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js",
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/index.umd.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "clean": "rimraf dist coverage docs/api",
+    "lint": "eslint 'src/**/*.{js,ts}' --fix",
+    "format": "prettier --write 'src/**/*.{js,ts}'",
+    "prebuild": "npm run clean",
+    "build": "vite build && npm run build:types",
+    "build:vite": "vite build",
+    "build:webpack": "webpack --config build/webpack.config.js",
+    "build:types": "tsc --emitDeclarationOnly",
+    "dev": "vite build --watch",
+    "preview": "vite preview",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "docs:api": "node scripts/generate-api-docs.js",
+    "docs:full": "npm run docs:build && node scripts/post-build.js",
+    "docs:verify": "node scripts/verify-deployment.js",
+    "docs:serve": "npx http-server docs/.vitepress/dist -p 5173 -c-1",
+    "test": "jest --coverage",
+    "test:build": "npm run build && npm run test",
+    "analyze": "node scripts/bundle-analyzer.js",
+    "perf:build": "node scripts/build-performance.js",
+    "validate": "node scripts/validate-build.js"
+  },
+  "keywords": [
+    "taro",
+    "bluetooth",
+    "printer",
+    "weapp",
+    "mini-program"
+  ],
+  "author": "Agions",
+  "license": "MIT",
+  "dependencies": {
+    "@tarojs/taro": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^27.0.3",
+    "@types/node": "^20.14.8",
+    "@typescript-eslint/eslint-plugin": "^5.5.0",
+    "@typescript-eslint/parser": "^5.5.0",
+    "eslint": "^8.4.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "jest": "^27.4.3",
+    "prettier": "^2.5.0",
+    "rimraf": "^3.0.2",
+    "terser": "^5.19.0",
+    "ts-jest": "^27.1.0",
+    "typescript": "^4.5.2",
+    "vite": "^5.0.0",
+    "vite-bundle-analyzer": "^0.7.0",
+    "vite-plugin-dts": "^3.9.1",
+    "vitepress": "^1.0.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.0",
+    "ts-loader": "^9.5.0",
+    "typedoc": "^0.25.0",
+    "typedoc-plugin-markdown": "^3.16.0"
+  },
+  "sideEffects": false
+}

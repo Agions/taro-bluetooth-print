@@ -1,0 +1,181 @@
+{
+  "name": "Taro Bluetooth Print - 文档",
+  "short_name": "Taro蓝牙打印文档",
+  "description": "基于 Taro 的蓝牙打印机库完整文档",
+  "start_url": "/taro-bluetooth-print/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/taro-bluetooth-print/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": [
+    "development",
+    "documentation",
+    "mobile",
+    "bluetooth",
+    "printer"
+  ],
+  "shortcuts": [
+    {
+      "name": "快速开始",
+      "short_name": "快速开始",
+      "description": "查看快速开始指南",
+      "url": "/taro-bluetooth-print/guide/getting-started",
+      "icons": [
+        {
+          "src": "/taro-bluetooth-print/icons/quick-start-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "API参考",
+      "short_name": "API",
+      "description": "查看API文档",
+      "url": "/taro-bluetooth-print/api/",
+      "icons": [
+        {
+          "src": "/taro-bluetooth-print/icons/api-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "示例代码",
+      "short_name": "示例",
+      "description": "查看代码示例",
+      "url": "/taro-bluetooth-print/examples/",
+      "icons": [
+        {
+          "src": "/taro-bluetooth-print/icons/examples-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/taro-bluetooth-print/screenshots/desktop-1280.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "桌面端文档界面"
+    },
+    {
+      "src": "/taro-bluetooth-print/screenshots/mobile-390.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "移动端文档界面"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/taro-bluetooth-print/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/maskable-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/taro-bluetooth-print/icons/maskable-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://github.com/Agions/taro-bluetooth-print"
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+taro-bluetooth-print",
+      "url": "/taro-bluetooth-print/%s"
+    }
+  ],
+  "share_target": {
+    "action": "/taro-bluetooth-print/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/taro-bluetooth-print/view-file",
+      "accept": {
+        "application/json": [
+          ".json"
+        ],
+        "text/plain": [
+          ".txt",
+          ".md"
+        ]
+      }
+    }
+  ]
+}

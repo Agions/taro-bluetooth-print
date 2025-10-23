@@ -1,0 +1,500 @@
+/* Custom VitePress theme styles */
+
+:root {
+  --vp-c-brand-1: #3b82f6;
+  --vp-c-brand-2: #2563eb;
+  --vp-c-brand-3: #1d4ed8;
+  --vp-c-brand-text: #1e40af;
+}
+
+/* Custom components */
+.bluetooth-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+.printer-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+/* Code blocks */
+.vp-code-group .tabs {
+  background-color: var(--vp-c-bg-soft);
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  margin: 0;
+}
+
+/* Feature cards */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+
+.feature-card {
+  padding: 24px;
+  border: 1px solid var(--vp-c-border);
+  border-radius: 12px;
+  background-color: var(--vp-c-bg);
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card h3 {
+  margin-top: 0;
+  color: var(--vp-c-brand-1);
+}
+
+/* API documentation enhancements */
+.api-signature {
+  font-family: 'JetBrains Mono', monospace;
+  background-color: var(--vp-c-bg-soft);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--vp-c-brand-1);
+  margin: 16px 0;
+}
+
+.api-params {
+  background-color: var(--vp-c-bg-soft);
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.param-table th,
+.param-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--vp-c-border);
+}
+
+.param-table th {
+  background-color: var(--vp-c-bg-mute);
+  font-weight: 600;
+}
+
+/* Example sections */
+.example-section {
+  margin: 32px 0;
+  padding: 24px;
+  border: 1px solid var(--vp-c-border);
+  border-radius: 12px;
+  background-color: var(--vp-c-bg);
+}
+
+.example-section h3 {
+  margin-top: 0;
+  color: var(--vp-c-brand-1);
+}
+
+.example-description {
+  margin-bottom: 16px;
+  color: var(--vp-c-text-2);
+}
+
+/* Enhanced responsive design for mobile devices */
+@media (max-width: 768px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .feature-card {
+    padding: 16px;
+  }
+}
+
+/* Mobile-first responsive adjustments */
+@media (max-width: 640px) {
+  /* VitePress content container adjustments */
+  .VPContent {
+    padding: 0 16px !important;
+  }
+
+  .VPDoc {
+    padding: 32px 16px !important;
+  }
+
+  .VPDoc .content-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Navigation improvements */
+  .VPNav {
+    padding: 0 8px;
+  }
+
+  .VPNavBar {
+    height: 56px !important;
+  }
+
+  .VPNavBarTitle {
+    font-size: 14px !important;
+  }
+
+  /* Sidebar mobile optimizations */
+  .VPSidebar {
+    width: 280px !important;
+    transform: translateX(-100%);
+  }
+
+  .VPSidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Content typography for mobile */
+  .vp-doc h1 {
+    font-size: 24px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 16px !important;
+  }
+
+  .vp-doc h2 {
+    font-size: 20px !important;
+    line-height: 1.4 !important;
+    margin-top: 32px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .vp-doc h3 {
+    font-size: 18px !important;
+    line-height: 1.4 !important;
+    margin-top: 24px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .vp-doc p {
+    font-size: 15px !important;
+    line-height: 1.6 !important;
+    margin-bottom: 16px !important;
+  }
+
+  .vp-doc ul,
+  .vp-doc ol {
+    padding-left: 20px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .vp-doc li {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    margin-bottom: 6px !important;
+  }
+
+  /* Code blocks mobile optimization */
+  .vp-doc div[class*="language-"] {
+    margin: 16px 0 !important;
+    border-radius: 8px !important;
+    overflow-x: auto !important;
+  }
+
+  .vp-doc pre {
+    padding: 16px !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    overflow-x: auto !important;
+    white-space: pre !important;
+    word-wrap: normal !important;
+  }
+
+  .vp-doc code {
+    font-size: 13px !important;
+    word-wrap: break-word !important;
+  }
+
+  .vp-doc p > code,
+  .vp-doc li > code {
+    padding: 2px 4px !important;
+    background-color: var(--vp-c-bg-soft) !important;
+    border-radius: 3px !important;
+  }
+
+  /* Tables mobile optimization */
+  .vp-doc table {
+    font-size: 14px !important;
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+  }
+
+  .vp-doc th,
+  .vp-doc td {
+    padding: 8px 12px !important;
+    min-width: 100px !important;
+  }
+
+  /* Blockquotes mobile optimization */
+  .vp-doc blockquote {
+    margin: 16px 0 !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Images mobile optimization */
+  .vp-doc img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px !important;
+    margin: 16px 0 !important;
+  }
+
+  /* Feature cards mobile layout */
+  .feature-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin: 20px 0 !important;
+  }
+
+  .feature-card {
+    padding: 16px !important;
+    border-radius: 8px !important;
+  }
+
+  .feature-card h3 {
+    font-size: 16px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .feature-card p {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* API signatures mobile */
+  .api-signature {
+    font-size: 12px !important;
+    padding: 12px !important;
+    overflow-x: auto !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+
+  /* Parameter tables mobile */
+  .param-table {
+    font-size: 13px !important;
+  }
+
+  .param-table th,
+  .param-table td {
+    padding: 6px 8px !important;
+  }
+
+  /* Example sections mobile */
+  .example-section {
+    padding: 16px !important;
+    margin: 20px 0 !important;
+  }
+
+  .example-section h3 {
+    font-size: 16px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .example-description {
+    font-size: 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Search mobile improvements */
+  .VPSearchBox {
+    width: 100% !important;
+    max-width: 200px !important;
+  }
+
+  .VPSearchBox input {
+    font-size: 14px !important;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .VPDoc {
+    padding: 40px 24px !important;
+  }
+
+  .vp-doc h1 {
+    font-size: 28px !important;
+  }
+
+  .vp-doc h2 {
+    font-size: 22px !important;
+  }
+
+  .vp-doc h3 {
+    font-size: 18px !important;
+  }
+
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase tap targets for touch devices */
+  .VPNavBar {
+    height: 60px !important;
+  }
+
+  .VPSidebar {
+    width: 300px !important;
+  }
+
+  .VPNavHamburger {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Larger clickable areas */
+  .feature-card {
+    padding: 20px !important;
+  }
+
+  .feature-card:hover {
+    transform: none !important;
+  }
+
+  .feature-card:active {
+    transform: scale(0.98) !important;
+  }
+
+  /* Touch-friendly code blocks */
+  .vp-doc div[class*="language-"] {
+    font-size: 14px !important;
+  }
+
+  .vp-doc pre {
+    padding: 20px !important;
+  }
+
+  /* Better touch scrolling */
+  .vp-doc table {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .vp-doc pre {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 896px) and (orientation: landscape) {
+  .VPDoc {
+    padding: 20px 16px !important;
+  }
+
+  .vp-doc h1 {
+    font-size: 20px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .vp-doc h2 {
+    font-size: 18px !important;
+    margin-top: 20px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .vp-doc h3 {
+    font-size: 16px !important;
+    margin-top: 16px !important;
+    margin-bottom: 8px !important;
+  }
+}
+
+/* Dark mode mobile optimizations */
+html.dark .feature-card {
+  border-color: var(--vp-c-border) !important;
+}
+
+html.dark .api-signature {
+  background-color: var(--vp-c-bg-soft) !important;
+}
+
+html.dark .example-section {
+  background-color: var(--vp-c-bg) !important;
+}
+
+/* High DPI displays optimization */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .bluetooth-icon,
+  .printer-icon {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  .VPNavBarLogo {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .feature-card {
+    transition: none !important;
+  }
+
+  .feature-card:hover {
+    transform: none !important;
+  }
+
+  .bluetooth-icon,
+  .printer-icon {
+    transition: none !important;
+  }
+}
+
+/* Custom scrollbar */
+.vp-doc .content-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vp-c-brand-1) var(--vp-c-bg);
+}
+
+.vp-doc .content-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vp-doc .content-container::-webkit-scrollbar-track {
+  background: var(--vp-c-bg);
+}
+
+.vp-doc .content-container::-webkit-scrollbar-thumb {
+  background-color: var(--vp-c-brand-1);
+  border-radius: 3px;
+}
+
+/* Print styles for documentation */
+@media print {
+  .vp-nav,
+  .vp-sidebar,
+  .vp-footer {
+    display: none !important;
+  }
+
+  .content-container {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}
