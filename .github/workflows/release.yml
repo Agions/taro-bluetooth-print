@@ -1,0 +1,407 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: true
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # 准备发布
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            # 从标签中提取版本号
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            # 检查是否为预发布版本
+            if [[ "$VERSION" =~ -[a-zA-Z] ]]; then
+              IS_PRERELEASE="true"
+            else
+              IS_PRERELEASE="false"
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          echo "Prerelease: $IS_PRERELEASE"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            exit 1
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 获取上一个标签
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # 生成变更日志
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+          fi
+
+          # 保存到文件
+          echo "$CHANGELOG" > CHANGELOG_NEW.md
+
+          # 添加到输出
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update package.json version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # 创建新的变更日志条目
+          cat > CHANGELOG_TEMP.md << EOF
+          # Changelog
+
+          ## [$VERSION] - $DATE
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          EOF
+
+          # 如果CHANGELOG.md存在，追加到后面
+          if [[ -f "CHANGELOG.md" ]]; then
+            tail -n +2 CHANGELOG.md >> CHANGELOG_TEMP.md
+          fi
+
+          mv CHANGELOG_TEMP.md CHANGELOG.md
+
+      - name: Commit version and changelog changes
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): prepare for release ${{ steps.version.outputs.version }}"
+          git push
+
+  # 构建和测试
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: prepare-release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm run test:coverage
+
+      - name: Build project
+        run: npm run build
+
+      - name: Validate build
+        run: npm run validate
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-coverage
+          path: coverage/
+
+  # 创建发布
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build-and-test]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+
+      - name: Create release zip
+        run: |
+          zip -r taro-bluetooth-print-${{ needs.prepare-release.outputs.version }}.zip dist/
+
+      - name: Generate release notes
+        run: |
+          cat > RELEASE_NOTES.md << EOF
+          # Taro Bluetooth Print ${{ needs.prepare-release.outputs.version }}
+
+          ## 📦 安装
+
+          \`\`\`bash
+          npm install taro-bluetooth-print@${{ needs.prepare-release.outputs.version }}
+          \`\`\`
+
+          ## 📝 变更日志
+
+          ${{ needs.prepare-release.outputs.changelog }}
+
+          ## 📊 包大小
+
+          - 压缩后: \$(du -sh dist/*.js | cut -f1)
+          - 解压后: \$(du -sh dist/ | cut -f1)
+
+          ## 🔗 相关链接
+
+          - [文档](https://github.com/${{ github.repository }}/tree/main/docs)
+          - [API 参考](https://github.com/${{ github.repository }}/tree/main/docs/api)
+          - [示例](https://github.com/${{ github.repository }}/tree/main/examples)
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.prepare-release.outputs.version }}
+          name: Release ${{ needs.prepare-release.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ needs.prepare-release.outputs.is-prerelease }}
+          files: |
+            dist/**/*
+            taro-bluetooth-print-${{ needs.prepare-release.outputs.version }}.zip
+            CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 发布到 NPM
+  publish-npm:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build-and-test, create-release]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @next tag for prereleases
+        if: needs.prepare-release.outputs.is-prerelease == 'true'
+        run: npm dist-tag add taro-bluetooth-print@${{ needs.prepare-release.outputs.version }} next
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # 发布到其他仓库
+  publish-others:
+    name: Publish to Other Registries
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build-and-test]
+    strategy:
+      matrix:
+        registry:
+          - { name: 'jsdelivr', url: 'https://cdn.jsdelivr.net/npm/taro-bluetooth-print@' }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: dist/
+
+      - name: Notify CDN updates
+        run: |
+          echo "🚀 新版本已发布到 ${{ matrix.registry.url }}${{ needs.prepare-release.outputs.version }}"
+          # 这里可以添加CDN刷新逻辑
+
+  # 发布后验证
+  post-release-verification:
+    name: Post Release Verification
+    runs-on: ubuntu-latest
+    needs: [publish-npm, create-release]
+    steps:
+      - name: Verify NPM package
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          npm view taro-bluetooth-print@$VERSION
+
+          # 检查包大小
+          npm view taro-bluetooth-print@$VERSION dist.unpackedSize
+
+      - name: Verify GitHub Release
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          curl -s "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" | jq '.name'
+
+      - name: Create verification report
+        run: |
+          cat > verification-report.md << EOF
+          # 发布验证报告
+
+          - 版本: ${{ needs.prepare-release.outputs.version }}
+          - NPM发布: ✅ 成功
+          - GitHub Release: ✅ 成功
+          - 构建验证: ✅ 成功
+
+          ## 验证时间
+          $(date)
+
+          ## 下一步
+          - [ ] 更新官方文档
+          - [ ] 发布社区通知
+          - [ ] 监控下载量和使用情况
+          EOF
+
+      - name: Upload verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: verification-report.md
+
+  # 发布通知
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [publish-npm, post-release-verification]
+    if: always()
+    steps:
+      - name: Prepare notification
+        run: |
+          cat > notification.json << EOF
+          {
+            "version": "${{ needs.prepare-release.outputs.version }}",
+            "is_prerelease": ${{ needs.prepare-release.outputs.is-prerelease }},
+            "status": "${{ needs.publish-npm.result }}",
+            "repository": "${{ github.repository }}",
+            "release_url": "https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.version }}",
+            "npm_url": "https://www.npmjs.com/package/taro-bluetooth-print/v/${{ needs.prepare-release.outputs.version }}"
+          }
+          EOF
+
+      - name: Send notification (example for webhook)
+        run: |
+          if [[ "${{ needs.publish-npm.result }}" == "success" ]]; then
+            echo "🎉 Release ${{ needs.prepare-release.outputs.version }} published successfully!"
+            echo "📦 NPM: https://www.npmjs.com/package/taro-bluetooth-print/v/${{ needs.prepare-release.outputs.version }}"
+            echo "🚀 GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.version }}"
+
+            # 这里可以添加Slack、Discord、邮件等通知逻辑
+            # curl -X POST -H 'Content-type: application/json' --data @notification.json $WEBHOOK_URL
+          else
+            echo "❌ Release failed for version ${{ needs.prepare-release.outputs.version }}"
+          fi
+
+      - name: Update README with latest version
+        if: needs.publish-npm.result == 'success'
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          # 更新README中的版本信息
+          sed -i "s/npm install taro-bluetooth-print.*/npm install taro-bluetooth-print@$VERSION/" README.md
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git diff --staged --quiet || git commit -m "docs: update README with latest version $VERSION"
+          git push

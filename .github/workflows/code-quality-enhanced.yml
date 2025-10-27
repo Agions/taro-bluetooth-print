@@ -1,0 +1,408 @@
+name: Enhanced Code Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天凌晨4点运行全面质量检查
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      check-level:
+        description: 'Check level'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - basic
+          - standard
+          - comprehensive
+      target-branch:
+        description: 'Target branch for comparison'
+        required: false
+        default: 'main'
+
+env:
+  NODE_VERSION: '18'
+  # 代码质量阈值
+  COVERAGE_THRESHOLD: '80'
+  COMPLEXITY_THRESHOLD: '10'
+  DUPLICATION_THRESHOLD: '3'
+  MAINTAINABILITY_THRESHOLD: 'B'
+
+jobs:
+  # 代码质量预检查
+  quality-precheck:
+    name: Quality Precheck
+    runs-on: ubuntu-latest
+    outputs:
+      files-changed: ${{ steps.changes.outputs.files-changed }}
+      should-run-full: ${{ steps.changes.outputs.should-run-full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            FILES_CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}..HEAD | wc -l)
+            echo "files-changed=$FILES_CHANGED" >> $GITHUB_OUTPUT
+
+            # 如果文件变更超过50个，运行全面检查
+            if [ "$FILES_CHANGED" -gt 50 ]; then
+              echo "should-run-full=true" >> $GITHUB_OUTPUT
+            else
+              echo "should-run-full=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "files-changed=0" >> $GITHUB_OUTPUT
+            echo "should-run-full=false" >> $GITHUB_OUTPUT
+          fi
+
+  # 基础代码质量检查
+  basic-quality-checks:
+    name: Basic Quality Checks
+    runs-on: ubuntu-latest
+    needs: quality-precheck
+    if: needs.quality-precheck.outputs.should-run-full == 'true' || github.event.inputs.check-level == 'basic' || github.event.inputs.check-level == 'comprehensive'
+    strategy:
+      fail-fast: false
+      matrix:
+        check-type: [eslint, prettier, typescript]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        if: matrix.check-type == 'eslint'
+        run: |
+          npm run lint -- --format=json --output-file=eslint-report.json
+          npm run lint -- --format=checkstyle --output-file=eslint-checkstyle.xml
+          npm run lint -- --format=unix > eslint-unix.txt 2>&1 || true
+
+      - name: Run Prettier check
+        if: matrix.check-type == 'prettier'
+        run: |
+          npm run format -- --check
+          npx prettier --check 'src/**/*.{ts,tsx,js,jsx,json,md,yml,yaml}' > prettier-report.txt 2>&1 || true
+
+      - name: Run TypeScript check
+        if: matrix.check-type == 'typescript'
+        run: |
+          npx tsc --noEmit --pretty false > typecheck-report.txt 2>&1 || cat typecheck-report.txt
+          npx tsc --noEmit --declaration --emitDeclarationOnly --outDir type-declarations 2>/dev/null || true
+
+      - name: Upload basic quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: basic-quality-${{ matrix.check-type }}-reports
+          path: |
+            eslint-report.json
+            eslint-checkstyle.xml
+            eslint-unix.txt
+            prettier-report.txt
+            typecheck-report.txt
+            type-declarations/
+          retention-days: 7
+
+  # 高级代码质量分析
+  advanced-quality-analysis:
+    name: Advanced Quality Analysis
+    runs-on: ubuntu-latest
+    needs: [quality-precheck, basic-quality-checks]
+    if: needs.quality-precheck.outputs.should-run-full == 'true' || github.event.inputs.check-level == 'comprehensive'
+    strategy:
+      fail-fast: false
+      matrix:
+        analysis-type: [complexity, duplication, maintainability, security-patterns]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install quality analysis tools
+        run: |
+          npm install -g plato jsinspect eslint-plugin-import eslint-plugin-security typescript-eslint
+
+      - name: Calculate code complexity
+        if: matrix.analysis-type == 'complexity'
+        run: |
+          npx complexity-report --format json --output complexity-report.json src/
+          npx complexity-report --format html --output complexity-report.html src/
+
+          # 使用TypeScript特定的复杂度分析
+          npx typescript-estree --ext .ts,.tsx src/ > ts-complexity-report.txt 2>&1 || true
+
+      - name: Detect code duplication
+        if: matrix.analysis-type == 'duplication'
+        run: |
+          npx jsinspect --threshold 10 --ignore "test/**" --json src/ > duplication-report.json 2>/dev/null || echo '{}' > duplication-report.json
+          npx jsinspect --threshold 10 --ignore "test/**" src/ > duplication-report.txt 2>/dev/null || echo "No duplication found" > duplication-report.txt
+
+      - name: Analyze maintainability
+        if: matrix.analysis-type == 'maintainability'
+        run: |
+          # 使用Plato生成代码质量报告
+          npx plato -r -d plato-report -t "Taro Bluetooth Print" -x .json src/
+
+          # 生成可维护性指数
+          node scripts/calculate-maintainability.js --input src/ --output maintainability-report.json
+
+      - name: Security pattern analysis
+        if: matrix.analysis-type == 'security-patterns'
+        run: |
+          # 运行安全相关的ESLint规则
+          npx eslint src/ --ext .ts,.tsx --config .eslintrc.security.js --format=json > security-patterns-report.json 2>/dev/null || echo '{}' > security-patterns-report.json
+
+          # 检查常见的安全问题
+          node scripts/security-pattern-analyzer.js --input src/ --output security-analysis.json
+
+      - name: Upload advanced analysis reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advanced-quality-${{ matrix.analysis-type }}-reports
+          path: |
+            complexity-report.*
+            duplication-report.*
+            maintainability-report.*
+            plato-report/
+            security-*.json
+            ts-complexity-report.txt
+          retention-days: 7
+
+  # SonarCloud集成
+  sonarcloud-analysis:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: [quality-precheck, basic-quality-checks]
+    if: needs.quality-precheck.outputs.should-run-full == 'true' || github.event.inputs.check-level == 'comprehensive'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # SonarCloud需要完整的Git历史
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate test coverage
+        run: |
+          npm run test:coverage
+
+      - name: Run SonarCloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Download SonarCloud report
+        run: |
+          # 获取SonarCloud分析报告
+          curl -s "https://sonarcloud.io/api/measures/component?component=taro-bluetooth-print&metricKeys=coverage,complexity,duplicated_lines_density,ncloc,violations,sqale_rating" > sonar-metrics.json 2>/dev/null || echo '{}' > sonar-metrics.json
+
+      - name: Upload SonarCloud reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarcloud-reports
+          path: |
+            sonar-metrics.json
+            .scannerwork/
+          retention-days: 7
+
+  # 代码质量趋势分析
+  quality-trend-analysis:
+    name: Quality Trend Analysis
+    runs-on: ubuntu-latest
+    needs: [basic-quality-checks, advanced-quality-analysis, sonarcloud-analysis]
+    if: always() && (needs.basic-quality-checks.result == 'success' || needs.advanced-quality-analysis.result == 'success')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all quality artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: quality-artifacts/
+
+      - name: Generate quality trend report
+        run: |
+          node scripts/generate-quality-trend.js \
+            --artifacts-dir=quality-artifacts \
+            --output-dir=quality-trend-report \
+            --project-name="Taro Bluetooth Print v2.0"
+
+      - name: Calculate quality score
+        run: |
+          node scripts/calculate-quality-score.js \
+            --artifacts-dir=quality-artifacts \
+            --output=quality-score.json \
+            --thresholds-file=quality-thresholds.json
+
+      - name: Upload quality trend reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-trend-reports
+          path: |
+            quality-trend-report/
+            quality-score.json
+          retention-days: 30
+
+      - name: Comment on PR with quality summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let commentBody = '## 🔍 代码质量报告\n\n';
+
+            try {
+              const qualityScore = JSON.parse(fs.readFileSync('quality-artifacts/quality-score.json', 'utf8'));
+
+              commentBody += `### 📊 质量评分: ${qualityScore.overall_score}/100\n\n`;
+
+              commentBody += '| 指标 | 评分 | 状态 |\n';
+              commentBody += '|------|------|------|\n';
+
+              const metrics = [
+                { key: 'eslint_score', label: '代码规范', icon: '📝' },
+                { key: 'typescript_score', label: '类型安全', icon: '🔷' },
+                { key: 'complexity_score', label: '复杂度', icon: '🔧' },
+                { key: 'duplication_score', label: '重复率', icon: '📋' },
+                { key: 'maintainability_score', label: '可维护性', icon: '🛠️' },
+                { key: 'coverage_score', label: '测试覆盖', icon: '🧪' }
+              ];
+
+              metrics.forEach(metric => {
+                const score = qualityScore[metric.key] || 0;
+                const status = score >= 80 ? '✅ 优秀' : score >= 60 ? '⚠️ 良好' : '❌ 需改进';
+                commentBody += `| ${metric.icon} ${metric.label} | ${score}/100 | ${status} |\n`;
+              });
+
+              commentBody += '\n';
+
+              // 添加改进建议
+              if (qualityScore.recommendations && qualityScore.recommendations.length > 0) {
+                commentBody += '### 💡 改进建议\n\n';
+                qualityScore.recommendations.slice(0, 3).forEach(rec => {
+                  commentBody += `- ${rec}\n`;
+                });
+                commentBody += '\n';
+              }
+
+              // 质量门禁状态
+              const passed = qualityScore.overall_score >= 80;
+              commentBody += passed
+                ? '🎉 **代码质量检查通过** - 可以安全合并\n'
+                : '⚠️ **代码质量需要改进** - 建议在合并前处理质量问题\n';
+
+            } catch (error) {
+              commentBody += '⚠️ 无法获取代码质量数据\n\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+
+  # 质量门禁检查
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [quality-trend-analysis]
+    if: always() && needs.quality-trend-analysis.result == 'success'
+    steps:
+      - name: Download quality score
+        uses: actions/download-artifact@v4
+        with:
+          name: quality-trend-reports
+          path: quality-reports/
+
+      - name: Check quality gate
+        run: |
+          node scripts/quality-gate-checker.js \
+            --input=quality-reports/quality-score.json \
+            --thresholds=quality-thresholds.json \
+            --output=quality-gate-result.json
+
+      - name: Quality gate decision
+        run: |
+          if [ -f "quality-gate-result.json" ]; then
+            PASSED=$(cat quality-gate-result.json | jq -r '.passed')
+
+            if [ "$PASSED" = "false" ]; then
+              echo "❌ 质量门禁检查失败"
+              echo "请查看质量报告并修复相关问题"
+              exit 1
+            else
+              echo "✅ 质量门禁检查通过"
+            fi
+          else
+            echo "⚠️ 质量门禁检查结果不可用"
+          fi
+
+  # 质量报告生成和发布
+  quality-report-publish:
+    name: Quality Report Publishing
+    runs-on: ubuntu-latest
+    needs: [quality-gate]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all quality reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-quality-reports/
+
+      - name: Generate comprehensive quality report
+        run: |
+          node scripts/generate-comprehensive-quality-report.js \
+            --input-dir=all-quality-reports \
+            --output-dir=quality-report \
+            --project-name="Taro Bluetooth Print v2.0"
+
+      - name: Deploy quality report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: quality-report
+          destination_dir: quality-reports
+
+      - name: Notify quality report status
+        run: |
+          echo "📊 代码质量报告已生成"
+          echo "📈 查看报告: https://${{ github.repository }}.github.io/quality-reports"

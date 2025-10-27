@@ -1,235 +1,208 @@
-import { BluetoothManager } from './bluetooth';
-import { PrinterManager } from './printer';
-import { Commands } from './printer/commands';
-import { logger } from './utils/logger';
-import { configManager, type PrinterOptions } from './utils/config';
-import { eventManager, EVENTS } from './utils/events';
-import { Result, ErrorCode, PrinterError } from './types';
+/**
+ * Taro 蓝牙打印库主入口文件
+ * 导出所有公共API和类型
+ */
 
-// 导出类型和类
+// 主类和工厂函数
+export { BluetoothPrinter, createBluetoothPrinter } from './BluetoothPrinter';
+
+// 类型定义
 export {
-  BluetoothManager,
-  PrinterManager,
-  Commands,
-  EVENTS,
-  ErrorCode,
-  PrinterError
+  // 主接口
+  IBluetoothPrinter,
+  IBluetoothPrinterConfig,
+  IBluetoothPrinterOptions,
+  IBluetoothPrinterStatus,
+
+  // 设备和连接
+  IDeviceInfo,
+  IConnectionInfo,
+
+  // 打印相关
+  IPrintRequest,
+  IPrintResult,
+  IPrinterManager,
+
+  // 队列和模板
+  IQueueStatus,
+  ITemplateInfo,
+
+  // 事件
+  BluetoothPrinterEvent,
+
+  // 默认配置
+  DEFAULT_CONFIG,
+
+  // 错误类
+  BluetoothPrinterError,
+  BluetoothError,
+  PrinterError,
+  QueueError,
+  TemplateError,
+  ConfigError,
+
+  // 错误代码
+  ERROR_CODES
+} from './types';
+
+// 领域模块导出（高级用户可能需要直接访问）
+export { BluetoothAdapter } from './domain/bluetooth/BluetoothAdapter';
+export { PrinterManager } from './domain/printer/PrinterManager';
+export { PrintQueue } from './domain/queue/PrintQueue';
+export { TemplateEngine } from './domain/template/TemplateEngine';
+
+// 模板相关导出
+export {
+  ITemplate,
+  ITemplateRenderer,
+  ITemplateContext,
+  TemplateType,
+  IReceiptTemplate,
+  ILabelTemplate
+} from './domain/template/types';
+
+export { TextTemplateRenderer } from './domain/template/renderers/TextTemplateRenderer';
+export { ReceiptTemplateRenderer } from './domain/template/renderers/ReceiptTemplateRenderer';
+export { LabelTemplateRenderer } from './domain/template/renderers/LabelTemplateRenderer';
+
+// 蓝牙相关导出
+export {
+  IBluetoothAdapter,
+  IBluetoothDevice,
+  IBluetoothConnection,
+  IBluetoothScanOptions,
+  BluetoothState
+} from './domain/bluetooth/types';
+
+// 打印机相关导出
+export {
+  IPrinter,
+  IPrintJob,
+  IPrintDriver,
+  PrinterState,
+  PrintJobState
+} from './domain/printer/types';
+
+// 队列相关导出
+export {
+  IPrintQueue,
+  IQueueConfig,
+  QueueStatus,
+  IQueuePolicy
+} from './domain/queue/types';
+
+// 基础设施导出（高级用户和扩展开发者）
+export { Container, ServiceLifecycle } from './infrastructure/di';
+export { EventBus, IEventBus } from './infrastructure/events';
+export { Logger, createLogger } from './infrastructure/logging';
+export { BluetoothPrinterConfigManager } from './infrastructure/config/BluetoothPrinterConfigManager';
+
+// 工厂类导出
+export { BluetoothAdapterFactory } from './infrastructure/bluetooth/BluetoothAdapterFactory';
+export { PrinterDriverFactory } from './infrastructure/printer/PrinterDriverFactory';
+
+// 便捷导出 - 创建常用配置
+export const createDefaultConfig = (): Partial<IBluetoothPrinterConfig> => ({
+  bluetooth: {
+    scanTimeout: 10000,
+    connectionTimeout: 15000,
+    autoReconnect: true,
+    maxReconnectAttempts: 3,
+    reconnectInterval: 2000
+  },
+  printer: {
+    density: 8,
+    speed: 4,
+    paperWidth: 58,
+    autoCut: false,
+    charset: 'PC437',
+    align: 'left'
+  },
+  queue: {
+    maxSize: 100,
+    concurrency: 1,
+    retryAttempts: 3,
+    retryDelay: 1000,
+    autoProcess: true,
+    processInterval: 500
+  },
+  template: {
+    enableCache: true,
+    cacheSize: 50,
+    cacheTimeout: 300000,
+    enableValidation: true
+  },
+  logging: {
+    level: 'info',
+    enableConsole: true,
+    enableFile: false,
+    maxFileSize: 10485760,
+    maxFiles: 5
+  },
+  events: {
+    enabled: true,
+    maxListeners: 100,
+    enableHistory: false,
+    historySize: 1000
+  }
+});
+
+// 创建开发环境配置
+export const createDevelopmentConfig = (): Partial<IBluetoothPrinterConfig> => ({
+  ...createDefaultConfig(),
+  logging: {
+    level: 'debug',
+    enableConsole: true,
+    enableFile: false,
+    maxFileSize: 10485760,
+    maxFiles: 5
+  },
+  events: {
+    enabled: true,
+    maxListeners: 100,
+    enableHistory: true,
+    historySize: 1000
+  }
+});
+
+// 创建生产环境配置
+export const createProductionConfig = (): Partial<IBluetoothPrinterConfig> => ({
+  ...createDefaultConfig(),
+  logging: {
+    level: 'warn',
+    enableConsole: false,
+    enableFile: true,
+    maxFileSize: 52428800, // 50MB
+    maxFiles: 10
+  },
+  events: {
+    enabled: true,
+    maxListeners: 50,
+    enableHistory: false,
+    historySize: 0
+  }
+});
+
+// 版本信息
+export const VERSION = '2.0.0';
+
+// 库信息
+export const LIB_INFO = {
+  name: 'taro-bluetooth-printer',
+  version: VERSION,
+  description: 'Taro蓝牙打印库 - 支持多种打印机和模板',
+  author: 'Taro Bluetooth Printer Team',
+  homepage: 'https://github.com/example/taro-bluetooth-printer',
+  repository: 'https://github.com/example/taro-bluetooth-printer.git',
+  license: 'MIT',
+  keywords: ['taro', 'bluetooth', 'printer', 'thermal', 'receipt', 'label'],
+  engines: {
+    node: '>=14.0.0'
+  },
+  dependencies: {
+    // 核心依赖将在package.json中定义
+  }
 };
 
-// 导出类型定义
-export type { PrinterOptions };
-
-/**
- * Taro蓝牙打印库主类
- * 提供跨平台蓝牙打印功能
- */
-export default class TaroBluePrint {
-  public bluetooth: BluetoothManager;
-  public printer: PrinterManager;
-  public readonly commands: typeof Commands;
-  private initialized: boolean = false;
-
-  /**
-   * 创建蓝牙打印库实例
-   * @param options 打印机配置选项
-   */
-  constructor(options: PrinterOptions = {}) {
-    // 初始化配置
-    configManager.init(options);
-    
-    // 初始化组件
-    this.bluetooth = new BluetoothManager();
-    this.printer = new PrinterManager(this.bluetooth);
-    this.commands = Commands;
-    
-    this.initialized = true;
-    logger.info('Taro蓝牙打印库已初始化');
-  }
-
-  /**
-   * 获取库版本号
-   */
-  public getVersion(): string {
-    return '1.0.9'; // 每次发布更新此版本号
-  }
-
-  /**
-   * 注册事件监听器
-   * @param eventName 事件名称
-   * @param callback 回调函数
-   * @returns 用于取消监听的函数
-   */
-  public on(eventName: string, callback: (...args: any[]) => void): () => void {
-    return eventManager.on(eventName, callback);
-  }
-
-  /**
-   * 一次性事件监听
-   * @param eventName 事件名称
-   * @param callback 回调函数
-   * @returns 用于取消监听的函数
-   */
-  public once(eventName: string, callback: (...args: any[]) => void): () => void {
-    return eventManager.once(eventName, callback);
-  }
-
-  /**
-   * 移除事件监听器
-   * @param eventName 事件名称
-   * @param callback 回调函数，不提供则移除该事件所有监听器
-   */
-  public off(eventName: string, callback?: (...args: any[]) => void): void {
-    eventManager.off(eventName, callback);
-  }
-
-  /**
-   * 快速打印文本
-   * @param text 文本内容
-   * @param deviceId 蓝牙设备ID
-   * @returns 打印结果
-   */
-  public async quickPrint(text: string, deviceId: string): Promise<Result<boolean>> {
-    // 参数验证
-    if (!text || !deviceId) {
-      const error = new PrinterError(
-        ErrorCode.INVALID_PARAM,
-        '快速打印失败: 文本内容或设备ID不能为空'
-      );
-      logger.error(error.message);
-      return { success: false, error, code: error.code };
-    }
-
-    try {
-      // 触发打印开始事件
-      eventManager.emit(EVENTS.PRINTER_PRINT_START, { text, deviceId });
-      
-      // 确保蓝牙已初始化
-      await this.bluetooth.init();
-
-      // 连接设备
-      const connected = await this.bluetooth.connect(deviceId);
-      if (!connected) {
-        const error = new PrinterError(
-          ErrorCode.BLUETOOTH_CONNECT_FAILED,
-          `快速打印失败: 无法连接到设备 ${deviceId}`
-        );
-        logger.error(error.message);
-        return { success: false, error, code: error.code };
-      }
-
-      // 打印文本
-      const result = await this.printer.printText(text);
-      
-      // 如果设置了自动切纸，则添加切纸命令
-      if (configManager.getOption('autoCut')) {
-        await this.printer.sendCommands([Commands.CUT]);
-      }
-
-      // 断开连接
-      await this.bluetooth.disconnect();
-      
-      // 触发打印完成事件
-      eventManager.emit(EVENTS.PRINTER_PRINT_COMPLETED, { success: result });
-      
-      return { success: result, data: result };
-    } catch (error) {
-      // 确保是PrinterError类型
-      const printerError = error instanceof PrinterError 
-        ? error 
-        : new PrinterError(
-            ErrorCode.UNKNOWN_ERROR,
-            error instanceof Error ? error.message : String(error)
-          );
-      
-      logger.error('快速打印失败:', printerError);
-      
-      // 触发错误事件
-      eventManager.emit(EVENTS.PRINTER_ERROR, printerError);
-      
-      // 确保断开连接，防止连接残留
-      try {
-        await this.bluetooth.disconnect();
-      } catch (disconnectError) {
-        // 忽略断开连接时的错误
-      }
-      
-      return { 
-        success: false, 
-        error: printerError, 
-        code: printerError.code,
-        message: printerError.message
-      };
-    }
-  }
-
-  /**
-   * 更新配置
-   * @param options 新的配置选项
-   */
-  public updateConfig(options: Partial<PrinterOptions>): void {
-    Object.entries(options).forEach(([key, value]) => {
-      configManager.setOption(key as keyof PrinterOptions, value);
-    });
-  }
-
-  /**
-   * 销毁实例，释放资源
-   */
-  public async destroy(): Promise<void> {
-    if (!this.initialized) {
-      return;
-    }
-    
-    try {
-      // 尝试断开蓝牙连接
-      await this.bluetooth.disconnect();
-      
-      // 销毁蓝牙模块
-      await this.bluetooth.destroy();
-      
-      // 清理事件监听器
-      eventManager.removeAllListeners();
-      
-      this.initialized = false;
-      logger.info('Taro蓝牙打印库已销毁');
-    } catch (error) {
-      logger.error('销毁Taro蓝牙打印库实例时出错:', error);
-    }
-  }
-
-  async print(text: string, deviceId?: string): Promise<boolean> {
-    try {
-      if (!text) {
-        throw new PrinterError(
-          ErrorCode.INVALID_PARAM,
-          '打印内容不能为空'
-        );
-      }
-
-      // 发送打印开始事件
-      eventManager.emit(EVENTS.PRINTER_PRINT_START, { text, deviceId });
-
-      const result = await this.printer.print(text, deviceId);
-
-      // 发送打印完成事件
-      if (result) {
-        eventManager.emit(EVENTS.PRINTER_PRINT_COMPLETED, { success: true });
-      } else {
-        eventManager.emit(EVENTS.PRINTER_PRINT_FAILED, { 
-          success: false,
-          error: new PrinterError(
-            ErrorCode.UNKNOWN_ERROR,
-            '打印失败'
-          ),
-          timestamp: Date.now()
-        });
-      }
-
-      return result;
-    } catch (error) {
-      // 发送错误事件
-      eventManager.emit(EVENTS.PRINTER_ERROR, { error });
-      return false;
-    }
-  }
-}
+// 默认导出主类
+export default BluetoothPrinter;

@@ -1,0 +1,55 @@
+{
+  "outputDir": "test-reports",
+  "projectName": "Taro Bluetooth Print",
+  "includeTrends": true,
+  "includeCoverage": true,
+  "includePerformance": true,
+  "includeQuality": true,
+  "formats": ["html", "markdown", "json"],
+  "template": "default",
+  "thresholds": {
+    "passRate": {
+      "excellent": 90,
+      "good": 70,
+      "minimum": 50
+    },
+    "coverage": {
+      "lines": 80,
+      "functions": 80,
+      "branches": 75,
+      "statements": 80
+    },
+    "performance": {
+      "maxDuration": 5000,
+      "avgDuration": 3000
+    },
+    "quality": {
+      "excellent": 90,
+      "good": 80,
+      "minimum": 70
+    }
+  },
+  "notifications": {
+    "slack": {
+      "enabled": false,
+      "webhook": "",
+      "channel": "#dev-alerts"
+    },
+    "email": {
+      "enabled": false,
+      "recipients": []
+    }
+  },
+  "customSections": [
+    {
+      "name": "代码变更",
+      "type": "git-diff",
+      "enabled": true
+    },
+    {
+      "name": "依赖分析",
+      "type": "dependencies",
+      "enabled": true
+    }
+  ]
+}

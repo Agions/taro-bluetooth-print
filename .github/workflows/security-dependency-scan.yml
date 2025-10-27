@@ -1,0 +1,483 @@
+name: Security and Dependency Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天凌晨5点运行安全扫描
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      scan-level:
+        description: 'Scan level'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - quick
+          - standard
+          - comprehensive
+      fail-on-issues:
+        description: 'Fail workflow on security issues'
+        required: true
+        default: 'true'
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  # 安全扫描配置
+  AUDIT_LEVEL: 'moderate'
+  SNYK_SEVERITY: 'high'
+  LICENSE_WHITELIST: 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense'
+
+jobs:
+  # 依赖安全扫描
+  dependency-security-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scanner: [npm-audit, snyk, retire]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        if: matrix.scanner == 'npm-audit'
+        run: |
+          echo "🔍 运行npm audit..."
+
+          # 生成详细报告
+          npm audit --json > npm-audit-report.json 2>/dev/null || echo '{}' > npm-audit-report.json
+
+          # 运行audit检查
+          if [ "${{ github.event.inputs.fail-on-issues }}" == "true" ]; then
+            npm audit --audit-level="${{ env.AUDIT_LEVEL }}"
+          else
+            npm audit --audit-level="${{ env.AUDIT_LEVEL }}" || echo "⚠️ npm audit发现问题但继续执行"
+          fi
+
+      - name: Run Snyk security scan
+        if: matrix.scanner == 'snyk'
+        uses: snyk/actions/node@master
+        continue-on-error: ${{ github.event.inputs.fail-on-issues != 'true' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=${{ env.SNYK_SEVERITY }} --json > snyk-report.json 2>/dev/null || echo '{}' > snyk-report.json
+
+      - name: Run Retire.js for known vulnerabilities
+        if: matrix.scanner == 'retire'
+        run: |
+          echo "🔍 运行Retire.js扫描..."
+          npm install -g retire
+
+          # 生成Retire.js报告
+          retire --outputformat json --outputpath retire-report.json || echo '{}' > retire-report.json
+
+          # 检查漏洞
+          retire --outputformat text > retire-report.txt || echo "Retire.js扫描完成"
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report-${{ matrix.scanner }}
+          path: |
+            npm-audit-report.json
+            snyk-report.json
+            retire-report.json
+            retire-report.txt
+            .snyk/
+          retention-days: 30
+
+  # 许可证合规检查
+  license-compliance-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check license compliance
+        run: |
+          echo "🔍 检查许可证合规性..."
+
+          # 安装license-checker
+          npm install -g license-checker
+
+          # 生成许可证报告
+          license-checker --json > license-report.json 2>/dev/null || echo '{}' > license-report.json
+
+          # 检查许可证白名单
+          license-checker --onlyAllow '${{ env.LICENSE_WHITELIST }}' --summary > license-summary.txt 2>/dev/null || echo "许可证检查完成"
+
+          # 生成许可证统计
+          node scripts/generate-license-summary.js --input license-report.json --output license-stats.json
+
+      - name: Check for forbidden licenses
+        run: |
+          node scripts/check-forbidden-licenses.js \
+            --input license-report.json \
+            --whitelist '${{ env.LICENSE_WHITELIST }}' \
+            --output forbidden-licenses.json
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-reports
+          path: |
+            license-report.json
+            license-summary.txt
+            license-stats.json
+            forbidden-licenses.json
+          retention-days: 30
+
+  # 代码安全分析
+  code-security-analysis:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        analyzer: [eslint-security, semgrep, codeql]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint security rules
+        if: matrix.analyzer == 'eslint-security'
+        run: |
+          echo "🔍 运行ESLint安全规则..."
+
+          # 运行安全特定的ESLint规则
+          npx eslint src/ --ext .ts,.tsx \
+            --config .eslintrc.security.js \
+            --format=json > eslint-security-report.json 2>/dev/null || echo '{}' > eslint-security-report.json
+
+          # 生成文本报告
+          npx eslint src/ --ext .ts,.tsx \
+            --config .eslintrc.security.js \
+            --format=compact > eslint-security-report.txt 2>/dev/null || echo "ESLint安全检查完成"
+
+      - name: Initialize CodeQL
+        if: matrix.analyzer == 'codeql'
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: Autobuild for CodeQL
+        if: matrix.analyzer == 'codeql'
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        if: matrix.analyzer == 'codeql'
+        uses: github/codeql-action/analyze@v2
+
+      - name: Run Semgrep security scan
+        if: matrix.analyzer == 'semgrep'
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/javascript
+            p/typescript
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload security analysis reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-security-report-${{ matrix.analyzer }}
+          path: |
+            eslint-security-report.json
+            eslint-security-report.txt
+          retention-days: 30
+
+  # 密钥和敏感信息扫描
+  secrets-scanning:
+    name: Secrets and Sensitive Data Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --json
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Scan for sensitive patterns
+        run: |
+          echo "🔍 扫描敏感信息模式..."
+
+          # 检查常见敏感信息模式
+          node scripts/scan-sensitive-patterns.js \
+            --input-dir src/ \
+            --output sensitive-patterns-report.json
+
+      - name: Upload secrets scan reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secrets-scan-reports
+          path: |
+            sensitive-patterns-report.json
+            trufflehog-report.json
+            gitleaks-report.json
+          retention-days: 30
+
+  # 供应链安全检查
+  supply-chain-security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate dependency tree
+        run: |
+          echo "🔍 生成依赖树..."
+          npm ls --json --long > dependency-tree.json 2>/dev/null || echo '{}' > dependency-tree.json
+
+          # 生成依赖图
+          node scripts/generate-dependency-graph.js --input package.json --output dependency-graph.json
+
+      - name: Check for typosquatting attacks
+        run: |
+          node scripts/check-typosquatting.js \
+            --input dependency-tree.json \
+            --output typosquatting-report.json
+
+      - name: Analyze dependency risk
+        run: |
+          node scripts/analyze-dependency-risk.js \
+            --input dependency-tree.json \
+            --output dependency-risk-report.json
+
+      - name: Upload supply chain reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-reports
+          path: |
+            dependency-tree.json
+            dependency-graph.json
+            typosquatting-report.json
+            dependency-risk-report.json
+          retention-days: 30
+
+  # 安全报告聚合
+  security-report-aggregation:
+    name: Security Report Aggregation
+    runs-on: ubuntu-latest
+    needs: [dependency-security-scan, license-compliance-check, code-security-analysis, secrets-scanning, supply-chain-security]
+    if: always() && !cancelled()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all security reports
+        uses: actions/download-artifact@v4
+        with:
+          path: security-artifacts/
+
+      - name: Generate comprehensive security report
+        run: |
+          node scripts/generate-security-report.js \
+            --input-dir security-artifacts \
+            --output-dir security-report \
+            --project-name "Taro Bluetooth Print v2.0"
+
+      - name: Calculate security score
+        run: |
+          node scripts/calculate-security-score.js \
+            --input-dir security-artifacts \
+            --output security-score.json
+
+      - name: Upload comprehensive security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-security-report
+          path: |
+            security-report/
+            security-score.json
+          retention-days: 90
+
+      - name: Comment on PR with security summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let commentBody = '## 🔒 安全扫描报告\n\n';
+
+            try {
+              const securityScore = JSON.parse(fs.readFileSync('security-artifacts/security-score.json', 'utf8'));
+
+              commentBody += `### 🛡️ 安全评分: ${securityScore.overall_score}/100\n\n`;
+
+              commentBody += '| 安全类别 | 评分 | 状态 |\n';
+              commentBody += '|----------|------|------|\n';
+
+              const categories = [
+                { key: 'dependency_score', label: '依赖安全', icon: '📦' },
+                { key: 'license_score', label: '许可证合规', icon: '📄' },
+                { key: 'code_score', label: '代码安全', icon: '💻' },
+                { key: 'secrets_score', label: '敏感信息', icon: '🔑' },
+                { key: 'supply_chain_score', label: '供应链', icon: '🔗' }
+              ];
+
+              categories.forEach(category => {
+                const score = securityScore[category.key] || 0;
+                const status = score >= 80 ? '✅ 安全' : score >= 60 ? '⚠️ 需关注' : '❌ 有风险';
+                commentBody += `| ${category.icon} ${category.label} | ${score}/100 | ${status} |\n`;
+              });
+
+              commentBody += '\n';
+
+              // 添加安全问题摘要
+              if (securityScore.issues && securityScore.issues.length > 0) {
+                commentBody += '### 🚨 发现的安全问题\n\n';
+                securityScore.issues.slice(0, 5).forEach(issue => {
+                  commentBody += `- **${issue.severity}**: ${issue.title} (${issue.tool})\n`;
+                });
+
+                if (securityScore.issues.length > 5) {
+                  commentBody += `- ... 还有 ${securityScore.issues.length - 5} 个问题\n`;
+                }
+                commentBody += '\n';
+              }
+
+              // 安全门禁状态
+              const passed = securityScore.overall_score >= 70;
+              commentBody += passed
+                ? '🎉 **安全检查通过** - 代码安全性符合要求\n'
+                : '⚠️ **发现安全问题** - 建议在合并前处理安全问题\n';
+
+              if (!passed && securityScore.critical_issues > 0) {
+                commentBody += '\n❌ **发现关键安全问题，必须修复后才能合并**\n';
+              }
+
+            } catch (error) {
+              commentBody += '⚠️ 无法获取安全扫描数据\n\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+
+  # 安全门禁检查
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: security-report-aggregation
+    if: always() && needs.security-report-aggregation.result == 'success'
+    steps:
+      - name: Download security score
+        uses: actions/download-artifact@v4
+        with:
+          name: comprehensive-security-report
+          path: security-reports/
+
+      - name: Check security gate
+        run: |
+          if [ -f "security-reports/security-score.json" ]; then
+            node scripts/security-gate-checker.js \
+              --input security-reports/security-score.json \
+              --thresholds security-thresholds.json \
+              --output security-gate-result.json
+
+            PASSED=$(cat security-gate-result.json | jq -r '.passed')
+
+            if [ "$PASSED" = "false" ]; then
+              echo "❌ 安全门禁检查失败"
+              echo "请查看安全报告并修复相关问题"
+              exit 1
+            else
+              echo "✅ 安全门禁检查通过"
+            fi
+          else
+            echo "⚠️ 安全门禁检查结果不可用"
+          fi
+
+  # 安全报告发布
+  security-report-publish:
+    name: Security Report Publishing
+    runs-on: ubuntu-latest
+    needs: [security-gate]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all security reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-security-reports/
+
+      - name: Deploy security reports to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: all-security-reports/comprehensive-security-report
+          destination_dir: security-reports
+
+      - name: Notify security report status
+        run: |
+          echo "🔒 安全报告已生成"
+          echo "📈 查看报告: https://${{ github.repository }}.github.io/security-reports"

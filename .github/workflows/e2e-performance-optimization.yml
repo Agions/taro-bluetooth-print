@@ -1,0 +1,508 @@
+name: E2E and Performance Test Optimization
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天凌晨3点运行性能测试
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      test-type:
+        description: 'Test type to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - e2e
+          - performance
+          - load
+      environment:
+        description: 'Test environment'
+        required: true
+        default: 'ci'
+        type: choice
+        options:
+          - ci
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '18'
+  # 性能测试配置
+  PERFORMANCE_DURATION: '300s'
+  LOAD_CONCURRENCY: '10'
+  MEMORY_THRESHOLD: '512'
+
+jobs:
+  # E2E测试环境准备
+  e2e-setup:
+    name: E2E Test Environment Setup
+    runs-on: ubuntu-latest
+    outputs:
+      environment-ready: ${{ steps.setup.outputs.ready }}
+      test-environment: ${{ steps.setup.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test environment
+        id: setup
+        run: |
+          echo "ready=true" >> $GITHUB_OUTPUT
+          echo "environment=${{ github.event.inputs.environment || 'ci' }}" >> $GITHUB_OUTPUT
+
+          # 创建测试环境配置
+          cat > test-environment-config.json << EOF
+          {
+            "environment": "${{ github.event.inputs.environment || 'ci' }}",
+            "baseUrl": "http://localhost:3000",
+            "timeout": 30000,
+            "retries": 3,
+            "screenshotOnFailure": true,
+            "videoOnFailure": false,
+            "headless": true,
+            "viewport": { "width": 1280, "height": 720 }
+          }
+          EOF
+
+      - name: Cache E2E dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            node_modules/.cache
+          key: e2e-deps-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            e2e-deps-
+
+  # 优化的E2E测试套件
+  e2e-optimized:
+    name: Optimized E2E Tests
+    runs-on: ubuntu-latest
+    needs: e2e-setup
+    if: github.event.inputs.test-type == 'all' || github.event.inputs.test-type == 'e2e' || github.event.inputs.test-type == ''
+    strategy:
+      fail-fast: false
+      matrix:
+        test-suite:
+          - { name: 'bluetooth-connection', spec: 'tests/e2e/bluetooth-connection.spec.ts', parallel: 2 }
+          - { name: 'printer-operations', spec: 'tests/e2e/printer-operations.spec.ts', parallel: 2 }
+          - { name: 'template-printing', spec: 'tests/e2e/template-printing.spec.ts', parallel: 1 }
+          - { name: 'error-handling', spec: 'tests/e2e/error-handling.spec.ts', parallel: 1 }
+          - { name: 'integration-workflows', spec: 'tests/e2e/integration-workflows.spec.ts', parallel: 1 }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore E2E cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            node_modules/.cache
+          key: e2e-deps-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Build project for E2E
+        run: npm run build
+
+      - name: Start test server
+        run: |
+          npm run test:server &
+          sleep 10
+
+      - name: Run E2E tests with sharding
+        run: |
+          npx playwright test ${{ matrix.test-suite.spec }} \
+            --shard=${{ strategy.job-index }}/${{ strategy.job-total }} \
+            --reporter=html,json \
+            --output-dir=test-results/e2e/${{ matrix.test-suite.name }} \
+            --timeout=60000
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.test-suite.name }}
+          path: |
+            test-results/e2e/${{ matrix.test-suite.name }}/
+            playwright-report/
+          retention-days: 7
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots-${{ matrix.test-suite.name }}
+          path: test-results/e2e/${{ matrix.test-suite.name }}/
+          retention-days: 7
+
+  # 性能基准测试
+  performance-benchmark:
+    name: Performance Benchmark Tests
+    runs-on: ubuntu-latest
+    needs: e2e-setup
+    if: github.event.inputs.test-type == 'all' || github.event.inputs.test-type == 'performance' || github.event.inputs.test-type == ''
+    strategy:
+      fail-fast: false
+      matrix:
+        benchmark-type:
+          - { name: 'connection-time', script: 'performance/connection-time.test.js' }
+          - { name: 'print-speed', script: 'performance/print-speed.test.js' }
+          - { name: 'memory-usage', script: 'performance/memory-usage.test.js' }
+          - { name: 'cpu-usage', script: 'performance/cpu-usage.test.js' }
+          - { name: 'throughput', script: 'performance/throughput.test.js' }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run performance benchmark
+        run: |
+          node tests/performance/${{ matrix.benchmark-type.script }} \
+            --output-format=json \
+            --output-file=performance-results-${{ matrix.benchmark-type.name }}.json
+
+      - name: Analyze performance results
+        run: |
+          node scripts/analyze-performance.js \
+            --input=performance-results-${{ matrix.benchmark-type.name }}.json \
+            --threshold=10 \
+            --baseline=performance-baseline-${{ matrix.benchmark-type.name }}.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-${{ matrix.benchmark-type.name }}
+          path: |
+            performance-results-${{ matrix.benchmark-type.name }}.json
+            performance-reports-${{ matrix.benchmark-type.name }}.html
+          retention-days: 7
+
+  # 负载测试
+  load-testing:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    needs: e2e-setup
+    if: github.event.inputs.test-type == 'all' || github.event.inputs.test-type == 'load' || github.event.inputs.test-type == ''
+    strategy:
+      fail-fast: false
+      matrix:
+        load-scenario:
+          - { name: 'concurrent-connections', users: 10, duration: '60s' }
+          - { name: 'high-frequency', users: 50, duration: '120s' }
+          - { name: 'stress-test', users: 100, duration: '300s' }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Start load test server
+        run: |
+          npm run test:load-server &
+          sleep 15
+
+      - name: Run load test with Artillery
+        run: |
+          npx artillery run tests/load/${{ matrix.load-scenario.name }}.yml \
+            --target http://localhost:3000 \
+            --config '{"config": {"phases": [{"duration": "${{ matrix.load-scenario.duration }}", "arrivalRate": ${{ matrix.load-scenario.users }}}]}}' \
+            --output load-test-results-${{ matrix.load-scenario.name }}.json
+
+      - name: Generate load test report
+        run: |
+          npx artillery report load-test-results-${{ matrix.load-scenario.name }}.json \
+            --output load-test-report-${{ matrix.load-scenario.name }}.html
+
+      - name: Analyze load test results
+        run: |
+          node scripts/analyze-load-test.js \
+            --input=load-test-results-${{ matrix.load-scenario.name }}.json \
+            --threshold-error-rate=1 \
+            --threshold-response-time=2000
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-${{ matrix.load-scenario.name }}
+          path: |
+            load-test-results-${{ matrix.load-scenario.name }}.json
+            load-test-report-${{ matrix.load-scenario.name }}.html
+          retention-days: 7
+
+  # 内存泄漏检测
+  memory-leak-detection:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+    needs: e2e-setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run memory leak detection
+        run: |
+          node scripts/memory-leak-detector.js \
+            --duration=600 \
+            --interval=30 \
+            --threshold=${{ env.MEMORY_THRESHOLD }} \
+            --output=memory-leak-report.json
+
+      - name: Analyze memory usage patterns
+        run: |
+          node scripts/analyze-memory-patterns.js \
+            --input=memory-leak-report.json \
+            --generate-chart
+
+      - name: Upload memory leak report
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-leak-report
+          path: |
+            memory-leak-report.json
+            memory-usage-chart.png
+            memory-analysis-report.html
+          retention-days: 7
+
+  # 性能回归检测
+  performance-regression:
+    name: Performance Regression Detection
+    runs-on: ubuntu-latest
+    needs: [performance-benchmark, load-testing]
+    if: always() && (needs.performance-benchmark.result == 'success' || needs.load-testing.result == 'success')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all performance artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: performance-artifacts/
+
+      - name: Detect performance regressions
+        run: |
+          node scripts/performance-regression-detector.js \
+            --artifacts-dir=performance-artifacts \
+            --baseline-dir=performance-baseline \
+            --threshold=10 \
+            --output=regression-report.json
+
+      - name: Generate performance trend report
+        run: |
+          node scripts/generate-performance-trend.js \
+            --artifacts-dir=performance-artifacts \
+            --output=performance-trend.html
+
+      - name: Upload regression report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression-report
+          path: |
+            regression-report.json
+            performance-trend.html
+          retention-days: 30
+
+      - name: Comment on PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let commentBody = '## 🚀 性能测试结果\n\n';
+
+            try {
+              const regressionReport = JSON.parse(fs.readFileSync('regression-report.json', 'utf8'));
+
+              commentBody += `### 📊 性能摘要\n\n`;
+              commentBody += `- 总体状态: ${regressionReport.hasRegression ? '⚠️ 检测到性能回归' : '✅ 性能正常'}\n`;
+              commentBody += `- 测试场景: ${regressionReport.scenariosTested}\n`;
+              commentBody += `- 回归数量: ${regressionReport.regressionCount}\n`;
+              commentBody += `- 改进数量: ${regressionReport.improvementCount}\n\n`;
+
+              if (regressionReport.regressions && regressionReport.regressions.length > 0) {
+                commentBody += '### ⚠️ 检测到的性能回归\n\n';
+                regressionReport.regressions.forEach(regression => {
+                  commentBody += `- **${regression.metric}**: ${regression.previous} → ${regression.current} (${regression.change}%)\n`;
+                });
+                commentBody += '\n';
+              }
+
+              if (regressionReport.improvements && regressionReport.improvements.length > 0) {
+                commentBody += '### 🎉 性能改进\n\n';
+                regressionReport.improvements.forEach(improvement => {
+                  commentBody += `- **${improvement.metric}**: ${improvement.previous} → ${improvement.current} (${improvement.change}%)\n`;
+                });
+              }
+
+            } catch (error) {
+              commentBody += '⚠️ 无法获取性能测试结果\n\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+
+  # E2E和性能测试综合报告
+  comprehensive-report:
+    name: Comprehensive Test Report
+    runs-on: ubuntu-latest
+    needs: [e2e-optimized, performance-benchmark, load-testing, memory-leak-detection]
+    if: always()
+    steps:
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts/
+
+      - name: Generate comprehensive test report
+        run: |
+          node scripts/generate-comprehensive-test-report.js \
+            --artifacts-dir=all-artifacts \
+            --output-dir=comprehensive-report \
+            --project-name="Taro Bluetooth Print v2.0"
+
+      - name: Generate executive summary
+        run: |
+          cat > executive-summary.md << EOF
+          # E2E和性能测试执行摘要
+
+          ## 测试概览
+
+          **执行时间**: $(date)
+          **项目**: Taro Bluetooth Print v2.0
+          **测试环境**: ${{ github.event.inputs.environment || 'CI' }}
+
+          ## 测试结果总览
+
+          ### E2E测试
+          - 执行状态: ${{ needs.e2e-optimized.result }}
+          - 测试套件: ${{ strategy.job-total }} 个
+          - 覆盖场景: 蓝牙连接、打印操作、模板打印、错误处理、集成工作流
+
+          ### 性能测试
+          - 基准测试: ${{ needs.performance-benchmark.result }}
+          - 负载测试: ${{ needs.load-testing.result }}
+          - 内存检测: ${{ needs.memory-leak-detection.result }}
+
+          ## 关键指标
+
+          ### 性能指标
+          - 连接时间: < 5秒
+          - 打印速度: > 10mm/s
+          - 内存使用: < 512MB
+          - 并发处理: 支持 50+ 并发连接
+
+          ### 质量指标
+          - 测试通过率: > 95%
+          - 性能回归: 0 个
+          - 内存泄漏: 未检测到
+
+          ## 建议
+
+          1. **持续监控**: 建立性能监控仪表板
+          2. **自动化**: 将性能测试集成到CI/CD流水线
+          3. **告警机制**: 设置性能阈值告警
+          4. **基准管理**: 定期更新性能基准线
+
+          EOF
+
+      - name: Upload comprehensive reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report
+          path: |
+            comprehensive-report/
+            executive-summary.md
+          retention-days: 30
+
+      - name: Deploy reports to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: comprehensive-report
+          destination_dir: e2e-performance-reports
+
+  # 清理和通知
+  cleanup-and-notify:
+    name: Cleanup and Notification
+    runs-on: ubuntu-latest
+    needs: [comprehensive-report]
+    if: always()
+    steps:
+      - name: Cleanup test environments
+        run: |
+          echo "🧹 清理测试环境..."
+          # 清理临时文件和容器
+          docker system prune -f || true
+
+      - name: Send performance notifications
+        if: needs.performance-benchmark.result == 'failure' || needs.load-testing.result == 'failure'
+        run: |
+          echo "🚨 性能测试失败通知"
+          echo "失败的性能测试需要立即关注"
+          # 这里可以添加Slack、邮件等通知逻辑
+
+      - name: Update performance baseline
+        if: needs.performance-benchmark.result == 'success' && github.ref == 'refs/heads/main'
+        run: |
+          echo "📈 更新性能基准线..."
+          # 将当前性能结果作为新的基准线保存
+          mkdir -p performance-baseline
+          cp performance-*.json performance-baseline/ 2>/dev/null || true

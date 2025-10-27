@@ -51,6 +51,6 @@ docs/.vitepress/dist
 docs/.vitepress/cache
 
 .claude
-.specify
-specs
+openspec
+AGENTS.md
 CLAUDE.md

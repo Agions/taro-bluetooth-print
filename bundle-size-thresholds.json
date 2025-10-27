@@ -1,0 +1,27 @@
+{
+  "main": {
+    "max": "200KB",
+    "warning": "150KB",
+    "description": "主包大小（未压缩）"
+  },
+  "minified": {
+    "max": "100KB",
+    "warning": "75KB",
+    "description": "压缩后包大小"
+  },
+  "gzipped": {
+    "max": "30KB",
+    "warning": "20KB",
+    "description": "Gzip压缩后包大小"
+  },
+  "dependencies": {
+    "max": 50,
+    "warning": 30,
+    "description": "依赖包数量限制"
+  },
+  "peerDependencies": {
+    "max": 10,
+    "warning": 5,
+    "description": "Peer依赖数量限制"
+  }
+}
