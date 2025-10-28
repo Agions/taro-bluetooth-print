@@ -30,8 +30,8 @@
 - ✅ 阅读了项目的 [README](README.md)
 - ✅ 了解项目的 [架构设计](docs/architecture/README.md)
 - ✅ 查看了 [API 文档](docs/api/README.md)
-- ✅ 搜索了现有的 [Issues](https://github.com/your-org/taro-bluetooth-print/issues)
-- ✅ 查看了 [贡献者列表](https://github.com/your-org/taro-bluetooth-print/graphs/contributors)
+- ✅ 搜索了现有的 [Issues](https://github.com/Agions/taro-bluetooth-print/issues)
+- ✅ 查看了 [贡献者列表](https://github.com/Agions/taro-bluetooth-print/graphs/contributors)
 
 ### 技能要求
 
@@ -52,7 +52,7 @@ git clone https://github.com/YOUR_USERNAME/taro-bluetooth-print.git
 cd taro-bluetooth-print
 
 # 3. 添加上游仓库
-git remote add upstream https://github.com/your-org/taro-bluetooth-print.git
+git remote add upstream https://github.com/Agions/taro-bluetooth-print.git
 ```
 
 ### 2. 安装依赖
@@ -129,14 +129,16 @@ VS Code 设置 (.vscode/settings.json):
 #### 报告 Bug
 
 1. 搜索现有 Issues，确认问题未被报告
-2. 使用 [Bug 报告模板](https://github.com/your-org/taro-bluetooth-print/issues/new?template=bug_report.md)
+2. 使用
+   [Bug 报告模板](https://github.com/Agions/taro-bluetooth-print/issues/new?template=bug_report.md)
 3. 提供详细的问题描述和复现步骤
 4. 包含环境信息、错误日志和截图
 
 #### 提出新功能
 
-1. 搜索现有 Issues 和 [Discussions](https://github.com/your-org/taro-bluetooth-print/discussions)
-2. 使用 [功能请求模板](https://github.com/your-org/taro-bluetooth-print/issues/new?template=feature_request.md)
+1. 搜索现有 Issues 和 [Discussions](https://github.com/Agions/taro-bluetooth-print/discussions)
+2. 使用
+   [功能请求模板](https://github.com/Agions/taro-bluetooth-print/issues/new?template=feature_request.md)
 3. 详细描述功能需求和使用场景
 4. 说明功能的价值和实现建议
 
@@ -499,9 +501,9 @@ describe('Bluetooth Connection Performance', () => {
   });
 
   it('should handle concurrent connections', async () => {
-    const promises = Array(10).fill(0).map(() =>
-      bluetoothService.connect()
-    );
+    const promises = Array(10)
+      .fill(0)
+      .map(() => bluetoothService.connect());
 
     const results = await Promise.allSettled(promises);
     const successful = results.filter(r => r.status === 'fulfilled');
@@ -523,7 +525,7 @@ describe('Bluetooth Connection Performance', () => {
 
 ### 2. 文档规范
 
-```markdown
+````markdown
 # 文档标题
 
 简要描述文档内容。
@@ -548,21 +550,23 @@ describe('Bluetooth Connection Performance', () => {
 const printer = createBluetoothPrinter();
 await printer.initialize();
 ```
+````
 
 > **提示**: 重要提示信息使用引用格式
 
 ### 表格
 
-| 参数 | 类型 | 说明 | 必需 |
-|------|------|------|------|
-| timeout | number | 超时时间(ms) | 否 |
+| 参数    | 类型   | 说明         | 必需 |
+| ------- | ------ | ------------ | ---- |
+| timeout | number | 超时时间(ms) | 否   |
 
 ### 注意事项
 
 - ⚠️ **警告**: 可能导致问题的地方
 - 💡 **提示**: 有用的建议
 - 📝 **注意**: 需要特别注意的地方
-```
+
+````
 
 ### 3. 示例代码规范
 
@@ -601,7 +605,7 @@ async function printReceipt() {
     await printer.dispose();
   }
 }
-```
+````
 
 ## 📥 提交规范
 
@@ -619,17 +623,17 @@ async function printReceipt() {
 
 ### 2. 提交类型
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat(bluetooth): 添加自动重连功能` |
-| `fix` | Bug 修复 | `fix(printing): 修复打印乱码问题` |
-| `docs` | 文档更新 | `docs(api): 更新连接方法文档` |
-| `style` | 代码格式 | `style: 修复 ESLint 警告` |
-| `refactor` | 重构 | `refactor(adapter): 重构蓝牙适配器` |
-| `test` | 测试 | `test(unit): 添加连接服务测试` |
-| `chore` | 构建/工具 | `chore: 更新依赖包版本` |
-| `perf` | 性能优化 | `perf(scanner): 优化设备扫描性能` |
-| `ci` | CI/CD | `ci: 添加自动化测试流水线` |
+| 类型       | 说明      | 示例                                |
+| ---------- | --------- | ----------------------------------- |
+| `feat`     | 新功能    | `feat(bluetooth): 添加自动重连功能` |
+| `fix`      | Bug 修复  | `fix(printing): 修复打印乱码问题`   |
+| `docs`     | 文档更新  | `docs(api): 更新连接方法文档`       |
+| `style`    | 代码格式  | `style: 修复 ESLint 警告`           |
+| `refactor` | 重构      | `refactor(adapter): 重构蓝牙适配器` |
+| `test`     | 测试      | `test(unit): 添加连接服务测试`      |
+| `chore`    | 构建/工具 | `chore: 更新依赖包版本`             |
+| `perf`     | 性能优化  | `perf(scanner): 优化设备扫描性能`   |
+| `ci`       | CI/CD     | `ci: 添加自动化测试流水线`          |
 
 ### 3. 提交示例
 
@@ -664,16 +668,19 @@ PR 标题应该遵循提交信息格式：
 feat(bluetooth): 添加设备自动重连功能
 
 ### 变更内容
+
 - 实现连接状态监控
 - 添加重连策略配置
 - 优化连接失败处理
 
 ### 测试
+
 - [x] 单元测试通过
 - [x] 集成测试通过
 - [x] 手动测试验证
 
 ### 检查清单
+
 - [x] 代码符合项目规范
 - [x] 测试覆盖率达标
 - [x] 文档已更新
@@ -711,21 +718,9 @@ feat(bluetooth): 添加设备自动重连功能
 如果您遇到问题：
 
 1. **查看文档**: 首先查看 [文档](docs/)
-2. **搜索 Issues**: 搜索 [现有问题](https://github.com/your-org/taro-bluetooth-print/issues)
+2. **搜索 Issues**: 搜索 [现有问题](https://github.com/Agions/taro-bluetooth-print/issues)
 3. **创建 Issue**: 如果问题未被报告，创建新的 Issue
 4. **联系维护者**: 通过邮件或社交媒体联系项目维护者
-
-### 技术讨论
-
-- **GitHub Discussions**: [参与讨论](https://github.com/your-org/taro-bluetooth-print/discussions)
-- **开发者群组**: 加入我们的开发者交流群
-- **技术分享**: 参与我们的技术分享会
-
-### 社交媒体
-
-- **Twitter**: [@ProjectHandle](https://twitter.com/ProjectHandle)
-- **博客**: [项目博客](https://blog.example.com)
-- **视频教程**: [YouTube 频道](https://youtube.com/c/ProjectHandle)
 
 ## 🎉 贡献者认可
 
@@ -752,7 +747,8 @@ feat(bluetooth): 添加设备自动重连功能
 
 ### 贡献统计
 
-查看 [贡献统计页面](https://github.com/your-org/taro-bluetooth-print/graphs/contributors) 了解项目贡献情况。
+查看 [贡献统计页面](https://github.com/agions/taro-bluetooth-print/graphs/contributors)
+了解项目贡献情况。
 
 ## 📄 许可证
 
@@ -773,4 +769,4 @@ feat(bluetooth): 添加设备自动重连功能
 
 ---
 
-*最后更新时间: 2024年10月27日*
+_最后更新时间: 2025年10月28日_
