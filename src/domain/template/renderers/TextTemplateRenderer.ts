@@ -83,6 +83,10 @@ export class TextTemplateRenderer implements ITemplateRenderer {
    * 获取渲染器信息
    */
   public getInfo(): {
+    name: string;
+    supportedTypes: string[];
+    features: string[];
+  } {
     return {
       name: this.name,
       supportedTypes: this.supportedTypes,
@@ -489,7 +493,7 @@ export class TextTemplateRenderer implements ITemplateRenderer {
     data: any,
     context: ITemplateContext
   ): Promise<{ content: string; nextIndex: number }> {
-    let i = startIndex + 1;
+    const i = startIndex + 1;
     const ifToken = parsed.tokens[startIndex];
     const condition = ifToken.value;
 
@@ -554,7 +558,7 @@ export class TextTemplateRenderer implements ITemplateRenderer {
     data: any,
     context: ITemplateContext
   ): Promise<{ content: string; nextIndex: number }> {
-    let i = startIndex + 1;
+    const i = startIndex + 1;
     const forToken = parsed.tokens[startIndex];
     const loopExpr = forToken.value;
 
@@ -748,7 +752,7 @@ export class TextTemplateRenderer implements ITemplateRenderer {
 
       // 提取变量名（简化实现）
       if (!expression.startsWith('#') && !expression.startsWith('if ') && !expression.startsWith('for ') &&
-          !expression.startsWith('endif') && !expression.startsWith('endfor') && !expression === 'else' &&
+          !expression.startsWith('endif') && !expression.startsWith('endfor') && expression !== 'else' &&
           !expression.includes('(') && !expression.includes('|')) {
         referencedVars.add(expression);
       }

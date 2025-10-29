@@ -6,12 +6,11 @@ import { BluetoothPlatformAdapter } from '../BluetoothPlatformAdapter';
 import {
   IBluetoothDevice,
   IBluetoothScanOptions,
-  IBluetoothConnectionOptions,
+  IBluetoothConnectOptions,
   IBluetoothCharacteristic,
-  BluetoothState,
-  BluetoothDeviceState,
-  BluetoothDeviceType
+  BluetoothState
 } from '../types';
+
 
 /**
  * Taro蓝牙适配器实现
@@ -99,7 +98,7 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
       });
 
     } catch (error) {
-      throw new Error(`Failed to initialize Taro Bluetooth: ${error.message}`);
+          throw new Error(`Failed to initialize Taro Bluetooth: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -108,23 +107,22 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
       const result = await this.promisify(this.taroBluetooth.getBluetoothAdapterState)();
 
       if (!result.available) {
-        return BluetoothState.UNAVAILABLE;
+        return 'unavailable';
       }
 
       if (!result.discovering && result.discovering !== undefined) {
-        return BluetoothState.POWERED_OFF;
+        return 'disconnected';
       }
 
-      return BluetoothState.POWERED_ON;
+      return 'available';
     } catch (error) {
-      return BluetoothState.UNAUTHORIZED;
+      return 'error';
     }
   }
 
   protected async doStartScan(options?: IBluetoothScanOptions): Promise<void> {
     const scanOptions = {
       allowDuplicatesKey: options?.allowDuplicates || false,
-      interval: options?.interval || undefined,
       services: options?.services || []
     };
 
@@ -149,7 +147,7 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
 
   protected async doConnect(
     deviceId: string,
-    options?: IBluetoothConnectionOptions
+    options?: IBluetoothConnectOptions
   ): Promise<void> {
     const timeout = options?.timeout || 10000;
 
@@ -318,11 +316,11 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
     let state: BluetoothState;
 
     if (!res.available) {
-      state = BluetoothState.UNAVAILABLE;
+      state = 'unavailable';
     } else if (!res.discovering && res.discovering !== undefined) {
-      state = BluetoothState.POWERED_OFF;
+      state = 'disconnected';
     } else {
-      state = BluetoothState.POWERED_ON;
+      state = 'available';
     }
 
     this.handleStateChanged(state);
@@ -339,14 +337,11 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
         id: device.deviceId,
         name: device.name || 'Unknown Device',
         address: device.deviceId,
-        type: this.mapDeviceType(device.advertisData),
-        state: BluetoothDeviceState.DISCONNECTED,
         rssi: device.RSSI || -100,
-        advertisementData: device.advertisData || new ArrayBuffer(0),
+        available: true,
         services: [],
-        connectable: true,
-        serviceData: new Map(),
-        metadata: {}
+        connected: false,
+        deviceType: this.mapDeviceType(device.advertisData)
       };
 
       this.handleDeviceDiscovered(bluetoothDevice);
@@ -358,7 +353,7 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
    */
   private handleConnectionStateChange(res: any): void {
     const { deviceId, connected } = res;
-    const state = connected ? BluetoothDeviceState.CONNECTED : BluetoothDeviceState.DISCONNECTED;
+    const state = connected ? 'connected' as const : 'disconnected' as const;
 
     this.handleDeviceStateChanged(deviceId, state);
   }
@@ -394,9 +389,9 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
   /**
    * 映射设备类型
    */
-  private mapDeviceType(advertisData?: any): BluetoothDeviceType {
+  private mapDeviceType(advertisData?: any): string {
     if (!advertisData) {
-      return BluetoothDeviceType.UNKNOWN;
+      return 'unknown';
     }
 
     // 根据广播数据判断设备类型
@@ -404,13 +399,13 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
     if (localName) {
       const name = localName.toLowerCase();
       if (name.includes('printer')) {
-        return BluetoothDeviceType.PRINTER;
+        return 'printer';
       }
       if (name.includes('keyboard') || name.includes('mouse')) {
-        return BluetoothDeviceType.HID;
+        return 'hid';
       }
       if (name.includes('headphone') || name.includes('speaker')) {
-        return BluetoothDeviceType.AUDIO;
+        return 'audio';
       }
     }
 
@@ -418,20 +413,20 @@ export class TaroBluetoothAdapter extends BluetoothPlatformAdapter {
     const services = advertisData.serviceUuids || [];
     for (const service of services) {
       if (service.includes('1800') || service.includes('1801')) {
-        return BluetoothDeviceType.UNKNOWN; // Generic Access/Attribute
+        return 'unknown'; // Generic Access/Attribute
       }
       if (service.includes('180F')) {
-        return BluetoothDeviceType.BATTERY; // Battery Service
+        return 'battery'; // Battery Service
       }
       if (service.includes('1812') || service.includes('1813')) {
-        return BluetoothDeviceType.HID; // HID Service
+        return 'hid'; // HID Service
       }
       if (service.includes('1819')) {
-        return BluetoothDeviceType.LOCATION; // Location and Navigation
+        return 'location'; // Location and Navigation
       }
     }
 
-    return BluetoothDeviceType.UNKNOWN;
+    return 'unknown';
   }
 
   /**

@@ -1,17 +1,17 @@
-# Taro Bluetooth Print v2.0
+# Taro 蓝牙打印库 v2.0
 
 <div align="center">
 
-![Taro Bluetooth Print](https://img.shields.io/badge/Taro%20Bluetooth%20Print-v2.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.2.0-blue.svg)
+![Taro](https://img.shields.io/badge/Taro-3.6.0-blue.svg)
+![React](https://img.shields.io/badge/React-18.2.0-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 **现代化的跨平台蓝牙打印解决方案**
 
-基于依赖注入和事件驱动架构，支持微信小程序、H5、React Native 等多平台
+基于React Hooks和Zustand状态管理，支持微信小程序、H5、React Native等平台
 
-[快速开始](#-快速开始) • [文档](#-文档) • [示例](#-示例) • [API](#-api文档) • [贡献](#-贡献)
+[快速开始](#-快速开始) • [API文档](#-api文档) • [示例](#-示例) • [贡献](#-贡献)
 
 </div>
 

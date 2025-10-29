@@ -109,8 +109,9 @@ export class BluetoothPrinter extends BluetoothService {
       
       // 将文本转换为ArrayBuffer
       const encoder = new TextEncoder();
-      const buffer = encoder.encode(text);
-      
+      const uint8Array = encoder.encode(text);
+      const buffer = uint8Array.buffer;
+
       await this.writeData(buffer);
       this.isWorking = false;
       

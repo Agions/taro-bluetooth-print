@@ -284,7 +284,17 @@ export default class H5BluetoothAdapter implements BluetoothAdapter {
       }
 
       const data = await characteristic.readValue();
-      return data.buffer;
+      // 确保返回正确的ArrayBuffer类型
+      if (data.buffer instanceof ArrayBuffer) {
+        return data.buffer;
+      } else {
+        // 处理DataView或其他类型
+        const uint8Array = new Uint8Array(data.byteLength);
+        for (let i = 0; i < data.byteLength; i++) {
+          uint8Array[i] = data.getUint8(i);
+        }
+        return uint8Array.buffer;
+      }
     } catch (error) {
       logger.error('读取数据失败:', error);
       throw error;

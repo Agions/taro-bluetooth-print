@@ -13,6 +13,22 @@ export enum QueueProcessingMode {
 // 队列状态
 export type QueueStatus = 'idle' | 'processing' | 'paused' | 'stopped' | 'error';
 
+// 队列状态接口
+export interface IQueueStatus {
+  /** 队列大小 */
+  size: number;
+  /** 正在处理的作业数 */
+  processing: number;
+  /** 已完成的作业数 */
+  completed: number;
+  /** 失败的作业数 */
+  failed: number;
+  /** 是否暂停 */
+  paused: boolean;
+  /** 正在处理的作业列表 */
+  processingJobs: any[];
+}
+
 // 队列统计信息
 export interface IPrintQueueStats {
   /** 队列ID */
@@ -587,75 +603,22 @@ export interface IAlert {
 }
 
 // 重新导出打印相关类型
-export { IPrintJob, PrintJobStatus, PrintJobPriority } from '../printer/types';
+export { IPrintJob } from '../printer/types';
 
-// 重试策略实现类
-export class ExponentialBackoffRetry implements IRetryStrategy {
-  public readonly name = 'exponential-backoff';
-
-  constructor(
-    private baseDelay: number = 1000,
-    private maxDelay: number = 60000,
-    private multiplier: number = 2,
-    private maxRetries: number = 3
-  ) {}
-
-  calculateDelay(attempt: number): number {
-    const delay = Math.min(this.baseDelay * Math.pow(this.multiplier, attempt), this.maxDelay);
-    // 添加随机抖动
-    return delay + Math.random() * 1000;
-  }
-
-  shouldRetry(attempt: number): boolean {
-    return attempt < this.maxRetries;
-  }
-
-  getMaxRetries(): number {
-    return this.maxRetries;
-  }
+// 定义本地枚举以避免导出问题
+export enum PrintJobStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  PAUSED = 'paused'
 }
 
-export class FixedDelayRetry implements IRetryStrategy {
-  public readonly name = 'fixed-delay';
-
-  constructor(
-    private delay: number = 5000,
-    private maxRetries: number = 3
-  ) {}
-
-  calculateDelay(): number {
-    return this.delay;
-  }
-
-  shouldRetry(attempt: number): boolean {
-    return attempt < this.maxRetries;
-  }
-
-  getMaxRetries(): number {
-    return this.maxRetries;
-  }
-}
-
-export class LinearBackoffRetry implements IRetryStrategy {
-  public readonly name = 'linear-backoff';
-
-  constructor(
-    private baseDelay: number = 1000,
-    private increment: number = 1000,
-    private maxDelay: number = 30000,
-    private maxRetries: number = 3
-  ) {}
-
-  calculateDelay(attempt: number): number {
-    const delay = Math.min(this.baseDelay + (attempt * this.increment), this.maxDelay);
-    return delay + Math.random() * 500;
-  }
-
-  shouldRetry(attempt: number): boolean {
-    return attempt < this.maxRetries;
-  }
-
-  getMaxRetries(): number {
-    return this.maxRetries;
-  }
+export enum PrintJobPriority {
+  LOW = 1,
+  NORMAL = 2,
+  HIGH = 3,
+  URGENT = 4,
+  CRITICAL = 5
 }

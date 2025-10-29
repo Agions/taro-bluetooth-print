@@ -334,7 +334,6 @@ export class Camera {
       }
       
       const capabilities = videoTrack.getCapabilities() as ExtendedCapabilities;
-      const settings = videoTrack.getSettings();
       
       // 扩展标准MediaTrackConstraintSet类型以包含非标准约束
       interface ExtendedConstraints extends MediaTrackConstraintSet {

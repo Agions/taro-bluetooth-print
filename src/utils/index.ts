@@ -15,7 +15,15 @@ export function inArray(arr: any[], value: any): boolean {
 }
 
 export function typedArrayToBuffer(typedArray: Uint8Array): ArrayBuffer {
-  return typedArray.buffer
+  // 确保返回正确的ArrayBuffer类型，处理SharedArrayBuffer情况
+  if (typedArray.buffer instanceof ArrayBuffer) {
+    return typedArray.buffer;
+  } else {
+    // 如果是SharedArrayBuffer，复制到新的ArrayBuffer
+    const arrayBuffer = new ArrayBuffer(typedArray.length);
+    new Uint8Array(arrayBuffer).set(typedArray);
+    return arrayBuffer;
+  }
 }
 
 export function bufferToTypedArray(buffer: ArrayBuffer): Uint8Array {

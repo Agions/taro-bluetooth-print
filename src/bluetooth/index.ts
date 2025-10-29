@@ -303,7 +303,11 @@ export class BluetoothManager {
 
       // 我们选择第一个设备，或者通过其他方式确定要连接的设备
       const device = devices[0];
-      
+
+      if (!device) {
+        throw new Error('未找到设备');
+      }
+
       // 检查设备连接状态
       // 注意：这里我们假设已经连接，实际中可能需要先尝试连接
       const isConnected = await this.connect(device.deviceId).catch(() => false);
@@ -318,11 +322,11 @@ export class BluetoothManager {
       }
 
       // 选择适用于打印机的服务
-      let writableService = services[0];
+      let writableService: any = services[0];
       for (const service of services) {
         if (!service || typeof service.uuid !== 'string') continue;
         const characteristics = await this.getCharacteristics(device.deviceId, service.uuid);
-        if (characteristics && characteristics.length > 0 && 
+        if (characteristics && characteristics.length > 0 &&
             characteristics.some((c: any) => c && c.properties && c.properties.write)) {
           writableService = service;
           break;

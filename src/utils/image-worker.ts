@@ -129,16 +129,20 @@ function applyDithering(imageData: ImageData, threshold: number = 128): ImageDat
       const error = oldPixel - newPixel;
       
       // 将误差分散到周围像素
-      if (x + 1 < width) {
+      if (x + 1 < width && gray[idx + 1] !== undefined) {
         gray[idx + 1] += error * (7 / 16);
       }
       if (y + 1 < height) {
-        if (x > 0) {
+        if (x > 0 && gray[idx + width - 1] !== undefined) {
           gray[idx + width - 1] += error * (3 / 16);
         }
-        gray[idx + width] += error * (5 / 16);
+        if (gray[idx + width] !== undefined) {
+          gray[idx + width] += error * (5 / 16);
+        }
         if (x + 1 < width) {
-          gray[idx + width + 1] += error * (1 / 16);
+          if (gray[idx + width + 1] !== undefined) {
+            gray[idx + width + 1] += error * (1 / 16);
+          }
         }
       }
     }
@@ -149,9 +153,11 @@ function applyDithering(imageData: ImageData, threshold: number = 128): ImageDat
     for (let x = 0; x < width; x++) {
       const pos = (y * width + x) * 4;
       const value = gray[y * width + x];
-      resultData[pos] = value;
-      resultData[pos + 1] = value;
-      resultData[pos + 2] = value;
+      if (value !== undefined) {
+        resultData[pos] = value;
+        resultData[pos + 1] = value;
+        resultData[pos + 2] = value;
+      }
       // Alpha通道保持不变
     }
   }

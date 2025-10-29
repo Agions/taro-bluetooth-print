@@ -108,7 +108,19 @@ export class BluetoothService {
   public async getBluetoothDevices(): Promise<DeviceInfo[]> {
     try {
       const res = await Taro.getBluetoothDevices()
-      this.devicesList = res.devices as DeviceInfo[]
+      // 正确转换Taro设备类型到我们的DeviceInfo类型
+      this.devicesList = res.devices.map(device => ({
+        id: device.deviceId, // IDeviceInfo需要id属性
+        deviceId: device.deviceId,
+        name: device.name || '',
+        address: device.deviceId, // 使用deviceId作为地址
+        rssi: device.RSSI || 0,
+        available: true,
+        services: device.advertisServiceUUIDs || [],
+        connected: false,
+        localName: device.localName,
+        advertisementData: device.advertisData
+      } as DeviceInfo))
       return this.devicesList
     } catch (error) {
       return Promise.reject(error)

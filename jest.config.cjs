@@ -1,7 +1,4 @@
-import type { Config } from '@jest/types';
-import { defaults } from 'jest-config';
-
-const config: Config.InitialOptions = {
+const config = {
   // 测试环境
   testEnvironment: 'jsdom',
 
@@ -29,13 +26,7 @@ const config: Config.InitialOptions = {
 
   // 覆盖率配置
   coverageDirectory: 'coverage',
-  coverageReporters: [
-    'text',
-    'text-summary',
-    'html',
-    'lcov',
-    'json-summary'
-  ],
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -55,14 +46,7 @@ const config: Config.InitialOptions = {
   },
 
   // 模块文件扩展名
-  moduleFileExtensions: [
-    'ts',
-    'tsx',
-    'js',
-    'jsx',
-    'json',
-    'node'
-  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 
   // 模块名映射
   moduleNameMapping: {
@@ -72,17 +56,13 @@ const config: Config.InitialOptions = {
   },
 
   // 设置文件
-  setupFilesAfterEnv: [
-    '<rootDir>/tests/setup/jest-setup.ts'
-  ],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/jest-setup.ts'],
 
   // 模块路径映射
   modulePaths: ['<rootDir>/src'],
 
   // 忽略转换路径
-  transformIgnorePatterns: [
-    'node_modules/(?!(.*\\.mjs$))'
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
 
   // 全局变量
   globals: {
@@ -109,42 +89,13 @@ const config: Config.InitialOptions = {
   bail: false,
 
   // 监视模式忽略模式
-  watchPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
-    '<rootDir>/dist/',
-    '<rootDir>/coverage/'
-  ],
+  watchPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/dist/', '<rootDir>/coverage/'],
 
   // 快照序列化器
   snapshotSerializers: [],
 
   // 测试结果处理器
-  reporters: [
-    'default',
-    [
-      'jest-junit',
-      {
-        outputDirectory: 'test-results',
-        outputName: 'junit.xml',
-        classNameTemplate: '{classname}',
-        titleTemplate: '{title}',
-        ancestorSeparator: ' › ',
-        usePathForSuiteName: true
-      }
-    ],
-    [
-      'jest-html-reporters',
-      {
-        publicPath: './test-results/html-report',
-        filename: 'test-report.html',
-        expand: true,
-        hideIcon: false,
-        pageTitle: 'Test Report',
-        logoImgPath: undefined,
-        inlineSource: false
-      }
-    ]
-  ],
+  reporters: ['default'],
 
   // 清除模拟
   clearMocks: true,
@@ -165,19 +116,13 @@ const config: Config.InitialOptions = {
 
   // transform 配置
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
-      isolatedModules: true
-    }],
-    '^.+\\.(js|jsx)$': ['babel-jest', {
-      presets: [
-        ['@babel/preset-env', {
-          targets: {
-            node: 'current'
-          }
-        }]
-      ]
-    }]
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.json',
+        isolatedModules: true
+      }
+    ]
   },
 
   // 测试环境配置
@@ -185,19 +130,7 @@ const config: Config.InitialOptions = {
     url: 'http://localhost:3000',
     resources: 'usable',
     runScripts: 'dangerously'
-  },
-
-  // 模拟文件扩展名
-  moduleFileExtensions: [...defaults.moduleFileExtensions, 'ts', 'tsx'],
-
-  // 依赖提取
-  dependencyExtractor: undefined,
-
-  // 测试超时设置
-  testTimeout: 10000,
-
-  // 钩子超时
-  hookTimeout: 10000
+  }
 };
 
-export default config;
+module.exports = config;

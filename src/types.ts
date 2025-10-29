@@ -3,8 +3,8 @@
  */
 
 import { ITemplate, ITemplateContext } from './domain/template/types';
-import { IBluetoothDevice, IBluetoothConnection } from './domain/bluetooth/types';
-import { IPrinter, IPrintJob } from './domain/printer/types';
+import { IBluetoothDevice, IBluetoothConnection, BluetoothState, IBluetoothAdapter } from './domain/bluetooth/types';
+import { IPrinter, IPrintJob, PrinterState, IPrintDriver } from './domain/printer/types';
 import { IQueueStatus } from './domain/queue/types';
 
 // 主配置接口
@@ -109,19 +109,41 @@ export interface IBluetoothPrinterOptions {
 }
 
 // 设备信息接口
-export interface IDeviceInfo extends IBluetoothDevice {
+export interface IDeviceInfo {
+  /** 设备ID */
+  id: string;
+  /** 设备ID */
+  deviceId: string;
+  /** 设备名称 */
+  name: string;
+  /** 设备地址 */
+  address: string;
   /** 设备类型 */
   type?: 'printer' | 'unknown';
   /** 是否已配对 */
   paired?: boolean;
   /** 信号强度 */
   rssi?: number;
+  /** 是否可用 */
+  available?: boolean;
+  /** 服务列表 */
+  services?: string[];
+  /** 是否已连接 */
+  connected?: boolean;
+  /** 广播名称 */
+  localName?: string;
   /** 广播数据 */
   advertisementData?: any;
 }
 
 // 连接信息接口
-export interface IConnectionInfo extends IBluetoothConnection {
+export interface IConnectionInfo {
+  /** 连接ID */
+  id: string;
+  /** 设备ID */
+  deviceId: string;
+  /** 连接状态 */
+  connected: boolean;
   /** 连接时间 */
   connectedAt: Date;
   /** 最后活动时间 */
@@ -245,6 +267,13 @@ export interface BluetoothPrinterEvent {
 
 // 蓝牙打印库接口
 export interface IBluetoothPrinter {
+  /** 设备ID */
+  deviceId?: string;
+  /** 服务ID */
+  serviceId?: string;
+  /** 特征ID */
+  characteristicId?: string;
+
   /** 初始化库 */
   initialize(): Promise<void>;
 
@@ -466,3 +495,10 @@ export const ERROR_CODES = {
   CONFIG_INVALID: 'CONFIG_INVALID',
   CONFIG_NOT_FOUND: 'CONFIG_NOT_FOUND'
 } as const;
+
+// 导出IQueueStatus以解决导出问题
+export type { IQueueStatus } from './domain/queue/types';
+
+// 兼容旧版本的类型别名（为现有代码提供向后兼容）
+export type IBlueToothPrinter = IBluetoothPrinter;
+export type DeviceInfo = IDeviceInfo;

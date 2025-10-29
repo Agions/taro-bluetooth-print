@@ -4,6 +4,7 @@
  */
 
 export class Platform {
+
   /**
    * 获取当前平台类型
    * @returns {string} 平台类型
@@ -34,4 +35,9 @@ export class Platform {
         return 'h5'; // 默认返回 H5 平台
     }
   }
+}
+
+// 导出函数以适配导入
+export function getPlatform(): string {
+  return Platform.getPlatform();
 }
