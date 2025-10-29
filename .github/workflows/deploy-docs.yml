@@ -52,7 +52,7 @@ jobs:
       - name: Build VitePress site
         run: |
           echo "🏗️  开始构建文档..."
-          npm run docs:full
+          npm run docs:build
           echo "✅ 构建完成"
         env:
           NODE_OPTIONS: --max_old_space_size=4096
