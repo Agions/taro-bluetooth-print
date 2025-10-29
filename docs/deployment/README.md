@@ -19,7 +19,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-org/taro-bluetooth-print.git
+git clone https://github.com/Agions/taro-bluetooth-print.git
 cd taro-bluetooth-print
 
 # 安装依赖
@@ -33,12 +33,12 @@ npm run deploy:quick
 
 ### 开发环境要求
 
-| 依赖 | 版本要求 | 用途 |
-|------|----------|------|
-| Node.js | >= 16.0.0 | JavaScript 运行时 |
-| npm | >= 8.0.0 | 包管理器 |
-| TypeScript | >= 4.5.0 | 类型检查 |
-| Taro CLI | >= 3.6.0 | 跨平台开发框架 |
+| 依赖       | 版本要求  | 用途              |
+| ---------- | --------- | ----------------- |
+| Node.js    | >= 16.0.0 | JavaScript 运行时 |
+| npm        | >= 8.0.0  | 包管理器          |
+| TypeScript | >= 4.5.0  | 类型检查          |
+| Taro CLI   | >= 3.6.0  | 跨平台开发框架    |
 
 ### 平台特定要求
 
@@ -117,8 +117,7 @@ export default defineConfig({
   mini: {
     // 微信小程序配置
     webpackChain(chain) {
-      chain.resolve.alias
-        .set('@', path.resolve(__dirname, '..', 'src'));
+      chain.resolve.alias.set('@', path.resolve(__dirname, '..', 'src'));
     }
   },
   h5: {
@@ -127,8 +126,7 @@ export default defineConfig({
     staticDirectory: 'static',
     esnextModules: ['taro-ui'],
     webpackChain(chain) {
-      chain.resolve.alias
-        .set('@', path.resolve(__dirname, '..', 'src'));
+      chain.resolve.alias.set('@', path.resolve(__dirname, '..', 'src'));
     }
   }
 });
@@ -350,9 +348,10 @@ server {
 // cdn.config.js
 module.exports = {
   // 静态资源 CDN 配置
-  publicPath: process.env.NODE_ENV === 'production'
-    ? 'https://cdn.your-domain.com/taro-bluetooth-print/'
-    : '/',
+  publicPath:
+    process.env.NODE_ENV === 'production'
+      ? 'https://cdn.your-domain.com/taro-bluetooth-print/'
+      : '/',
 
   // 资源文件名哈希
   filenameHashing: true,
@@ -708,7 +707,7 @@ services:
   app:
     build: .
     ports:
-      - "80:80"
+      - '80:80'
     environment:
       - NODE_ENV=production
     volumes:
@@ -959,6 +958,7 @@ export class Logger {
 #### 1. 微信小程序部署问题
 
 **问题：小程序上传失败**
+
 ```bash
 # 解决方案：检查 appid 配置
 # 1. 确保 project.config.json 中的 appid 正确
@@ -967,6 +967,7 @@ export class Logger {
 ```
 
 **问题：蓝牙权限被拒绝**
+
 ```typescript
 // 解决方案：引导用户开启权限
 const requestBluetoothPermission = async () => {
@@ -982,6 +983,7 @@ const requestBluetoothPermission = async () => {
 #### 2. H5 部署问题
 
 **问题：Web Bluetooth API 不可用**
+
 ```javascript
 // 解决方案：检查浏览器兼容性
 const checkWebBluetoothSupport = () => {
@@ -995,6 +997,7 @@ const checkWebBluetoothSupport = () => {
 ```
 
 **问题：HTTPS 证书问题**
+
 ```bash
 # 解决方案：配置有效的 SSL 证书
 # 1. 使用 Let's Encrypt 获取免费证书
@@ -1005,6 +1008,7 @@ const checkWebBluetoothSupport = () => {
 #### 3. React Native 部署问题
 
 **问题：iOS 构建失败**
+
 ```bash
 # 解决方案：清理和重新安装依赖
 cd ios
@@ -1015,6 +1019,7 @@ npx react-native run-ios
 ```
 
 **问题：Android 构建失败**
+
 ```bash
 # 解决方案：清理构建缓存
 cd android
@@ -1114,4 +1119,4 @@ class DevTools {
 
 ---
 
-*本文档随项目更新，最后更新时间: 2024年10月*
+_本文档随项目更新，最后更新时间: 2024年10月_

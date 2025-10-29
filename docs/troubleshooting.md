@@ -82,11 +82,13 @@ const systemCheck = {
 ### 问题1: 蓝牙设备扫描不到设备
 
 #### 症状
+
 - 扫描结果为空
 - 扫描超时
 - 设备列表不更新
 
 #### 可能原因
+
 1. 蓝牙权限未开启
 2. 位置权限未授权（Android需要）
 3. 设备蓝牙未开启
@@ -160,11 +162,7 @@ const requestBluetoothPermission = async () => {
 const enhancedScan = async () => {
   const options = {
     acceptAllDevices: true,
-    optionalServices: [
-      'battery_service',
-      'device_information',
-      'human_interface_device'
-    ]
+    optionalServices: ['battery_service', 'device_information', 'human_interface_device']
   };
 
   try {
@@ -181,6 +179,7 @@ const enhancedScan = async () => {
 ### 问题2: 蓝牙连接失败
 
 #### 症状
+
 - 连接超时
 - 连接被拒绝
 - 频繁断开连接
@@ -215,7 +214,6 @@ const diagnoseConnection = async (deviceId: string) => {
     // 3. 检查服务
     const services = await device.gatt.getPrimaryServices();
     console.log('Available services:', services);
-
   } catch (error) {
     diagnosis.errorDetails = {
       name: error.name,
@@ -313,6 +311,7 @@ class ConnectionMonitor {
 ### 问题3: 蓝牙通信错误
 
 #### 症状
+
 - 数据发送失败
 - 接收数据不完整
 - 特征值读写失败
@@ -381,7 +380,6 @@ class CommunicationDiagnostics {
           }
         }
       }
-
     } catch (error) {
       result.errors.push(`Diagnostic error: ${error}`);
     }
@@ -396,6 +394,7 @@ class CommunicationDiagnostics {
 ### 问题1: 打印内容格式错误
 
 #### 症状
+
 - 打印内容乱码
 - 格式不正确
 - 图片打印失败
@@ -427,7 +426,8 @@ const diagnosePrintContent = async (content: string, options: PrintOptions) => {
     diagnosis.encodingSupported = true;
     diagnosis.estimatedSize = bytes.length;
 
-    if (diagnosis.estimatedSize > 1024 * 10) { // 10KB限制
+    if (diagnosis.estimatedSize > 1024 * 10) {
+      // 10KB限制
       diagnosis.errors.push('Content too large');
     }
 
@@ -443,7 +443,6 @@ const diagnosePrintContent = async (content: string, options: PrintOptions) => {
 
       diagnosis.optionsValid = diagnosis.errors.length === 0;
     }
-
   } catch (error) {
     diagnosis.errors.push(`Diagnosis error: ${error}`);
   }
@@ -470,11 +469,16 @@ const preprocessPrintContent = (content: string, options: PrintOptions): Process
 
     // 2. 添加打印命令
     processed.commands.push(
-      0x1B, 0x40, // 初始化
-      0x1B, 0x61, options.align === 'center' ? 0x01 : options.align === 'right' ? 0x02 : 0x00, // 对齐
+      0x1b,
+      0x40, // 初始化
+      0x1b,
+      0x61,
+      options.align === 'center' ? 0x01 : options.align === 'right' ? 0x02 : 0x00, // 对齐
       ...textBytes,
-      0x0A, // 换行
-      0x1D, 0x56, 0x00 // 切纸
+      0x0a, // 换行
+      0x1d,
+      0x56,
+      0x00 // 切纸
     );
 
     processed.totalSize = processed.commands.length;
@@ -483,7 +487,6 @@ const preprocessPrintContent = (content: string, options: PrintOptions): Process
     if (processed.totalSize > 512) {
       processed.chunks = chunkArray(processed.commands, 512);
     }
-
   } catch (error) {
     throw new Error(`Content preprocessing failed: ${error}`);
   }
@@ -504,6 +507,7 @@ const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
 ### 问题2: 打印队列堵塞
 
 #### 症状
+
 - 打印任务不执行
 - 队列状态异常
 - 任务卡在队列中
@@ -553,12 +557,12 @@ class QueueDiagnostics {
         const oldestJob = jobs[0];
         result.oldestJobAge = Date.now() - oldestJob.createdAt.getTime();
 
-        if (result.oldestJobAge > 5 * 60 * 1000) { // 5分钟
+        if (result.oldestJobAge > 5 * 60 * 1000) {
+          // 5分钟
           result.issues.push('Oldest job too old');
           result.isHealthy = false;
         }
       }
-
     } catch (error) {
       result.issues.push(`Diagnosis error: ${error}`);
       result.isHealthy = false;
@@ -609,7 +613,6 @@ class QueueRecovery {
       result.actions.push('Queue resumed');
 
       result.success = result.failedJobs === 0;
-
     } catch (error) {
       result.actions.push(`Recovery failed: ${error}`);
       result.success = false;
@@ -638,7 +641,7 @@ const handleWeChatPermissions = async () => {
       Taro.showModal({
         title: '权限请求',
         content: '需要蓝牙权限来连接打印设备',
-        success: (res) => {
+        success: res => {
           if (res.confirm) {
             Taro.openSetting();
           }
@@ -650,7 +653,6 @@ const handleWeChatPermissions = async () => {
     // 初始化蓝牙适配器
     await Taro.openBluetoothAdapter();
     return true;
-
   } catch (error) {
     console.error('Permission check failed:', error);
 
@@ -969,17 +971,18 @@ class ConnectionPool {
         reject(new Error('Connection timeout'));
       }, this.connectionTimeout);
 
-      navigator.bluetooth.requestDevice({
-        filters: [{ name: deviceId }]
-      })
-      .then(device => {
-        clearTimeout(timeout);
-        resolve(device);
-      })
-      .catch(error => {
-        clearTimeout(timeout);
-        reject(error);
-      });
+      navigator.bluetooth
+        .requestDevice({
+          filters: [{ name: deviceId }]
+        })
+        .then(device => {
+          clearTimeout(timeout);
+          resolve(device);
+        })
+        .catch(error => {
+          clearTimeout(timeout);
+          reject(error);
+        });
     });
   }
 
@@ -1064,17 +1067,13 @@ const diagnoseConfiguration = () => {
   }
 
   // 检查配置文件
-  const configFiles = [
-    'package.json',
-    'config/index.js',
-    'project.config.json'
-  ];
+  const configFiles = ['package.json', 'config/index.js', 'project.config.json'];
 
   for (const file of configFiles) {
     // 这里需要实际的文件检查逻辑
     diagnosis.configFiles[file] = {
       exists: true, // 需要实际检查
-      valid: true   // 需要实际验证
+      valid: true // 需要实际验证
     };
   }
 
@@ -1187,11 +1186,9 @@ const performHealthCheck = async () => {
     health.checks.permissions = await checkPermissionsHealth();
 
     // 计算总体状态
-    const failedChecks = Object.values(health.checks)
-      .filter(check => check.status !== 'healthy');
+    const failedChecks = Object.values(health.checks).filter(check => check.status !== 'healthy');
 
     health.status = failedChecks.length === 0 ? 'healthy' : 'unhealthy';
-
   } catch (error) {
     health.status = 'error';
     health.error = error.message;
@@ -1284,13 +1281,13 @@ class LogCollector {
 
 ### 常见错误模式
 
-| 错误模式 | 可能原因 | 解决方案 |
-|---------|----------|----------|
-| `NetworkError` | 网络连接问题 | 检查网络状态，重试机制 |
-| `SecurityError` | 权限不足 | 请求必要权限 |
-| `TimeoutError` | 操作超时 | 增加超时时间，优化性能 |
-| `TypeError` | 数据类型错误 | 类型检查，数据验证 |
-| `ReferenceError` | 引用错误 | 检查变量定义 |
+| 错误模式         | 可能原因     | 解决方案               |
+| ---------------- | ------------ | ---------------------- |
+| `NetworkError`   | 网络连接问题 | 检查网络状态，重试机制 |
+| `SecurityError`  | 权限不足     | 请求必要权限           |
+| `TimeoutError`   | 操作超时     | 增加超时时间，优化性能 |
+| `TypeError`      | 数据类型错误 | 类型检查，数据验证     |
+| `ReferenceError` | 引用错误     | 检查变量定义           |
 
 ## 🆘 获取帮助
 
@@ -1363,20 +1360,25 @@ const generateErrorReport = (error: Error, context?: any) => {
 
 ```markdown
 ## 问题描述
+
 简要描述遇到的问题
 
 ## 复现步骤
+
 1. 步骤一
 2. 步骤二
 3. 步骤三
 
 ## 期望行为
+
 描述期望的正确行为
 
 ## 实际行为
+
 描述实际发生的情况
 
 ## 环境信息
+
 - 操作系统: [例如 iOS 15.0]
 - 平台: [例如 微信小程序/H5/React Native]
 - 版本: [例如 2.0.0]
@@ -1384,21 +1386,26 @@ const generateErrorReport = (error: Error, context?: any) => {
 
 ## 错误日志
 ```
+
 在此粘贴相关错误日志
+
 ```
 
 ## 诊断报告
 ```
+
 在此粘贴 runDiagnostics() 的输出结果
+
 ```
+
 ```
 
 ### 4. 社区资源
 
-- **GitHub Issues**: [提交问题](https://github.com/your-org/taro-bluetooth-print/issues)
+- **GitHub Issues**: [提交问题](https://github.com/Agions/taro-bluetooth-print/issues)
 - **文档网站**: [官方文档](https://docs.example.com)
-- **示例项目**: [GitHub Examples](https://github.com/your-org/taro-bluetooth-print-examples)
-- **社区讨论**: [GitHub Discussions](https://github.com/your-org/taro-bluetooth-print/discussions)
+- **示例项目**: [GitHub Examples](https://github.com/Agions/taro-bluetooth-print-examples)
+- **社区讨论**: [GitHub Discussions](https://github.com/Agions/taro-bluetooth-print/discussions)
 
 ## 📝 问题反馈流程
 
@@ -1410,4 +1417,4 @@ const generateErrorReport = (error: Error, context?: any) => {
 
 ---
 
-*本文档随项目更新，最后更新时间: 2024年10月*
+_本文档随项目更新，最后更新时间: 2024年10月_
