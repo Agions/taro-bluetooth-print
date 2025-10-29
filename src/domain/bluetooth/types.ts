@@ -11,6 +11,17 @@ export type BluetoothState =
   | 'disconnected'
   | 'error';
 
+// 确保BluetoothState也被导出为值
+export const BluetoothStateValues = {
+  UNAVAILABLE: 'unavailable' as const,
+  AVAILABLE: 'available' as const,
+  SCANNING: 'scanning' as const,
+  CONNECTING: 'connecting' as const,
+  CONNECTED: 'connected' as const,
+  DISCONNECTED: 'disconnected' as const,
+  ERROR: 'error' as const
+} as const;
+
 export interface IBluetoothDevice {
   /** 设备ID */
   id: string;

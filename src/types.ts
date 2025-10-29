@@ -2,9 +2,8 @@
  * 蓝牙打印库主类型定义
  */
 
-import { ITemplate, ITemplateContext } from './domain/template/types';
-import { IBluetoothDevice, IBluetoothConnection, BluetoothState, IBluetoothAdapter } from './domain/bluetooth/types';
-import { IPrinter, IPrintJob, PrinterState, IPrintDriver } from './domain/printer/types';
+import { ITemplate } from './domain/template/types';
+import { IPrinter, IPrintJob } from './domain/printer/types';
 import { IQueueStatus } from './domain/queue/types';
 
 // 主配置接口
@@ -496,8 +495,29 @@ export const ERROR_CODES = {
   CONFIG_NOT_FOUND: 'CONFIG_NOT_FOUND'
 } as const;
 
-// 导出IQueueStatus以解决导出问题
-export type { IQueueStatus } from './domain/queue/types';
+// 导出ErrorCode类型以解决导出问题
+export type ErrorCode = keyof typeof ERROR_CODES;
+
+// 导出其他缺少的类型
+export type TextOptions = {
+  align?: 'left' | 'center' | 'right';
+  bold?: boolean;
+  underline?: boolean;
+  size?: number;
+};
+
+export type ReceiptOptions = {
+  title?: string;
+  items?: ReceiptItem[];
+  footer?: string;
+};
+
+export type ReceiptItem = {
+  name: string;
+  quantity?: number;
+  price?: number;
+  total?: number;
+};
 
 // 兼容旧版本的类型别名（为现有代码提供向后兼容）
 export type IBlueToothPrinter = IBluetoothPrinter;
