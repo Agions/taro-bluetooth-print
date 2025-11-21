@@ -423,7 +423,7 @@ describe('真实世界场景 E2E 测试', () => {
 
         const orders = [
           {
-            orderNumber: 'ORD2024001',
+            orderNumber: 'ORD2025001',
             orderTime: new Date().toLocaleTimeString(),
             tableNumber: 'A01',
             waiter: '服务员小李',
@@ -457,7 +457,7 @@ describe('真实世界场景 E2E 测试', () => {
             priority: '普通'
           },
           {
-            orderNumber: 'ORD2024002',
+            orderNumber: 'ORD2025002',
             orderTime: new Date().toLocaleTimeString(),
             tableNumber: 'B05',
             waiter: '服务员小王',
@@ -491,7 +491,7 @@ describe('真实世界场景 E2E 测试', () => {
             priority: '普通'
           },
           {
-            orderNumber: 'ORD2024003',
+            orderNumber: 'ORD2025003',
             orderTime: new Date().toLocaleTimeString(),
             tableNumber: 'VIP01',
             waiter: '领班小张',
@@ -816,7 +816,7 @@ describe('真实世界场景 E2E 测试', () => {
             packingDate: new Date().toLocaleDateString(),
             packerName: '配货员小陈',
             reviewerName: '审核员小林',
-            orderNumber: 'ORD202402001',
+            orderNumber: 'ORD202502001',
             customerName: 'XYZ科技有限公司',
             deliveryMethod: '顺丰标快',
             items: [
@@ -827,7 +827,7 @@ describe('真实世界场景 E2E 测试', () => {
                 requiredQuantity: 2,
                 actualQuantity: 2,
                 location: 'A-01-03',
-                batchNumber: 'B202402001'
+                batchNumber: 'B202502001'
               },
               {
                 productCode: 'ELEC002',
@@ -836,7 +836,7 @@ describe('真实世界场景 E2E 测试', () => {
                 requiredQuantity: 4,
                 actualQuantity: 4,
                 location: 'A-02-01',
-                batchNumber: 'B202402005'
+                batchNumber: 'B202502005'
               }
             ],
             totalItems: 2,
@@ -1018,7 +1018,7 @@ Rp. (处方)
 
         const patients = [
           {
-            prescriptionNumber: 'RX202402001',
+            prescriptionNumber: 'RX202502001',
             hospitalName: '市第一人民医院',
             department: '内科',
             patientName: '张三',
@@ -1065,7 +1065,7 @@ Rp. (处方)
             pharmacyPhone: '0123-4567890'
           },
           {
-            prescriptionNumber: 'RX202402002',
+            prescriptionNumber: 'RX202502002',
             hospitalName: '市第一人民医院',
             department: '儿科',
             patientName: '小明',
@@ -1115,7 +1115,7 @@ Rp. (处方)
 
         const labReports = [
           {
-            reportNumber: 'LAB202402001',
+            reportNumber: 'LAB202502001',
             hospitalName: '市第一人民医院',
             labDepartment: '检验科',
             patientName: '张三',

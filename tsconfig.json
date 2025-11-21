@@ -21,7 +21,6 @@
     "noFallthroughCasesInSwitch": false,
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false,
-    "ignoreDeprecations":"6.0",
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
