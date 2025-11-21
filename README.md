@@ -64,6 +64,14 @@ await printer
   .print();
 ```
 
+## 📚 文档
+
+完整的文档请访问：[Taro Bluetooth Print Documentation](https://agions.github.io/taro-bluetooth-print/)
+
+- [快速开始](https://agions.github.io/taro-bluetooth-print/guide/getting-started)
+- [功能特性](https://agions.github.io/taro-bluetooth-print/guide/features)
+- [API 参考](https://agions.github.io/taro-bluetooth-print/api)
+
 ## API Reference
 
 ### `BluetoothPrinter`
