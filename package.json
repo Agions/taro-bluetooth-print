@@ -1,6 +1,6 @@
 {
   "name": "taro-bluetooth-print",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Taro 蓝牙打印库 v2.0 - 轻量级、高性能、跨平台",
   "type": "module",
   "main": "dist/index.cjs.js",
@@ -28,7 +28,8 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "jest"
   },
   "keywords": [
     "taro",

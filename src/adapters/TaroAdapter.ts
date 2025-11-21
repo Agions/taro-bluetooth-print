@@ -39,7 +39,7 @@ export class TaroAdapter implements IPrinterAdapter {
     }
   }
 
-  async write(deviceId: string, buffer: ArrayBuffer): Promise<void> {
+  async write(deviceId: string, buffer: ArrayBuffer, options?: import('../types').IAdapterOptions): Promise<void> {
     // We need serviceId and characteristicId. 
     // In a real app, we'd discover them. Here we assume they are passed or found.
     // For simplicity in this refactor, we'll implement a discovery helper or 
@@ -68,20 +68,38 @@ export class TaroAdapter implements IPrinterAdapter {
       throw new Error('No writeable characteristic found');
     }
 
-    // Write in chunks (20 bytes is safe for BLE, but many support MTU negotiation. We'll stick to 20 for safety)
-    const chunkSize = 20;
+    // Write in chunks
+    const chunkSize = options?.chunkSize ?? 20;
+    const delay = options?.delay ?? 20;
+    const retries = options?.retries ?? 0;
+
     const data = new Uint8Array(buffer);
 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
-      await Taro.writeBLECharacteristicValue({
-        deviceId,
-        serviceId: targetServiceId,
-        characteristicId: targetCharId,
-        value: chunk.buffer
-      });
+
+      let attempt = 0;
+      while (attempt <= retries) {
+        try {
+          await Taro.writeBLECharacteristicValue({
+            deviceId,
+            serviceId: targetServiceId,
+            characteristicId: targetCharId,
+            value: chunk.buffer
+          });
+          break; // Success
+        } catch (error) {
+          attempt++;
+          if (attempt > retries) {
+            throw error; // Fail after retries
+          }
+          // Wait before retry
+          await new Promise(r => setTimeout(r, delay * 2));
+        }
+      }
+
       // Small delay to prevent congestion
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise(r => setTimeout(r, delay));
     }
   }
 

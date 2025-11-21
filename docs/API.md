@@ -20,6 +20,14 @@ Connects to the specified Bluetooth device.
 
 Disconnects from the current device.
 
+#### `setOptions(options: IAdapterOptions): this`
+
+Sets adapter configuration options.
+
+- `chunkSize`: Size of data chunks (default: 20).
+- `delay`: Delay between chunks in ms (default: 20).
+- `retries`: Number of retries on write failure (default: 0).
+
 #### `text(content: string, encoding?: string): this`
 
 Adds text to the print queue.
@@ -42,6 +50,31 @@ Prints an image.
 - `width`: Image width.
 - `height`: Image height.
 
+#### `qr(content: string, options?: IQrOptions): this`
+
+Prints a QR code.
+- `content`: The QR code content.
+- `options`:
+  - `model`: 1 or 2 (default: 2).
+  - `size`: Module size 1-16 (default: 6).
+  - `errorCorrection`: 'L', 'M', 'Q', 'H' (default: 'M').
+
 #### `print(): Promise<void>`
 
 Sends all queued commands to the printer.
+
+#### `pause(): void`
+
+Pauses the current print job.
+
+#### `resume(): Promise<void>`
+
+Resumes a paused print job.
+
+#### `cancel(): void`
+
+Cancels the current print job and clears the queue.
+
+#### `remaining(): number`
+
+Returns the number of bytes remaining in the current job or queue.

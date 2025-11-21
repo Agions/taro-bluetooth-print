@@ -1,8 +1,6 @@
-# Getting Started
+# 快速开始
 
-## Installation
-
-Install the package using npm or yarn:
+## 安装
 
 ```bash
 npm install taro-bluetooth-print
@@ -10,42 +8,34 @@ npm install taro-bluetooth-print
 yarn add taro-bluetooth-print
 ```
 
-## Basic Usage
-
-Import the `BluetoothPrinter` class and create an instance:
+## 基础使用
 
 ```typescript
 import { BluetoothPrinter } from 'taro-bluetooth-print';
 
+// 初始化打印机
 const printer = new BluetoothPrinter();
+
+// 连接设备
+await printer.connect('device-id');
+
+// 打印文本
+printer.text('Hello World')
+       .feed(2)
+       .cut();
+
+// 发送指令
+await printer.print();
 ```
 
-### Connect and Print
+## 配置适配器
+
+针对弱网环境，可以配置适配器参数：
 
 ```typescript
-async function printReceipt(deviceId: string) {
-  try {
-    // 1. Connect to the printer
-    await printer.connect(deviceId);
-
-    // 2. Build and send commands
-    await printer
-      .text('Welcome to Taro Print!')
-      .feed()
-      .text('--------------------------------')
-      .feed()
-      .text('Item 1 .................... $10.00')
-      .text('Item 2 .................... $20.00')
-      .feed(2)
-      .cut()
-      .print();
-      
-    console.log('Print success');
-  } catch (error) {
-    console.error('Print failed', error);
-  } finally {
-    // 3. Always disconnect
-    await printer.disconnect();
-  }
-}
+printer.setOptions({
+  chunkSize: 20,    // 分片大小
+  delay: 20,        // 分片延迟 (ms)
+  retries: 3        // 重试次数
+});
 ```

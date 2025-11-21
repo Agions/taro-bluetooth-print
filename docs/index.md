@@ -2,24 +2,24 @@
 layout: home
 
 hero:
-  name: "Taro Bluetooth Print"
-  text: "Lightweight & High Performance"
-  tagline: A modern Bluetooth printing library for Taro applications.
+  name: Taro Bluetooth Print
+  text: 轻量级、高性能的 Taro 蓝牙打印库
+  tagline: 支持图片、二维码、断点续传与弱网适配
   actions:
     - theme: brand
-      text: Get Started
+      text: 快速开始
       link: /guide/getting-started
     - theme: alt
-      text: API Reference
-      link: /api
+      text: 功能特性
+      link: /guide/features
 
 features:
-  - title: Simple API
-    details: Fluent interface design makes printing code readable and easy to maintain.
-  - title: Cross Platform
-    details: Built on Taro, works seamlessly on Weapp, H5, React Native, and more.
-  - title: High Performance
-    details: Direct byte buffer manipulation ensures fast and reliable data transmission.
-  - title: Rich Content
-    details: Support for Text, Images, QR Codes (coming soon) and Barcodes (coming soon).
+  - title: 高性能图片打印
+    details: 内置 Floyd-Steinberg 抖动算法，支持高质量图片转 ESC/POS 指令。
+  - title: 二维码支持
+    details: 原生支持二维码打印，可自定义纠错级别和大小。
+  - title: 弱网适配
+    details: 智能分片与重试机制，确保在不稳定网络环境下也能稳定打印。
+  - title: 断点续传
+    details: 支持打印任务的暂停、恢复与取消，灵活控制打印进度。
 ---

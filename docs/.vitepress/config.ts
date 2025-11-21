@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: "Taro Bluetooth Print",
+  base: "/taro-bluetooth-print/",
   description: "Lightweight, high-performance Bluetooth printing library for Taro",
   themeConfig: {
     nav: [
@@ -28,7 +29,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/example/taro-bluetooth-print' }
+      { icon: 'github', link: 'https://github.com/agions/taro-bluetooth-print' }
     ]
   }
 })
