@@ -6,12 +6,13 @@ import { PrinterState } from '../src/types';
 const mockWriteBLECharacteristicValue = jest.fn();
 const mockGetBLEDeviceServices = jest.fn();
 const mockGetBLEDeviceCharacteristics = jest.fn();
+const mockCreateBLEConnection = jest.fn();
 
 global.Taro = {
   writeBLECharacteristicValue: mockWriteBLECharacteristicValue,
   getBLEDeviceServices: mockGetBLEDeviceServices,
   getBLEDeviceCharacteristics: mockGetBLEDeviceCharacteristics,
-  createBLEConnection: jest.fn(),
+  createBLEConnection: mockCreateBLEConnection,
   closeBLEConnection: jest.fn(),
   onBLEConnectionStateChange: jest.fn(),
 } as any;
@@ -22,17 +23,22 @@ describe('TaroAdapter Weak Network', () => {
   const serviceId = 'service-uuid';
   const charId = 'char-uuid';
 
-  beforeEach(() => {
+  beforeEach(async () => {
     adapter = new TaroAdapter();
     jest.clearAllMocks();
 
     // Setup default mocks
+    mockCreateBLEConnection.mockResolvedValue(undefined);
     mockGetBLEDeviceServices.mockResolvedValue({
-      services: [{ uuid: serviceId }]
+      services: [{ uuid: serviceId }],
     });
     mockGetBLEDeviceCharacteristics.mockResolvedValue({
-      characteristics: [{ uuid: charId, properties: { write: true } }]
+      characteristics: [{ uuid: charId, properties: { write: true } }],
     });
+
+    // Connect to set up service cache
+    await adapter.connect(deviceId);
+    jest.clearAllMocks(); // Clear connection mocks
   });
 
   test('write retries on failure', async () => {
@@ -57,8 +63,9 @@ describe('TaroAdapter Weak Network', () => {
     const data = new Uint8Array([1, 2, 3]).buffer;
 
     // Set retries to 1
-    await expect(adapter.write(deviceId, data, { retries: 1, delay: 1 }))
-      .rejects.toThrow('Fail Always');
+    await expect(adapter.write(deviceId, data, { retries: 1, delay: 1 })).rejects.toThrow(
+      'Failed to write chunk'
+    );
 
     // Should have called write 2 times (1 initial + 1 retry)
     expect(mockWriteBLECharacteristicValue).toHaveBeenCalledTimes(2);

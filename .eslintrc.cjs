@@ -1,51 +1,27 @@
 module.exports = {
   root: true,
-  env: {
-    browser: true,
-    es2022: true,
-    node: true,
-    jest: true
-  },
-  extends: [
-    'eslint:recommended'
-  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    ecmaVersion: 2022,
-    sourceType: 'module'
+    ecmaVersion: 2020,
+    sourceType: 'module',
+    project: './tsconfig.json'
   },
-  plugins: [
-    '@typescript-eslint'
+  plugins: ['@typescript-eslint', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    'prettier'
   ],
   rules: {
-    // TypeScript规则
-    '@typescript-eslint/no-unused-vars': ['error', {
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_',
-      caughtErrorsIgnorePattern: '^_'
-    }],
+    'prettier/prettier': 'error',
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
-    
-    // 通用规则
-    'no-console': 'warn',
-    'no-debugger': 'error',
-    'no-unused-expressions': 'error',
-    'no-duplicate-imports': 'error',
-    'prefer-const': 'error',
-    'no-var': 'error'
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/no-misused-promises': 'error',
+    'no-console': ['warn', { allow: ['warn', 'error'] }]
   },
-  overrides: [
-    {
-      files: ['*.ts'],
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'warn'
-      }
-    },
-    {
-      files: ['*.test.ts', '*.spec.ts', '**/__tests__/**/*.ts'],
-      rules: {
-        '@typescript-eslint/no-explicit-any': 'off'
-      }
-    }
-  ]
+  ignorePatterns: ['dist', 'node_modules', 'coverage', 'docs', '*.config.js', '*.config.ts', '*.config.cjs']
 };
