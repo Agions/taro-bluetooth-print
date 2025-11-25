@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 优化了API设计
 - 提高了性能和可靠性
 
-## [1.0.0] - 2025-06-01
+## [1.0.0] - 2025-03-01
 
 ### Added
 - 初始版本
