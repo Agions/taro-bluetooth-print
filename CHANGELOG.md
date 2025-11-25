@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2024-11-25
+## [2.1.0] - 2025-11-25
 
 ### Added
 - 支持支付宝小程序平台
@@ -26,24 +26,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 修复了测试用例中的问题
 - 优化了代码结构，提高了代码可读性
 
-## [2.0.3] - 2024-08-15
+## [2.0.3] - 2025-08-15
 
 ### Changed
 - 优化了构建配置
 - 完善了文档
 
-## [2.0.2] - 2024-08-10
+## [2.0.2] - 2025-08-10
 
 ### Fixed
 - 修复了部分TypeScript错误
 
-## [2.0.1] - 2024-08-05
+## [2.0.1] - 2025-08-05
 
 ### Changed
 - 优化了代码结构
 - 完善了文档
 
-## [2.0.0] - 2024-08-01
+## [2.0.0] - 2025-08-01
 
 ### Added
 - 全新的架构设计
@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 优化了API设计
 - 提高了性能和可靠性
 
-## [1.0.0] - 2023-12-01
+## [1.0.0] - 2025-06-01
 
 ### Added
 - 初始版本
