@@ -7,15 +7,20 @@ const mockWriteBLECharacteristicValue = jest.fn();
 const mockGetBLEDeviceServices = jest.fn();
 const mockGetBLEDeviceCharacteristics = jest.fn();
 const mockCreateBLEConnection = jest.fn();
+const mockGetBLEConnectionState = jest.fn();
 
 global.Taro = {
   writeBLECharacteristicValue: mockWriteBLECharacteristicValue,
   getBLEDeviceServices: mockGetBLEDeviceServices,
   getBLEDeviceCharacteristics: mockGetBLEDeviceCharacteristics,
   createBLEConnection: mockCreateBLEConnection,
+  getBLEConnectionState: mockGetBLEConnectionState,
   closeBLEConnection: jest.fn(),
   onBLEConnectionStateChange: jest.fn(),
 } as any;
+
+// Default mock implementation for getBLEConnectionState
+mockGetBLEConnectionState.mockResolvedValue({ connected: true });
 
 describe('TaroAdapter Weak Network', () => {
   let adapter: TaroAdapter;

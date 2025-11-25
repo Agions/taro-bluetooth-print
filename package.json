@@ -1,7 +1,7 @@
 {
   "name": "taro-bluetooth-print",
-  "version": "2.0.3",
-  "description": "Taro 蓝牙打印库 v2.0 - 轻量级、高性能、跨平台",
+  "version": "2.1.0",
+  "description": "Taro 蓝牙打印库 v2.1 - 轻量级、高性能、跨平台支持微信、支付宝、百度、字节跳动小程序",
   "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",

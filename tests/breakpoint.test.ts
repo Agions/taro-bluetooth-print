@@ -6,6 +6,11 @@ import { BluetoothPrinter } from '../src/core/BluetoothPrinter';
 import { TaroAdapter } from '../src/adapters/TaroAdapter';
 import { PrinterState } from '../src/types';
 
+// Mock Taro API
+global.Taro = {
+  getBLEConnectionState: jest.fn().mockResolvedValue({ connected: true }),
+} as any;
+
 // Mock TaroAdapter
 jest.mock('../src/adapters/TaroAdapter');
 
@@ -13,13 +18,13 @@ describe('BluetoothPrinter Breakpoint', () => {
   let printer: BluetoothPrinter;
   let mockAdapter: jest.Mocked<TaroAdapter>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockAdapter = new TaroAdapter() as jest.Mocked<TaroAdapter>;
     mockAdapter.write = jest.fn().mockResolvedValue(undefined);
     mockAdapter.connect = jest.fn().mockResolvedValue(undefined);
 
     printer = new BluetoothPrinter(mockAdapter);
-    printer.connect('test-device');
+    await printer.connect('test-device');
   });
 
   test('pause stops printing', async () => {

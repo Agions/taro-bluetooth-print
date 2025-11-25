@@ -3,10 +3,10 @@
  * Converts high-level print commands to ESC/POS byte sequences
  */
 
-import { IPrinterDriver, IQrOptions } from '../types';
-import { Encoding } from '../utils/encoding';
-import { ImageProcessing } from '../utils/image';
-import { Logger } from '../utils/logger';
+import { IPrinterDriver, IQrOptions } from '@/types';
+import { Encoding } from '@/utils/encoding';
+import { ImageProcessing } from '@/utils/image';
+import { Logger } from '@/utils/logger';
 
 /**
  * ESC/POS thermal printer driver
@@ -35,7 +35,6 @@ export class EscPos implements IPrinterDriver {
    * @returns Array of command buffers
    */
   init(): Uint8Array[] {
-    this.logger.debug('Generating init command');
     return [new Uint8Array([0x1b, 0x40])]; // ESC @
   }
 
@@ -52,7 +51,9 @@ export class EscPos implements IPrinterDriver {
    * ```
    */
   text(content: string, encoding = 'GBK'): Uint8Array[] {
-    this.logger.debug(`Generating text command: "${content.substring(0, 30)}..." (${encoding})`);
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
     const encoded = Encoding.encode(content, encoding);
     return [encoded];
   }
@@ -69,8 +70,9 @@ export class EscPos implements IPrinterDriver {
    * ```
    */
   feed(lines = 1): Uint8Array[] {
-    this.logger.debug(`Generating feed command: ${lines} lines`);
-    return [new Uint8Array([0x1b, 0x64, lines])]; // ESC d n
+    // 限制行数范围 1-255
+    const safeLines = Math.max(1, Math.min(255, Math.floor(lines)));
+    return [new Uint8Array([0x1b, 0x64, safeLines])]; // ESC d n
   }
 
   /**
@@ -84,7 +86,6 @@ export class EscPos implements IPrinterDriver {
    * ```
    */
   cut(): Uint8Array[] {
-    this.logger.debug('Generating cut command');
     return [new Uint8Array([0x1d, 0x56, 0x00])]; // GS V 0
   }
 
@@ -104,20 +105,26 @@ export class EscPos implements IPrinterDriver {
    * ```
    */
   image(data: Uint8Array, width: number, height: number): Uint8Array[] {
-    this.logger.debug(`Generating image command: ${width}x${height}`);
+    // 参数验证
+    if (!data || !(data instanceof Uint8Array) || width <= 0 || height <= 0) {
+      return [];
+    }
+
+    // 确保数据长度正确
+    if (data.length !== width * height * 4) {
+      this.logger.warn(`Invalid image data length: expected ${width * height * 4}, got ${data.length}`);
+      return [];
+    }
 
     const bitmap = ImageProcessing.toBitmap(data, width, height);
-    const xL = Math.ceil(width / 8) % 256;
-    const xH = Math.floor(Math.ceil(width / 8) / 256);
+    const bytesPerLine = Math.ceil(width / 8);
+    const xL = bytesPerLine % 256;
+    const xH = Math.floor(bytesPerLine / 256);
     const yL = height % 256;
     const yH = Math.floor(height / 256);
 
     // GS v 0 m xL xH yL yH d1...dk
     const header = new Uint8Array([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-    this.logger.debug(
-      `Image header: mode=0, width_bytes=${xL + xH * 256}, height=${yL + yH * 256}`
-    );
-
     return [header, bitmap];
   }
 
@@ -138,18 +145,20 @@ export class EscPos implements IPrinterDriver {
    * ```
    */
   qr(content: string, options?: IQrOptions): Uint8Array[] {
-    const model = options?.model ?? 2;
-    const size = options?.size ?? 6;
-    const errorCorrection = options?.errorCorrection ?? 'M';
+    // 参数验证
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
 
-    this.logger.debug(`Generating QR code: model=${model}, size=${size}, ec=${errorCorrection}`);
+    const model = options?.model ?? 2;
+    // 限制模块大小 1-16
+    const size = Math.max(1, Math.min(16, options?.size ?? 6));
+    const errorCorrection = options?.errorCorrection ?? 'M';
 
     const commands: Uint8Array[] = [];
 
     // 1. Set Model (Function 165)
     // GS ( k 04 00 31 41 n1 n2
-    // n1: 49 (Model 1), 50 (Model 2)
-    // n2: 0
     commands.push(
       new Uint8Array([0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, model === 1 ? 49 : 50, 0])
     );
@@ -182,7 +191,6 @@ export class EscPos implements IPrinterDriver {
     // GS ( k 03 00 31 51 30
     commands.push(new Uint8Array([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]));
 
-    this.logger.debug(`QR code commands generated: ${commands.length} buffers`);
     return commands;
   }
 }

@@ -29,6 +29,9 @@ export enum ErrorCode {
   // Data errors
   INVALID_IMAGE_DATA = 'INVALID_IMAGE_DATA',
   INVALID_QR_DATA = 'INVALID_QR_DATA',
+
+  // Platform errors
+  PLATFORM_NOT_SUPPORTED = 'PLATFORM_NOT_SUPPORTED',
 }
 
 /**

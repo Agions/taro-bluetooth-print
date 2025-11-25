@@ -9,12 +9,12 @@ import {
   IAdapterOptions,
   IQrOptions,
   PrinterState,
-} from '../types';
-import { EscPos } from '../drivers/EscPos';
-import { TaroAdapter } from '../adapters/TaroAdapter';
+} from '@/types';
+import { EscPos } from '@/drivers/EscPos';
+import { AdapterFactory } from '@/adapters/AdapterFactory';
 import { EventEmitter } from './EventEmitter';
-import { Logger } from '../utils/logger';
-import { BluetoothPrintError, ErrorCode } from '../errors/BluetoothError';
+import { Logger } from '@/utils/logger';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
  * Event types emitted by BluetoothPrinter
@@ -78,12 +78,12 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   /**
    * Creates a new BluetoothPrinter instance
    *
-   * @param adapter - Custom adapter implementation (defaults to TaroAdapter)
+   * @param adapter - Custom adapter implementation (defaults to platform-specific adapter)
    * @param driver - Custom driver implementation (defaults to EscPos)
    */
   constructor(adapter?: IPrinterAdapter, driver?: IPrinterDriver) {
     super();
-    this.adapter = adapter || new TaroAdapter();
+    this.adapter = adapter || AdapterFactory.create();
     this.driver = driver || new EscPos();
 
     // Listen to adapter state changes
@@ -410,17 +410,32 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     this.jobOffset = 0;
     this.buffer = []; // Clear queue
     this.isPaused = false;
+    this.state = PrinterState.PRINTING; // 设置状态为PRINTING
+    this.emit('state-change', this.state);
 
     try {
       await this.processJob();
-      this.emit('print-complete');
-      this.logger.info('Print job completed successfully');
+      
+      // 检查是否是因为暂停而返回
+      if (this.isPaused) {
+        // 打印任务被暂停，保持PAUSED状态
+        this.logger.info('Print job paused');
+      } else {
+        // 打印任务正常完成
+        this.emit('print-complete');
+        this.logger.info('Print job completed successfully');
+        // 打印完成后，将状态设置回CONNECTED
+        this.state = PrinterState.CONNECTED;
+        this.emit('state-change', this.state);
+      }
     } catch (error) {
-      const printError =
-        error instanceof BluetoothPrintError
-          ? error
-          : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
+      const printError = error instanceof BluetoothPrintError
+        ? error
+        : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
       this.emit('error', printError);
+      // 打印失败后，将状态设置回CONNECTED
+      this.state = PrinterState.CONNECTED;
+      this.emit('state-change', this.state);
       throw printError;
     }
   }
@@ -434,26 +449,42 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
 
     const printerChunkSize = 512;
     const total = this.jobBuffer.length;
+    const deviceId = this.deviceId; // 缓存deviceId，避免闭包问题
+    const jobBuffer = this.jobBuffer; // 缓存jobBuffer，避免闭包问题
 
-    while (this.jobOffset < this.jobBuffer.length) {
-      if (this.isPaused) {
-        this.logger.debug('Job paused at offset:', this.jobOffset);
-        return;
+    try {
+      while (this.jobOffset < jobBuffer.length) {
+        if (this.isPaused) {
+          this.logger.debug('Job paused at offset:', this.jobOffset);
+          return;
+        }
+
+        // 检查设备是否仍然连接
+        if (this.state !== PrinterState.CONNECTED && this.state !== PrinterState.PRINTING && this.state !== PrinterState.PAUSED) {
+          throw new BluetoothPrintError(
+            ErrorCode.DEVICE_DISCONNECTED,
+            'Device disconnected during print job'
+          );
+        }
+
+        const end = Math.min(this.jobOffset + printerChunkSize, jobBuffer.length);
+        const chunk = jobBuffer.slice(this.jobOffset, end);
+
+        await this.adapter.write(deviceId, chunk.buffer, this.adapterOptions);
+
+        this.jobOffset = end;
+
+        // Emit progress only if there are listeners, avoid unnecessary computations
+        if (this.hasListeners('progress')) {
+          this.emit('progress', { sent: this.jobOffset, total });
+        }
       }
-
-      const end = Math.min(this.jobOffset + printerChunkSize, this.jobBuffer.length);
-      const chunk = this.jobBuffer.slice(this.jobOffset, end);
-
-      await this.adapter.write(this.deviceId, chunk.buffer, this.adapterOptions);
-
-      this.jobOffset = end;
-
-      // Emit progress
-      this.emit('progress', { sent: this.jobOffset, total });
+    } finally {
+      // 只有当任务完成时才清理缓冲区
+      if (this.jobOffset >= jobBuffer.length) {
+        this.jobBuffer = null;
+        this.jobOffset = 0;
+      }
     }
-
-    // Job done
-    this.jobBuffer = null;
-    this.jobOffset = 0;
   }
 }

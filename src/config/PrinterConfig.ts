@@ -2,7 +2,7 @@
  * Configuration management for the printer library
  */
 
-import { LogLevel } from '../utils/logger';
+import { LogLevel } from '@/utils/logger';
 
 /**
  * Adapter configuration options

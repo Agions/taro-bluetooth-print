@@ -9,6 +9,7 @@
  *   'connected': { deviceId: string };
  *   'error': Error;
  *   'progress': { current: number; total: number };
+ *   'ready': void;
  * }
  *
  * class MyClass extends EventEmitter<MyEvents> {
@@ -24,7 +25,8 @@
  * ```
  */
 export class EventEmitter<T extends Record<string, any>> {
-  private listeners: Map<keyof T, Set<Function>> = new Map();
+  // 使用Map存储事件监听器，Set确保每个监听器唯一
+  private listeners: Map<keyof T, Set<(data: any) => void>> = new Map();
 
   /**
    * Subscribe to an event
@@ -37,9 +39,9 @@ export class EventEmitter<T extends Record<string, any>> {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(handler);
+    this.listeners.get(event)!.add(handler as (data: any) => void);
 
-    // Return unsubscribe function
+    // 返回取消订阅函数
     return () => this.off(event, handler);
   }
 
@@ -53,9 +55,9 @@ export class EventEmitter<T extends Record<string, any>> {
   once<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     const wrappedHandler = (data: T[K]) => {
       handler(data);
-      this.off(event, wrappedHandler);
+      this.off(event, wrappedHandler as any);
     };
-    return this.on(event, wrappedHandler);
+    return this.on(event, wrappedHandler as any);
   }
 
   /**
@@ -67,7 +69,8 @@ export class EventEmitter<T extends Record<string, any>> {
   off<K extends keyof T>(event: K, handler: (data: T[K]) => void): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
-      handlers.delete(handler);
+      handlers.delete(handler as (data: any) => void);
+      // 当没有监听器时，移除事件以释放内存
       if (handlers.size === 0) {
         this.listeners.delete(event);
       }
@@ -80,25 +83,42 @@ export class EventEmitter<T extends Record<string, any>> {
    * @param event - Event name
    * @param data - Event payload (optional for void events)
    */
-  protected emit<K extends keyof T>(event: K, ...args: T[K] extends void ? [] : [T[K]]): void {
+  protected emit<K extends keyof T>(event: K, data?: T[K]): void {
     const handlers = this.listeners.get(event);
-    if (handlers) {
-      const data = args[0];
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (error) {
-          console.error(`Error in event handler for "${String(event)}":`, error);
-        }
-      });
+    // 如果没有监听器，直接返回，避免不必要的操作
+    if (!handlers || handlers.size === 0) {
+      return;
     }
+
+    // 复制监听器集合，避免在遍历过程中修改集合导致问题
+    const handlersCopy = new Set(handlers);
+    handlersCopy.forEach(handler => {
+      try {
+        // 根据事件类型决定是否传递数据
+        if (data === undefined && data === null) {
+          handler("");
+        } else {
+          handler(data);
+        }
+      } catch (error) {
+        // 捕获并处理事件处理程序中的错误，避免影响其他监听器
+        console.error(`Error in event handler for "${String(event)}":`, error);
+      }
+    });
   }
 
   /**
    * Remove all event listeners
+   * @param event - Optional event name to remove all listeners for a specific event
    */
-  protected removeAllListeners(): void {
-    this.listeners.clear();
+  protected removeAllListeners<K extends keyof T>(event?: K): void {
+    if (event) {
+      // 移除特定事件的所有监听器
+      this.listeners.delete(event);
+    } else {
+      // 移除所有事件的监听器
+      this.listeners.clear();
+    }
   }
 
   /**
@@ -109,5 +129,15 @@ export class EventEmitter<T extends Record<string, any>> {
    */
   listenerCount<K extends keyof T>(event: K): number {
     return this.listeners.get(event)?.size ?? 0;
+  }
+
+  /**
+   * Check if there are any listeners for an event
+   *
+   * @param event - Event name
+   * @returns True if there are listeners, false otherwise
+   */
+  hasListeners<K extends keyof T>(event: K): boolean {
+    return this.listenerCount(event) > 0;
   }
 }

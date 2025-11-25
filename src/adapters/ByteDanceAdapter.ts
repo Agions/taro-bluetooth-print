@@ -1,27 +1,27 @@
 /**
- * Taro Bluetooth Adapter
- * Implements the IPrinterAdapter interface for Taro framework
+ * ByteDance Bluetooth Adapter
+ * Implements the IPrinterAdapter interface for ByteDance Mini Program
  */
 
 import { IAdapterOptions, PrinterState } from '@/types';
 import { BaseAdapter } from './BaseAdapter';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
-// Declare Taro global for TypeScript
-declare const Taro: any;
+// Declare ByteDance global for TypeScript
+declare const tt: any;
 
 /**
- * Taro Bluetooth Low Energy adapter
+ * ByteDance Bluetooth Low Energy adapter
  *
  * @example
  * ```typescript
- * const adapter = new TaroAdapter();
+ * const adapter = new ByteDanceAdapter();
  * await adapter.connect('device-id-123');
  * await adapter.write('device-id-123', buffer);
  * await adapter.disconnect('device-id-123');
  * ```
  */
-export class TaroAdapter extends BaseAdapter {
+export class ByteDanceAdapter extends BaseAdapter {
 
   /**
    * Connects to a Bluetooth device and discovers services
@@ -32,7 +32,7 @@ export class TaroAdapter extends BaseAdapter {
   async connect(deviceId: string): Promise<void> {
     this.validateDeviceId(deviceId);
 
-    // 检查是否已连接
+    // Check if already connected
     if (this.isDeviceConnected(deviceId)) {
       this.logger.warn('Device already connected:', deviceId);
       this.updateState(PrinterState.CONNECTED);
@@ -43,8 +43,11 @@ export class TaroAdapter extends BaseAdapter {
     this.logger.debug('Connecting to device:', deviceId);
 
     try {
-      // 添加连接超时处理
-      const connectionPromise = Taro.createBLEConnection({ deviceId });
+      // Add connection timeout handling
+      const connectionPromise = tt.createBLEConnection({
+        deviceId
+      });
+      
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error('Connection timeout after 10 seconds'));
@@ -61,7 +64,7 @@ export class TaroAdapter extends BaseAdapter {
       this.logger.info('Device connected successfully');
 
       // Listen for connection state changes
-      Taro.onBLEConnectionStateChange((res: any) => {
+      tt.onBLEConnectionStateChange((res: any) => {
         if (res.deviceId === deviceId && !res.connected) {
           this.logger.warn('Device disconnected unexpectedly');
           this.updateState(PrinterState.DISCONNECTED);
@@ -72,7 +75,7 @@ export class TaroAdapter extends BaseAdapter {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
       
-      // 根据错误类型返回更具体的错误代码
+      // Return more specific error codes based on error message
       const errorMessage = (error as Error).message || '';
       if (errorMessage.includes('timeout')) {
         throw new BluetoothPrintError(
@@ -107,7 +110,9 @@ export class TaroAdapter extends BaseAdapter {
     this.logger.debug('Disconnecting from device:', deviceId);
 
     try {
-      await Taro.closeBLEConnection({ deviceId });
+      await tt.closeBLEConnection({
+        deviceId
+      });
       this.cleanupDevice(deviceId);
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.info('Device disconnected successfully');
@@ -133,9 +138,11 @@ export class TaroAdapter extends BaseAdapter {
     const serviceInfo = this.getServiceInfo(deviceId);
     const validatedOptions = this.validateOptions(options);
 
-    // 验证设备是否仍处于连接状态
+    // Validate device is still connected
     try {
-      const state = await Taro.getBLEConnectionState({ deviceId });
+      const state = await tt.getBLEConnectionState({
+        deviceId
+      });
       if (!state.connected) {
         this.cleanupDevice(deviceId);
         throw new BluetoothPrintError(
@@ -158,7 +165,7 @@ export class TaroAdapter extends BaseAdapter {
 
     this.logger.debug(`Writing ${data.length} bytes in ${totalChunks} chunks`);
 
-    // 如果没有数据要写入，直接返回
+    // If no data to write, return directly
     if (data.length === 0) {
       this.logger.warn('No data to write');
       return;
@@ -171,8 +178,8 @@ export class TaroAdapter extends BaseAdapter {
       let attempt = 0;
       while (attempt <= retries) {
         try {
-          // 添加写入超时处理
-          const writePromise = Taro.writeBLECharacteristicValue({
+          // Add write timeout handling
+          const writePromise = tt.writeBLECharacteristicValue({
             deviceId,
             serviceId: serviceInfo.serviceId,
             characteristicId: serviceInfo.characteristicId,
@@ -225,10 +232,12 @@ export class TaroAdapter extends BaseAdapter {
     this.logger.debug('Discovering services for device:', deviceId);
 
     try {
-      const services = await Taro.getBLEDeviceServices({ deviceId });
+      const services = await tt.getBLEDeviceServices({
+        deviceId
+      });
 
       for (const service of services.services) {
-        const chars = await Taro.getBLEDeviceCharacteristics({
+        const chars = await tt.getBLEDeviceCharacteristics({
           deviceId,
           serviceId: service.uuid,
         });

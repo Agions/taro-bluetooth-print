@@ -21,6 +21,7 @@ const logger = Logger.scope('Encoding');
  */
 export class Encoding {
   private static utf8Encoder = new TextEncoder();
+  private static warningShown = false;
 
   /**
    * Encodes a string to a Uint8Array using the specified encoding
@@ -44,31 +45,27 @@ export class Encoding {
    * ```
    */
   static encode(text: string, encoding = 'GBK'): Uint8Array {
+    if (!text || typeof text !== 'string') {
+      return new Uint8Array(0);
+    }
+
     const normalizedEncoding = encoding.toUpperCase().replace('-', '');
 
-    switch (normalizedEncoding) {
-      case 'UTF8':
-      case 'UTF-8':
-        logger.debug(`Encoding text with UTF-8: "${text.substring(0, 30)}..."`);
-        return this.utf8Encoder.encode(text);
-
-      case 'GBK':
-      case 'GB2312':
-        // TODO: Implement actual GBK encoding
-        // Options:
-        // 1. Use a library like 'iconv-lite' or 'text-encoding'
-        // 2. Implement a GBK lookup table
-        // 3. Use a Web API polyfill
-        logger.warn(
-          `GBK encoding not yet implemented, falling back to UTF-8. ` +
-            `This may cause display issues with some printers.`
-        );
-        return this.utf8Encoder.encode(text);
-
-      default:
-        logger.warn(`Unsupported encoding: ${encoding}, falling back to UTF-8`);
-        return this.utf8Encoder.encode(text);
+    // UTF-8 encoding is fully supported
+    if (normalizedEncoding === 'UTF8' || normalizedEncoding === 'UTF-8') {
+      return this.utf8Encoder.encode(text);
     }
+
+    // For other encodings, show warning only once
+    if (!this.warningShown) {
+      logger.warn(
+        `Encoding ${encoding} not yet fully implemented, falling back to UTF-8. ` +
+        `This may cause display issues with some printers.`
+      );
+      this.warningShown = true;
+    }
+
+    return this.utf8Encoder.encode(text);
   }
 
   /**
@@ -85,6 +82,9 @@ export class Encoding {
    * ```
    */
   static isSupported(encoding: string): boolean {
+    if (!encoding || typeof encoding !== 'string') {
+      return false;
+    }
     const normalizedEncoding = encoding.toUpperCase().replace('-', '');
     // Currently only UTF-8 is fully supported
     return normalizedEncoding === 'UTF8' || normalizedEncoding === 'UTF-8';
