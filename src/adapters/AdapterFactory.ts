@@ -1,6 +1,6 @@
 /**
  * Adapter Factory
- * 
+ *
  * Creates and returns the appropriate adapter based on the detected platform
  */
 
@@ -18,13 +18,13 @@ import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 export class AdapterFactory {
   /**
    * Creates an adapter instance based on the detected platform
-   * 
+   *
    * @returns An instance of the appropriate adapter for the current platform
    * @throws BluetoothPrintError if the platform is not supported
    */
   static create(): IPrinterAdapter {
     const platform = detectPlatform();
-    
+
     switch (platform) {
       case PlatformType.WECHAT:
         return new TaroAdapter();
@@ -44,7 +44,7 @@ export class AdapterFactory {
 
   /**
    * Creates an adapter instance for a specific platform
-   * 
+   *
    * @param platform - The platform type to create an adapter for
    * @returns An instance of the appropriate adapter for the specified platform
    * @throws BluetoothPrintError if the platform is not supported

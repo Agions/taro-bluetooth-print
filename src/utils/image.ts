@@ -29,12 +29,14 @@ export class ImageProcessing {
     }
 
     if (data.length !== width * height * 4) {
-      throw new Error(`Invalid image data length: expected ${width * height * 4}, got ${data.length}`);
+      throw new Error(
+        `Invalid image data length: expected ${width * height * 4}, got ${data.length}`
+      );
     }
 
     const bytesPerLine = Math.ceil(width / 8);
     const bitmap = new Uint8Array(bytesPerLine * height);
-    
+
     // 先将图像转换为灰度数组，提高后续计算效率
     const grayscale = new Float32Array(width * height);
     for (let i = 0; i < data.length; i += 4) {
@@ -90,7 +92,7 @@ export class ImageProcessing {
     // Floyd-Steinberg error diffusion matrix:
     // [  0   7/16 ]
     // [ 3/16 5/16 1/16 ]
-    
+
     const distribute = (dx: number, dy: number, factor: number) => {
       const nx = x + dx;
       const ny = y + dy;
@@ -100,9 +102,9 @@ export class ImageProcessing {
       }
     };
 
-    distribute(1, 0, 7/16);   // 右侧像素
-    distribute(-1, 1, 3/16);  // 左下像素
-    distribute(0, 1, 5/16);   // 下方像素
-    distribute(1, 1, 1/16);   // 右下像素
+    distribute(1, 0, 7 / 16); // 右侧像素
+    distribute(-1, 1, 3 / 16); // 左下像素
+    distribute(0, 1, 5 / 16); // 下方像素
+    distribute(1, 1, 1 / 16); // 右下像素
   }
 }

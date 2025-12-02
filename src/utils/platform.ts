@@ -5,11 +5,11 @@
  */
 
 // Declare global objects for TypeScript
-declare const wx: any;
-declare const my: any;
-declare const swan: any;
-declare const tt: any;
-declare const window: any;
+declare const wx: unknown;
+declare const my: unknown;
+declare const swan: unknown;
+declare const tt: unknown;
+declare const window: unknown;
 
 /**
  * Supported platform types
@@ -26,7 +26,21 @@ export enum PlatformType {
   /** Web platform */
   WEB = 'web',
   /** Unknown platform */
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
+}
+
+/**
+ * Type guard for objects with request method
+ */
+function hasRequestMethod(obj: unknown): obj is { request: unknown } {
+  return typeof obj === 'object' && obj !== null && 'request' in obj;
+}
+
+/**
+ * Type guard for window objects with navigator
+ */
+function isWindowWithNavigator(obj: unknown): obj is { navigator: unknown } {
+  return typeof obj === 'object' && obj !== null && 'navigator' in obj;
 }
 
 /**
@@ -36,27 +50,27 @@ export enum PlatformType {
  */
 export function detectPlatform(): PlatformType {
   // Check for WeChat Mini Program
-  if (typeof wx !== 'undefined' && wx.request) {
+  if (typeof wx !== 'undefined' && hasRequestMethod(wx)) {
     return PlatformType.WECHAT;
   }
 
   // Check for Alipay Mini Program
-  if (typeof my !== 'undefined' && my.request) {
+  if (typeof my !== 'undefined' && hasRequestMethod(my)) {
     return PlatformType.ALIPAY;
   }
 
   // Check for Baidu Smart Program
-  if (typeof swan !== 'undefined' && swan.request) {
+  if (typeof swan !== 'undefined' && hasRequestMethod(swan)) {
     return PlatformType.BAIDU;
   }
 
   // Check for ByteDance Mini Program
-  if (typeof tt !== 'undefined' && tt.request) {
+  if (typeof tt !== 'undefined' && hasRequestMethod(tt)) {
     return PlatformType.BYTEDANCE;
   }
 
   // Check for Web platform
-  if (typeof window !== 'undefined' && window.navigator) {
+  if (typeof window !== 'undefined' && isWindowWithNavigator(window)) {
     return PlatformType.WEB;
   }
 
@@ -68,7 +82,7 @@ export function detectPlatform(): PlatformType {
  *
  * @returns The platform-specific global object or null if unknown
  */
-export function getPlatformGlobal(): any {
+export function getPlatformGlobal(): unknown {
   switch (detectPlatform()) {
     case PlatformType.WECHAT:
       return wx;

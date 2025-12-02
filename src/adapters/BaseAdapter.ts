@@ -28,13 +28,13 @@ export abstract class BaseAdapter implements IPrinterAdapter {
    * @param deviceId - Unique identifier of the device to connect to
    */
   abstract connect(deviceId: string): Promise<void>;
-  
+
   /**
    * Disconnect from a Bluetooth device
    * @param deviceId - Unique identifier of the device to disconnect from
    */
   abstract disconnect(deviceId: string): Promise<void>;
-  
+
   /**
    * Write data to a connected Bluetooth device
    * @param deviceId - Unique identifier of the connected device
@@ -42,17 +42,17 @@ export abstract class BaseAdapter implements IPrinterAdapter {
    * @param options - Optional settings for the write operation
    */
   abstract write(deviceId: string, buffer: ArrayBuffer, options?: IAdapterOptions): Promise<void>;
-  
+
   /**
    * Start discovering nearby Bluetooth devices (optional)
    */
   startDiscovery?(): Promise<void>;
-  
+
   /**
    * Stop discovering nearby Bluetooth devices (optional)
    */
   stopDiscovery?(): Promise<void>;
-  
+
   /**
    * Register a callback for connection state changes
    * @param callback - Function to call when the state changes
@@ -78,10 +78,7 @@ export abstract class BaseAdapter implements IPrinterAdapter {
    */
   protected validateDeviceId(deviceId: string): void {
     if (!deviceId || typeof deviceId !== 'string') {
-      throw new BluetoothPrintError(
-        ErrorCode.DEVICE_NOT_FOUND,
-        'Invalid device ID provided'
-      );
+      throw new BluetoothPrintError(ErrorCode.DEVICE_NOT_FOUND, 'Invalid device ID provided');
     }
   }
 
@@ -92,10 +89,7 @@ export abstract class BaseAdapter implements IPrinterAdapter {
    */
   protected validateBuffer(buffer: ArrayBuffer): void {
     if (!buffer || !(buffer instanceof ArrayBuffer)) {
-      throw new BluetoothPrintError(
-        ErrorCode.PRINT_JOB_FAILED,
-        'Invalid buffer data provided'
-      );
+      throw new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Invalid buffer data provided');
     }
   }
 
@@ -108,7 +102,7 @@ export abstract class BaseAdapter implements IPrinterAdapter {
     return {
       chunkSize: Math.max(1, Math.min(256, options?.chunkSize ?? 20)),
       delay: Math.max(10, Math.min(100, options?.delay ?? 20)),
-      retries: Math.max(1, Math.min(10, options?.retries ?? 3))
+      retries: Math.max(1, Math.min(10, options?.retries ?? 3)),
     };
   }
 

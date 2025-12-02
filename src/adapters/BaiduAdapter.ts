@@ -8,7 +8,64 @@ import { BaseAdapter } from './BaseAdapter';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 // Declare Baidu global for TypeScript
-declare const swan: any;
+interface BaiduBLEService {
+  uuid: string;
+}
+
+interface BaiduBLECharacteristicProperties {
+  write?: boolean;
+  writeWithoutResponse?: boolean;
+  read?: boolean;
+  notify?: boolean;
+  indicate?: boolean;
+}
+
+interface BaiduBLECharacteristic {
+  uuid: string;
+  properties: BaiduBLECharacteristicProperties;
+}
+
+interface BaiduBLEDeviceServicesResult {
+  services: BaiduBLEService[];
+}
+
+interface BaiduBLEDeviceCharacteristicsResult {
+  characteristics: BaiduBLECharacteristic[];
+}
+
+interface BaiduBLEConnectionStateResult {
+  connected: boolean;
+}
+
+interface BaiduBLEConnectionOptions {
+  deviceId: string;
+}
+
+interface BaiduBLEWriteOptions {
+  deviceId: string;
+  serviceId: string;
+  characteristicId: string;
+  value: ArrayBuffer;
+}
+
+interface BaiduBLEConnectionStateChangeCallback {
+  (res: { deviceId: string; connected: boolean }): void;
+}
+
+interface BaiduGlobal {
+  createBLEConnection(options: BaiduBLEConnectionOptions): Promise<void>;
+  closeBLEConnection(options: BaiduBLEConnectionOptions): Promise<void>;
+  getBLEConnectionState(options: BaiduBLEConnectionOptions): Promise<BaiduBLEConnectionStateResult>;
+  writeBLECharacteristicValue(options: BaiduBLEWriteOptions): Promise<void>;
+  getBLEDeviceServices(options: BaiduBLEConnectionOptions): Promise<BaiduBLEDeviceServicesResult>;
+  getBLEDeviceCharacteristics(options: {
+    deviceId: string;
+    serviceId: string;
+  }): Promise<BaiduBLEDeviceCharacteristicsResult>;
+  onBLEConnectionStateChange(callback: BaiduBLEConnectionStateChangeCallback): void;
+}
+
+declare const swan: BaiduGlobal;
 
 /**
  * Baidu Bluetooth Low Energy adapter
@@ -22,7 +79,6 @@ declare const swan: any;
  * ```
  */
 export class BaiduAdapter extends BaseAdapter {
-
   /**
    * Connects to a Bluetooth device and discovers services
    *
@@ -44,17 +100,21 @@ export class BaiduAdapter extends BaseAdapter {
 
     try {
       // Add connection timeout handling
+      let timeoutId: NodeJS.Timeout | undefined;
       const connectionPromise = swan.createBLEConnection({
-        deviceId
+        deviceId,
       });
-      
+
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error('Connection timeout after 10 seconds'));
         }, 10000);
       });
 
       await Promise.race([connectionPromise, timeoutPromise]);
+      if (timeoutId) {
+        clearTimeout(timeoutId); // Clear timeout after successful connection
+      }
       this.logger.info('BLE connection established');
 
       // Discover and cache services
@@ -64,7 +124,7 @@ export class BaiduAdapter extends BaseAdapter {
       this.logger.info('Device connected successfully');
 
       // Listen for connection state changes
-      swan.onBLEConnectionStateChange((res: any) => {
+      swan.onBLEConnectionStateChange((res: { deviceId: string; connected: boolean }) => {
         if (res.deviceId === deviceId && !res.connected) {
           this.logger.warn('Device disconnected unexpectedly');
           this.updateState(PrinterState.DISCONNECTED);
@@ -74,7 +134,7 @@ export class BaiduAdapter extends BaseAdapter {
     } catch (error) {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
-      
+
       // Return more specific error codes based on error message
       const errorMessage = (error as Error).message || '';
       if (errorMessage.includes('timeout')) {
@@ -90,7 +150,7 @@ export class BaiduAdapter extends BaseAdapter {
           error as Error
         );
       }
-      
+
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
@@ -111,7 +171,7 @@ export class BaiduAdapter extends BaseAdapter {
 
     try {
       await swan.closeBLEConnection({
-        deviceId
+        deviceId,
       });
       this.cleanupDevice(deviceId);
       this.updateState(PrinterState.DISCONNECTED);
@@ -141,14 +201,11 @@ export class BaiduAdapter extends BaseAdapter {
     // Validate device is still connected
     try {
       const state = await swan.getBLEConnectionState({
-        deviceId
+        deviceId,
       });
       if (!state.connected) {
         this.cleanupDevice(deviceId);
-        throw new BluetoothPrintError(
-          ErrorCode.DEVICE_DISCONNECTED,
-          'Device disconnected'
-        );
+        throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Device disconnected');
       }
     } catch (error) {
       this.cleanupDevice(deviceId);
@@ -185,7 +242,7 @@ export class BaiduAdapter extends BaseAdapter {
             characteristicId: serviceInfo.characteristicId,
             value: chunk.buffer,
           });
-          
+
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => {
               reject(new Error('Write timeout after 5 seconds'));
@@ -233,7 +290,7 @@ export class BaiduAdapter extends BaseAdapter {
 
     try {
       const services = await swan.getBLEDeviceServices({
-        deviceId
+        deviceId,
       });
 
       for (const service of services.services) {
@@ -243,7 +300,7 @@ export class BaiduAdapter extends BaseAdapter {
         });
 
         const writeChar = chars.characteristics.find(
-          (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          (c: BaiduBLECharacteristic) => c.properties.write || c.properties.writeWithoutResponse
         );
 
         if (writeChar) {

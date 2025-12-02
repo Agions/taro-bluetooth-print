@@ -8,7 +8,64 @@ import { BaseAdapter } from './BaseAdapter';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 // Declare Taro global for TypeScript
-declare const Taro: any;
+interface TaroBLEService {
+  uuid: string;
+}
+
+interface TaroBLECharacteristicProperties {
+  write?: boolean;
+  writeWithoutResponse?: boolean;
+  read?: boolean;
+  notify?: boolean;
+  indicate?: boolean;
+}
+
+interface TaroBLECharacteristic {
+  uuid: string;
+  properties: TaroBLECharacteristicProperties;
+}
+
+interface TaroBLEDeviceServicesResult {
+  services: TaroBLEService[];
+}
+
+interface TaroBLEDeviceCharacteristicsResult {
+  characteristics: TaroBLECharacteristic[];
+}
+
+interface TaroBLEConnectionStateResult {
+  connected: boolean;
+}
+
+interface TaroBLEConnectionOptions {
+  deviceId: string;
+}
+
+interface TaroBLEWriteOptions {
+  deviceId: string;
+  serviceId: string;
+  characteristicId: string;
+  value: ArrayBuffer;
+}
+
+interface TaroBLEConnectionStateChangeCallback {
+  (res: { deviceId: string; connected: boolean }): void;
+}
+
+interface TaroGlobal {
+  createBLEConnection(options: TaroBLEConnectionOptions): Promise<void>;
+  closeBLEConnection(options: TaroBLEConnectionOptions): Promise<void>;
+  getBLEConnectionState(options: TaroBLEConnectionOptions): Promise<TaroBLEConnectionStateResult>;
+  writeBLECharacteristicValue(options: TaroBLEWriteOptions): Promise<void>;
+  getBLEDeviceServices(options: TaroBLEConnectionOptions): Promise<TaroBLEDeviceServicesResult>;
+  getBLEDeviceCharacteristics(options: {
+    deviceId: string;
+    serviceId: string;
+  }): Promise<TaroBLEDeviceCharacteristicsResult>;
+  onBLEConnectionStateChange(callback: TaroBLEConnectionStateChangeCallback): void;
+}
+
+declare const Taro: TaroGlobal;
 
 /**
  * Taro Bluetooth Low Energy adapter
@@ -22,7 +79,6 @@ declare const Taro: any;
  * ```
  */
 export class TaroAdapter extends BaseAdapter {
-
   /**
    * Connects to a Bluetooth device and discovers services
    *
@@ -44,14 +100,18 @@ export class TaroAdapter extends BaseAdapter {
 
     try {
       // 添加连接超时处理
+      let timeoutId: NodeJS.Timeout | undefined;
       const connectionPromise = Taro.createBLEConnection({ deviceId });
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error('Connection timeout after 10 seconds'));
         }, 10000);
       });
 
       await Promise.race([connectionPromise, timeoutPromise]);
+      if (timeoutId) {
+        clearTimeout(timeoutId); // Clear timeout after successful connection
+      }
       this.logger.info('BLE connection established');
 
       // Discover and cache services
@@ -61,7 +121,7 @@ export class TaroAdapter extends BaseAdapter {
       this.logger.info('Device connected successfully');
 
       // Listen for connection state changes
-      Taro.onBLEConnectionStateChange((res: any) => {
+      Taro.onBLEConnectionStateChange((res: { deviceId: string; connected: boolean }) => {
         if (res.deviceId === deviceId && !res.connected) {
           this.logger.warn('Device disconnected unexpectedly');
           this.updateState(PrinterState.DISCONNECTED);
@@ -71,7 +131,7 @@ export class TaroAdapter extends BaseAdapter {
     } catch (error) {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
-      
+
       // 根据错误类型返回更具体的错误代码
       const errorMessage = (error as Error).message || '';
       if (errorMessage.includes('timeout')) {
@@ -87,7 +147,7 @@ export class TaroAdapter extends BaseAdapter {
           error as Error
         );
       }
-      
+
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
@@ -138,10 +198,7 @@ export class TaroAdapter extends BaseAdapter {
       const state = await Taro.getBLEConnectionState({ deviceId });
       if (!state.connected) {
         this.cleanupDevice(deviceId);
-        throw new BluetoothPrintError(
-          ErrorCode.DEVICE_DISCONNECTED,
-          'Device disconnected'
-        );
+        throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Device disconnected');
       }
     } catch (error) {
       this.cleanupDevice(deviceId);
@@ -178,7 +235,7 @@ export class TaroAdapter extends BaseAdapter {
             characteristicId: serviceInfo.characteristicId,
             value: chunk.buffer,
           });
-          
+
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => {
               reject(new Error('Write timeout after 5 seconds'));
@@ -234,7 +291,7 @@ export class TaroAdapter extends BaseAdapter {
         });
 
         const writeChar = chars.characteristics.find(
-          (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          (c: TaroBLECharacteristic) => c.properties.write || c.properties.writeWithoutResponse
         );
 
         if (writeChar) {

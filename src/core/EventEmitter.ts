@@ -24,9 +24,9 @@
  * });
  * ```
  */
-export class EventEmitter<T extends Record<string, any>> {
+export class EventEmitter<T> {
   // 使用Map存储事件监听器，Set确保每个监听器唯一
-  private listeners: Map<keyof T, Set<(data: any) => void>> = new Map();
+  private listeners: Map<keyof T, Set<(data: T[keyof T]) => void>> = new Map();
 
   /**
    * Subscribe to an event
@@ -39,7 +39,7 @@ export class EventEmitter<T extends Record<string, any>> {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(handler as (data: any) => void);
+    this.listeners.get(event)!.add(handler as (data: T[keyof T]) => void);
 
     // 返回取消订阅函数
     return () => this.off(event, handler);
@@ -55,9 +55,47 @@ export class EventEmitter<T extends Record<string, any>> {
   once<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     const wrappedHandler = (data: T[K]) => {
       handler(data);
-      this.off(event, wrappedHandler as any);
+      this.off(event, wrappedHandler);
     };
-    return this.on(event, wrappedHandler as any);
+    return this.on(event, wrappedHandler as (data: T[K]) => void);
+  }
+
+  /**
+   * Adds a listener to the beginning of the listeners array for the specified event
+   *
+   * @param event - Event name
+   * @param handler - Event handler function
+   * @returns Unsubscribe function
+   */
+  prepend<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+
+    // Create a new set with the new handler first, then add existing handlers
+    const existingHandlers = this.listeners.get(event)!;
+    const newHandlers = new Set<(data: T[keyof T]) => void>();
+    newHandlers.add(handler as (data: T[keyof T]) => void);
+    existingHandlers.forEach(h => newHandlers.add(h));
+
+    this.listeners.set(event, newHandlers);
+
+    return () => this.off(event, handler);
+  }
+
+  /**
+   * Adds a one-time listener to the beginning of the listeners array for the specified event
+   *
+   * @param event - Event name
+   * @param handler - Event handler function
+   * @returns Unsubscribe function
+   */
+  prependOnce<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
+    const wrappedHandler = (data: T[K]) => {
+      handler(data);
+      this.off(event, wrappedHandler);
+    };
+    return this.prepend(event, wrappedHandler as (data: T[K]) => void);
   }
 
   /**
@@ -69,7 +107,7 @@ export class EventEmitter<T extends Record<string, any>> {
   off<K extends keyof T>(event: K, handler: (data: T[K]) => void): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
-      handlers.delete(handler as (data: any) => void);
+      handlers.delete(handler as (data: T[keyof T]) => void);
       // 当没有监听器时，移除事件以释放内存
       if (handlers.size === 0) {
         this.listeners.delete(event);
@@ -95,16 +133,61 @@ export class EventEmitter<T extends Record<string, any>> {
     handlersCopy.forEach(handler => {
       try {
         // 根据事件类型决定是否传递数据
-        if (data === undefined && data === null) {
-          handler("");
+        if (data === undefined || data === null) {
+          // @ts-expect-error - 类型安全由调用方保证
+          handler();
         } else {
           handler(data);
         }
       } catch (error) {
         // 捕获并处理事件处理程序中的错误，避免影响其他监听器
+        // eslint-disable-next-line no-console
         console.error(`Error in event handler for "${String(event)}":`, error);
       }
     });
+  }
+
+  /**
+   * Asynchronously emit an event to all subscribers, waiting for all handlers to complete
+   *
+   * @param event - Event name
+   * @param data - Event payload (optional for void events)
+   * @returns Promise that resolves when all handlers have completed
+   */
+  protected async emitAsync<K extends keyof T>(event: K, data?: T[K]): Promise<void> {
+    const handlers = this.listeners.get(event);
+    // 如果没有监听器，直接返回，避免不必要的操作
+    if (!handlers || handlers.size === 0) {
+      return;
+    }
+
+    // 复制监听器集合，避免在遍历过程中修改集合导致问题
+    const handlersCopy = new Set(handlers);
+    const promises: Promise<void>[] = [];
+
+    handlersCopy.forEach(handler => {
+      promises.push(
+        new Promise<void>((resolve) => {
+          try {
+            // 根据事件类型决定是否传递数据
+            if (data === undefined || data === null) {
+              // @ts-expect-error - 类型安全由调用方保证
+              handler();
+            } else {
+              handler(data);
+            }
+          } catch (error) {
+            // 捕获并处理事件处理程序中的错误，避免影响其他监听器
+            // eslint-disable-next-line no-console
+            console.error(`Error in event handler for "${String(event)}":`, error);
+          } finally {
+            resolve();
+          }
+        })
+      );
+    });
+
+    await Promise.all(promises);
   }
 
   /**
@@ -129,6 +212,29 @@ export class EventEmitter<T extends Record<string, any>> {
    */
   listenerCount<K extends keyof T>(event: K): number {
     return this.listeners.get(event)?.size ?? 0;
+  }
+
+  /**
+   * Get all listeners for an event
+   *
+   * @param event - Event name
+   * @returns Array of event handlers
+   */
+  getListeners<K extends keyof T>(event: K): Array<(data: T[K]) => void> {
+    const handlers = this.listeners.get(event);
+    if (!handlers) {
+      return [];
+    }
+    return Array.from(handlers) as Array<(data: T[K]) => void>;
+  }
+
+  /**
+   * Get all event names that have listeners
+   *
+   * @returns Array of event names
+   */
+  eventNames(): Array<keyof T> {
+    return Array.from(this.listeners.keys());
   }
 
   /**

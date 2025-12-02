@@ -45,13 +45,13 @@ export interface IPrinterAdapter {
    * @param deviceId - Unique identifier of the device to connect to
    */
   connect(deviceId: string): Promise<void>;
-  
+
   /**
    * Disconnect from a Bluetooth device
    * @param deviceId - Unique identifier of the device to disconnect from
    */
   disconnect(deviceId: string): Promise<void>;
-  
+
   /**
    * Write data to a connected Bluetooth device
    * @param deviceId - Unique identifier of the connected device
@@ -59,17 +59,17 @@ export interface IPrinterAdapter {
    * @param options - Optional settings for the write operation
    */
   write(deviceId: string, buffer: ArrayBuffer, options?: IAdapterOptions): Promise<void>;
-  
+
   /**
    * Start discovering nearby Bluetooth devices (optional)
    */
   startDiscovery?(): Promise<void>;
-  
+
   /**
    * Stop discovering nearby Bluetooth devices (optional)
    */
   stopDiscovery?(): Promise<void>;
-  
+
   /**
    * Register a callback for connection state changes
    * @param callback - Function to call when the state changes
@@ -88,7 +88,7 @@ export interface IPrinterDriver {
    * @returns Array of command buffers
    */
   init(): Uint8Array[];
-  
+
   /**
    * Print text
    * @param content - Text content to print
@@ -96,7 +96,7 @@ export interface IPrinterDriver {
    * @returns Array of command buffers
    */
   text(content: string, encoding?: string): Uint8Array[];
-  
+
   /**
    * Print an image
    * @param data - RGBA pixel data as Uint8Array
@@ -105,7 +105,7 @@ export interface IPrinterDriver {
    * @returns Array of command buffers
    */
   image(data: Uint8Array, width: number, height: number): Uint8Array[];
-  
+
   /**
    * Print a QR code
    * @param content - Content to encode in the QR code
@@ -113,13 +113,13 @@ export interface IPrinterDriver {
    * @returns Array of command buffers
    */
   qr(content: string, options?: IQrOptions): Uint8Array[];
-  
+
   /**
    * Cut the paper
    * @returns Array of command buffers
    */
   cut(): Uint8Array[];
-  
+
   /**
    * Feed paper
    * @param lines - Number of lines to feed (default: 1)

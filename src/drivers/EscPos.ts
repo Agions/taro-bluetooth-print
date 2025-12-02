@@ -112,7 +112,9 @@ export class EscPos implements IPrinterDriver {
 
     // 确保数据长度正确
     if (data.length !== width * height * 4) {
-      this.logger.warn(`Invalid image data length: expected ${width * height * 4}, got ${data.length}`);
+      this.logger.warn(
+        `Invalid image data length: expected ${width * height * 4}, got ${data.length}`
+      );
       return [];
     }
 
@@ -172,9 +174,7 @@ export class EscPos implements IPrinterDriver {
     // n: 48 (L=7%), 49 (M=15%), 50 (Q=25%), 51 (H=30%)
     const ecMap: Record<string, number> = { L: 48, M: 49, Q: 50, H: 51 };
     const ecValue = ecMap[errorCorrection] ?? 49; // Default to M (15%)
-    commands.push(
-      new Uint8Array([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, ecValue])
-    );
+    commands.push(new Uint8Array([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, ecValue]));
 
     // 4. Store Data (Function 180)
     // GS ( k pL pH 31 50 30 d1...dk

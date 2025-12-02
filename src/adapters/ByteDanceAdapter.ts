@@ -8,7 +8,68 @@ import { BaseAdapter } from './BaseAdapter';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 // Declare ByteDance global for TypeScript
-declare const tt: any;
+interface ByteDanceBLEService {
+  uuid: string;
+}
+
+interface ByteDanceBLECharacteristicProperties {
+  write?: boolean;
+  writeWithoutResponse?: boolean;
+  read?: boolean;
+  notify?: boolean;
+  indicate?: boolean;
+}
+
+interface ByteDanceBLECharacteristic {
+  uuid: string;
+  properties: ByteDanceBLECharacteristicProperties;
+}
+
+interface ByteDanceBLEDeviceServicesResult {
+  services: ByteDanceBLEService[];
+}
+
+interface ByteDanceBLEDeviceCharacteristicsResult {
+  characteristics: ByteDanceBLECharacteristic[];
+}
+
+interface ByteDanceBLEConnectionStateResult {
+  connected: boolean;
+}
+
+interface ByteDanceBLEConnectionOptions {
+  deviceId: string;
+}
+
+interface ByteDanceBLEWriteOptions {
+  deviceId: string;
+  serviceId: string;
+  characteristicId: string;
+  value: ArrayBuffer;
+}
+
+interface ByteDanceBLEConnectionStateChangeCallback {
+  (res: { deviceId: string; connected: boolean }): void;
+}
+
+interface ByteDanceGlobal {
+  createBLEConnection(options: ByteDanceBLEConnectionOptions): Promise<void>;
+  closeBLEConnection(options: ByteDanceBLEConnectionOptions): Promise<void>;
+  getBLEConnectionState(
+    options: ByteDanceBLEConnectionOptions
+  ): Promise<ByteDanceBLEConnectionStateResult>;
+  writeBLECharacteristicValue(options: ByteDanceBLEWriteOptions): Promise<void>;
+  getBLEDeviceServices(
+    options: ByteDanceBLEConnectionOptions
+  ): Promise<ByteDanceBLEDeviceServicesResult>;
+  getBLEDeviceCharacteristics(options: {
+    deviceId: string;
+    serviceId: string;
+  }): Promise<ByteDanceBLEDeviceCharacteristicsResult>;
+  onBLEConnectionStateChange(callback: ByteDanceBLEConnectionStateChangeCallback): void;
+}
+
+declare const tt: ByteDanceGlobal;
 
 /**
  * ByteDance Bluetooth Low Energy adapter
@@ -22,7 +83,6 @@ declare const tt: any;
  * ```
  */
 export class ByteDanceAdapter extends BaseAdapter {
-
   /**
    * Connects to a Bluetooth device and discovers services
    *
@@ -44,17 +104,21 @@ export class ByteDanceAdapter extends BaseAdapter {
 
     try {
       // Add connection timeout handling
+      let timeoutId: NodeJS.Timeout | undefined;
       const connectionPromise = tt.createBLEConnection({
-        deviceId
+        deviceId,
       });
-      
+
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error('Connection timeout after 10 seconds'));
         }, 10000);
       });
 
       await Promise.race([connectionPromise, timeoutPromise]);
+      if (timeoutId) {
+        clearTimeout(timeoutId); // Clear timeout after successful connection
+      }
       this.logger.info('BLE connection established');
 
       // Discover and cache services
@@ -64,7 +128,7 @@ export class ByteDanceAdapter extends BaseAdapter {
       this.logger.info('Device connected successfully');
 
       // Listen for connection state changes
-      tt.onBLEConnectionStateChange((res: any) => {
+      tt.onBLEConnectionStateChange((res: { deviceId: string; connected: boolean }) => {
         if (res.deviceId === deviceId && !res.connected) {
           this.logger.warn('Device disconnected unexpectedly');
           this.updateState(PrinterState.DISCONNECTED);
@@ -74,7 +138,7 @@ export class ByteDanceAdapter extends BaseAdapter {
     } catch (error) {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
-      
+
       // Return more specific error codes based on error message
       const errorMessage = (error as Error).message || '';
       if (errorMessage.includes('timeout')) {
@@ -90,7 +154,7 @@ export class ByteDanceAdapter extends BaseAdapter {
           error as Error
         );
       }
-      
+
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
@@ -111,7 +175,7 @@ export class ByteDanceAdapter extends BaseAdapter {
 
     try {
       await tt.closeBLEConnection({
-        deviceId
+        deviceId,
       });
       this.cleanupDevice(deviceId);
       this.updateState(PrinterState.DISCONNECTED);
@@ -141,14 +205,11 @@ export class ByteDanceAdapter extends BaseAdapter {
     // Validate device is still connected
     try {
       const state = await tt.getBLEConnectionState({
-        deviceId
+        deviceId,
       });
       if (!state.connected) {
         this.cleanupDevice(deviceId);
-        throw new BluetoothPrintError(
-          ErrorCode.DEVICE_DISCONNECTED,
-          'Device disconnected'
-        );
+        throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Device disconnected');
       }
     } catch (error) {
       this.cleanupDevice(deviceId);
@@ -185,7 +246,7 @@ export class ByteDanceAdapter extends BaseAdapter {
             characteristicId: serviceInfo.characteristicId,
             value: chunk.buffer,
           });
-          
+
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => {
               reject(new Error('Write timeout after 5 seconds'));
@@ -233,7 +294,7 @@ export class ByteDanceAdapter extends BaseAdapter {
 
     try {
       const services = await tt.getBLEDeviceServices({
-        deviceId
+        deviceId,
       });
 
       for (const service of services.services) {
@@ -243,7 +304,7 @@ export class ByteDanceAdapter extends BaseAdapter {
         });
 
         const writeChar = chars.characteristics.find(
-          (c: any) => c.properties.write || c.properties.writeWithoutResponse
+          (c: ByteDanceBLECharacteristic) => c.properties.write || c.properties.writeWithoutResponse
         );
 
         if (writeChar) {

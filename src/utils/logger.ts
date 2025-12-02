@@ -3,6 +3,24 @@
  */
 
 /**
+ * Log entry structure
+ */
+export interface LogEntry {
+  /** Log level */
+  level: LogLevel;
+  /** Log message */
+  message: string;
+  /** Additional arguments */
+  args: unknown[];
+  /** Timestamp */
+  timestamp: Date;
+  /** Scope name (if any) */
+  scope?: string;
+  /** Formatted log string */
+  formatted: string;
+}
+
+/**
  * Log levels in order of severity
  */
 export enum LogLevel {
@@ -14,12 +32,37 @@ export enum LogLevel {
 }
 
 /**
+ * Custom log handler function type
+ */
+export type LogHandler = (entry: LogEntry) => void;
+
+/**
+ * Logger configuration options
+ */
+export interface LoggerConfig {
+  /** Minimum log level to output */
+  level: LogLevel;
+  /** Global prefix for all log messages */
+  prefix: string;
+  /** Custom log handler function */
+  handler?: LogHandler;
+}
+
+/**
  * Logger class for consistent logging across the library
  *
  * @example
  * ```typescript
  * // Enable debug logging
  * Logger.setLevel(LogLevel.DEBUG);
+ *
+ * // Configure custom log handler
+ * Logger.configure({
+ *   handler: (entry) => {
+ *     // Send logs to a custom logging service
+ *     console.log(entry.formatted);
+ *   }
+ * });
  *
  * Logger.debug('Connecting to device', deviceId);
  * Logger.info('Print job started');
@@ -28,8 +71,19 @@ export enum LogLevel {
  * ```
  */
 export class Logger {
-  private static level: LogLevel = LogLevel.WARN;
-  private static prefix = '[TaroBTPrint]';
+  private static config: LoggerConfig = {
+    level: LogLevel.WARN,
+    prefix: '[TaroBTPrint]',
+  };
+
+  /**
+   * Configures the logger
+   *
+   * @param config - Configuration options
+   */
+  static configure(config: Partial<LoggerConfig>): void {
+    this.config = { ...this.config, ...config };
+  }
 
   /**
    * Sets the global log level
@@ -37,14 +91,83 @@ export class Logger {
    * @param level - Minimum log level to output
    */
   static setLevel(level: LogLevel): void {
-    this.level = level;
+    this.config.level = level;
   }
 
   /**
    * Gets the current log level
    */
   static getLevel(): LogLevel {
-    return this.level;
+    return this.config.level;
+  }
+
+  /**
+   * Formats the log prefix
+   */
+  private static formatPrefix(level: LogLevel, scope?: string): string {
+    const levelNames = {
+      [LogLevel.DEBUG]: 'DEBUG',
+      [LogLevel.INFO]: 'INFO',
+      [LogLevel.WARN]: 'WARN',
+      [LogLevel.ERROR]: 'ERROR',
+      [LogLevel.NONE]: 'NONE',
+    };
+
+    const scopedPrefix = scope 
+      ? `${this.config.prefix}:${scope}` 
+      : this.config.prefix;
+    
+    return `${scopedPrefix} [${levelNames[level]}]`;
+  }
+
+  /**
+   * Formats a complete log message for custom handlers
+   */
+  private static formatMessage(level: LogLevel, message: string, args: unknown[], scope?: string): string {
+    const prefix = this.formatPrefix(level, scope);
+    return `${prefix} ${message}`;
+  }
+
+  /**
+   * Logs a message with the specified level
+   */
+  private static log(level: LogLevel, message: string, args: unknown[], scope?: string): void {
+    if (this.config.level > level) {
+      return;
+    }
+
+    const prefix = this.formatPrefix(level, scope);
+    const formatted = this.formatMessage(level, message, args, scope);
+    const entry: LogEntry = {
+      level,
+      message,
+      args,
+      timestamp: new Date(),
+      scope,
+      formatted,
+    };
+
+    if (this.config.handler) {
+      // Use custom log handler if provided
+      this.config.handler(entry);
+    } else {
+      // Fall back to console logging with separate arguments for compatibility with tests
+      switch (level) {
+        case LogLevel.DEBUG:
+        case LogLevel.INFO:
+          // eslint-disable-next-line no-console
+          console.log(prefix, message, ...args);
+          break;
+        case LogLevel.WARN:
+          // eslint-disable-next-line no-console
+          console.warn(prefix, message, ...args);
+          break;
+        case LogLevel.ERROR:
+          // eslint-disable-next-line no-console
+          console.error(prefix, message, ...args);
+          break;
+      }
+    }
   }
 
   /**
@@ -53,10 +176,8 @@ export class Logger {
    * @param message - Message to log
    * @param args - Additional arguments to log
    */
-  static debug(message: string, ...args: any[]): void {
-    if (this.level <= LogLevel.DEBUG) {
-      console.log(`${this.prefix} [DEBUG]`, message, ...args);
-    }
+  static debug(message: string, ...args: unknown[]): void {
+    this.log(LogLevel.DEBUG, message, args);
   }
 
   /**
@@ -65,10 +186,8 @@ export class Logger {
    * @param message - Message to log
    * @param args - Additional arguments to log
    */
-  static info(message: string, ...args: any[]): void {
-    if (this.level <= LogLevel.INFO) {
-      console.log(`${this.prefix} [INFO]`, message, ...args);
-    }
+  static info(message: string, ...args: unknown[]): void {
+    this.log(LogLevel.INFO, message, args);
   }
 
   /**
@@ -77,10 +196,8 @@ export class Logger {
    * @param message - Message to log
    * @param args - Additional arguments to log
    */
-  static warn(message: string, ...args: any[]): void {
-    if (this.level <= LogLevel.WARN) {
-      console.warn(`${this.prefix} [WARN]`, message, ...args);
-    }
+  static warn(message: string, ...args: unknown[]): void {
+    this.log(LogLevel.WARN, message, args);
   }
 
   /**
@@ -89,10 +206,8 @@ export class Logger {
    * @param message - Message to log
    * @param args - Additional arguments to log
    */
-  static error(message: string, ...args: any[]): void {
-    if (this.level <= LogLevel.ERROR) {
-      console.error(`${this.prefix} [ERROR]`, message, ...args);
-    }
+  static error(message: string, ...args: unknown[]): void {
+    this.log(LogLevel.ERROR, message, args);
   }
 
   /**
@@ -102,27 +217,18 @@ export class Logger {
    * @returns Scoped logger instance
    */
   static scope(scope: string) {
-    const scopedPrefix = `${this.prefix}:${scope}`;
     return {
-      debug: (message: string, ...args: any[]) => {
-        if (Logger.level <= LogLevel.DEBUG) {
-          console.log(`${scopedPrefix} [DEBUG]`, message, ...args);
-        }
+      debug: (message: string, ...args: unknown[]) => {
+        Logger.log(LogLevel.DEBUG, message, args, scope);
       },
-      info: (message: string, ...args: any[]) => {
-        if (Logger.level <= LogLevel.INFO) {
-          console.log(`${scopedPrefix} [INFO]`, message, ...args);
-        }
+      info: (message: string, ...args: unknown[]) => {
+        Logger.log(LogLevel.INFO, message, args, scope);
       },
-      warn: (message: string, ...args: any[]) => {
-        if (Logger.level <= LogLevel.WARN) {
-          console.warn(`${scopedPrefix} [WARN]`, message, ...args);
-        }
+      warn: (message: string, ...args: unknown[]) => {
+        Logger.log(LogLevel.WARN, message, args, scope);
       },
-      error: (message: string, ...args: any[]) => {
-        if (Logger.level <= LogLevel.ERROR) {
-          console.error(`${scopedPrefix} [ERROR]`, message, ...args);
-        }
+      error: (message: string, ...args: unknown[]) => {
+        Logger.log(LogLevel.ERROR, message, args, scope);
       },
     };
   }

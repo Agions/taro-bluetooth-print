@@ -27,5 +27,6 @@ module.exports = {
         esModuleInterop: true
       }
     }
-  }
+  },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };

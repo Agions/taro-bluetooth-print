@@ -21,6 +21,7 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": true,
+    "ignoreDeprecations": "6.0",
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
@@ -38,7 +39,9 @@
     "noEmit": false,
     "composite": false,
     "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": ["src"],
   "exclude": ["dist", "node_modules", "**/__tests__/*", "build", "docs"]

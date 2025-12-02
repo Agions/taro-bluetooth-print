@@ -4,17 +4,22 @@
  */
 
 import {
-  IPrinterAdapter,
-  IPrinterDriver,
   IAdapterOptions,
   IQrOptions,
   PrinterState,
+  IPrinterAdapter,
+  IPrinterDriver,
 } from '@/types';
-import { EscPos } from '@/drivers/EscPos';
-import { AdapterFactory } from '@/adapters/AdapterFactory';
 import { EventEmitter } from './EventEmitter';
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { Service } from 'typedi';
+import type { IConnectionManager } from '@/services/interfaces';
+import type { IPrintJobManager } from '@/services/interfaces';
+import type { ICommandBuilder } from '@/services/interfaces';
+import { ConnectionManager } from '@/services/ConnectionManager';
+import { PrintJobManager } from '@/services/PrintJobManager';
+import { CommandBuilder } from '@/services/CommandBuilder';
 
 /**
  * Event types emitted by BluetoothPrinter
@@ -61,37 +66,106 @@ export interface PrinterEvents {
  * await printer.disconnect();
  * ```
  */
+@Service()
 export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
-  private adapter: IPrinterAdapter;
-  private driver: IPrinterDriver;
-  private deviceId: string | null = null;
-  private buffer: Uint8Array[] = [];
-  private adapterOptions: IAdapterOptions = {};
-  private isPaused = false;
-  private jobBuffer: Uint8Array | null = null;
-  private jobOffset = 0;
   private readonly logger = Logger.scope('BluetoothPrinter');
 
   /** Current printer state */
   public state: PrinterState = PrinterState.DISCONNECTED;
 
+  /** Connection manager instance */
+  private connectionManager: IConnectionManager;
+
+  /** Print job manager instance */
+  private printJobManager: IPrintJobManager;
+
+  /** Command builder instance */
+  private commandBuilder: ICommandBuilder;
+
   /**
    * Creates a new BluetoothPrinter instance
    *
-   * @param adapter - Custom adapter implementation (defaults to platform-specific adapter)
-   * @param driver - Custom driver implementation (defaults to EscPos)
+   * @param connectionManagerOrAdapter - Connection manager instance or printer adapter instance (for backward compatibility)
+   * @param printJobManagerOrDriver - Print job manager instance or printer driver instance (for backward compatibility)
+   * @param commandBuilder - Command builder instance (optional)
    */
-  constructor(adapter?: IPrinterAdapter, driver?: IPrinterDriver) {
+  constructor(
+    connectionManagerOrAdapter?: IConnectionManager | IPrinterAdapter,
+    printJobManagerOrDriver?: IPrintJobManager | IPrinterDriver,
+    commandBuilder?: ICommandBuilder
+  ) {
     super();
-    this.adapter = adapter || AdapterFactory.create();
-    this.driver = driver || new EscPos();
 
-    // Listen to adapter state changes
-    this.adapter.onStateChange?.(state => {
-      this.state = state;
-      this.emit('state-change', state);
-      this.logger.debug('State changed:', state);
-    });
+    // Handle backward compatibility
+    if (
+      connectionManagerOrAdapter &&
+      typeof (connectionManagerOrAdapter as IPrinterAdapter).connect === 'function'
+    ) {
+      // Old API: new BluetoothPrinter(adapter, driver)
+      const adapter = connectionManagerOrAdapter as IPrinterAdapter;
+      const driver = printJobManagerOrDriver as IPrinterDriver;
+
+      // Create services manually
+      this.connectionManager = new ConnectionManager(adapter);
+      // Ensure PrintJobManager gets the correct adapter
+      this.printJobManager = new PrintJobManager(this.connectionManager, adapter);
+      this.commandBuilder = new CommandBuilder(driver);
+    } else {
+      // New API: dependency injection or manual service creation
+      this.connectionManager = connectionManagerOrAdapter as IConnectionManager;
+      this.printJobManager = printJobManagerOrDriver as IPrintJobManager;
+      this.commandBuilder = commandBuilder as ICommandBuilder;
+
+      // If services are not provided, create them using default implementations
+      if (!this.connectionManager) {
+        this.connectionManager = new ConnectionManager();
+        this.printJobManager = new PrintJobManager(this.connectionManager);
+        this.commandBuilder = new CommandBuilder();
+      }
+    }
+
+    // Listen to connection manager state changes
+    this.updateState();
+  }
+
+  /**
+   * Updates the current state based on the connection manager and print job manager states
+   */
+  private updateState(): void {
+    // Get connection state (with fallback for backward compatibility)
+    let connectionState: PrinterState;
+    if (this.connectionManager && typeof this.connectionManager.getState === 'function') {
+      connectionState = this.connectionManager.getState();
+    } else {
+      // Default to CONNECTED for backward compatibility
+      connectionState = PrinterState.CONNECTED;
+    }
+
+    // Get print job state (with fallback for backward compatibility)
+    let isPrinting = false;
+    let isPaused = false;
+    if (this.printJobManager) {
+      isPrinting =
+        typeof this.printJobManager.isInProgress === 'function'
+          ? this.printJobManager.isInProgress()
+          : false;
+      isPaused =
+        typeof this.printJobManager.isPaused === 'function'
+          ? this.printJobManager.isPaused()
+          : false;
+    }
+
+    // Determine the final state
+    if (isPaused) {
+      this.state = PrinterState.PAUSED;
+    } else if (isPrinting) {
+      this.state = PrinterState.PRINTING;
+    } else {
+      this.state = connectionState;
+    }
+
+    this.emit('state-change', this.state);
+    this.logger.debug('State updated:', this.state);
   }
 
   /**
@@ -110,18 +184,13 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     this.logger.info('Connecting to device:', deviceId);
 
     try {
-      this.deviceId = deviceId;
-      await this.adapter.connect(deviceId);
-
-      // Initialize printer with ESC/POS init command
-      this.buffer.push(...this.driver.init());
-
+      await this.connectionManager.connect(deviceId);
+      this.updateState();
       this.emit('connected', deviceId);
       this.logger.info('Connected successfully');
 
       return this;
     } catch (error) {
-      this.deviceId = null;
       const printError =
         error instanceof BluetoothPrintError
           ? error
@@ -131,6 +200,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
               error as Error
             );
       this.emit('error', printError);
+      this.updateState();
       throw printError;
     }
   }
@@ -146,20 +216,18 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async disconnect(): Promise<void> {
-    if (!this.deviceId) {
+    const deviceId = this.connectionManager.getDeviceId();
+    if (!deviceId) {
       this.logger.warn('Disconnect called but no device connected');
       return;
     }
 
-    const deviceId = this.deviceId;
     this.logger.info('Disconnecting from device:', deviceId);
 
     try {
-      await this.adapter.disconnect(deviceId);
-      this.deviceId = null;
-      this.buffer = [];
-      this.jobBuffer = null;
-      this.jobOffset = 0;
+      await this.connectionManager.disconnect();
+      this.printJobManager.cancel();
+      this.updateState();
       this.emit('disconnected', deviceId);
       this.logger.info('Disconnected successfully');
     } catch (error) {
@@ -169,6 +237,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
         error as Error
       );
       this.emit('error', printError);
+      this.updateState();
       throw printError;
     }
   }
@@ -186,8 +255,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   text(content: string, encoding?: string): this {
-    this.logger.debug('Adding text:', content.substring(0, 50));
-    this.buffer.push(...this.driver.text(content, encoding));
+    this.commandBuilder.text(content, encoding);
     return this;
   }
 
@@ -203,8 +271,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   feed(lines = 1): this {
-    this.logger.debug('Adding feed:', lines);
-    this.buffer.push(...this.driver.feed(lines));
+    this.commandBuilder.feed(lines);
     return this;
   }
 
@@ -219,8 +286,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   cut(): this {
-    this.logger.debug('Adding cut command');
-    this.buffer.push(...this.driver.cut());
+    this.commandBuilder.cut();
     return this;
   }
 
@@ -239,8 +305,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   image(data: Uint8Array, width: number, height: number): this {
-    this.logger.debug(`Adding image: ${width}x${height}`);
-    this.buffer.push(...this.driver.image(data, width, height));
+    this.commandBuilder.image(data, width, height);
     return this;
   }
 
@@ -257,8 +322,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   qr(content: string, options?: IQrOptions): this {
-    this.logger.debug('Adding QR code:', content.substring(0, 50));
-    this.buffer.push(...this.driver.qr(content, options));
+    this.commandBuilder.qr(content, options);
     return this;
   }
 
@@ -274,8 +338,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   setOptions(options: IAdapterOptions): this {
-    this.adapterOptions = { ...this.adapterOptions, ...options };
-    this.logger.debug('Adapter options updated:', this.adapterOptions);
+    this.printJobManager.setOptions(options);
     return this;
   }
 
@@ -291,9 +354,8 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   pause(): void {
-    this.isPaused = true;
-    this.state = PrinterState.PAUSED;
-    this.emit('state-change', PrinterState.PAUSED);
+    this.printJobManager.pause();
+    this.updateState();
     this.logger.info('Print job paused');
   }
 
@@ -308,18 +370,12 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async resume(): Promise<void> {
-    if (!this.isPaused || !this.jobBuffer) {
-      this.logger.warn('Resume called but job not paused or no job buffer');
-      return;
-    }
-
-    this.isPaused = false;
-    this.state = PrinterState.PRINTING;
-    this.emit('state-change', PrinterState.PRINTING);
-    this.logger.info('Print job resumed');
+    this.logger.info('Resuming print job');
 
     try {
-      await this.processJob();
+      await this.printJobManager.resume();
+      this.updateState();
+      this.logger.info('Print job resumed');
     } catch (error) {
       const printError = new BluetoothPrintError(
         ErrorCode.PRINT_JOB_FAILED,
@@ -327,6 +383,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
         error as Error
       );
       this.emit('error', printError);
+      this.updateState();
       throw printError;
     }
   }
@@ -340,12 +397,9 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   cancel(): void {
-    this.isPaused = false;
-    this.jobBuffer = null;
-    this.jobOffset = 0;
-    this.buffer = [];
-    this.state = this.deviceId ? PrinterState.CONNECTED : PrinterState.DISCONNECTED;
-    this.emit('state-change', this.state);
+    this.printJobManager.cancel();
+    this.commandBuilder.clear();
+    this.updateState();
     this.logger.info('Print job cancelled');
   }
 
@@ -360,10 +414,10 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   remaining(): number {
-    if (this.jobBuffer) {
-      return this.jobBuffer.length - this.jobOffset;
-    }
-    return this.buffer.reduce((acc, b) => acc + b.length, 0);
+    // When print() is called, command buffer content is transferred to printJobManager
+    // and command buffer is cleared (except for init command).
+    // So we only need to return printJobManager.remaining()
+    return this.printJobManager.remaining();
   }
 
   /**
@@ -381,110 +435,48 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async print(): Promise<void> {
-    if (!this.deviceId) {
+    if (!this.connectionManager.isConnected()) {
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         'Printer not connected. Call connect() first.'
       );
     }
 
-    if (this.jobBuffer) {
-      throw new BluetoothPrintError(
-        ErrorCode.PRINT_JOB_IN_PROGRESS,
-        'A print job is already in progress. Wait for completion or cancel it.'
-      );
-    }
+    const buffer = this.commandBuilder.getBuffer();
+    this.logger.info(`Starting print job: ${buffer.length} bytes`);
 
-    // Combine all buffers
-    const totalLength = this.buffer.reduce((acc, b) => acc + b.length, 0);
-    this.logger.info(`Starting print job: ${totalLength} bytes`);
+    // Clear the command buffer after getting the buffer for printing
+    this.commandBuilder.clear();
 
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const b of this.buffer) {
-      combined.set(b, offset);
-      offset += b.length;
-    }
-
-    this.jobBuffer = combined;
-    this.jobOffset = 0;
-    this.buffer = []; // Clear queue
-    this.isPaused = false;
-    this.state = PrinterState.PRINTING; // 设置状态为PRINTING
-    this.emit('state-change', this.state);
+    this.updateState();
 
     try {
-      await this.processJob();
-      
-      // 检查是否是因为暂停而返回
-      if (this.isPaused) {
-        // 打印任务被暂停，保持PAUSED状态
+      await this.printJobManager.start(buffer);
+
+      // Check if the job was paused
+      const isPaused =
+        typeof this.printJobManager.isPaused === 'function'
+          ? this.printJobManager.isPaused()
+          : false;
+
+      if (isPaused) {
+        // Print job was paused
         this.logger.info('Print job paused');
       } else {
-        // 打印任务正常完成
+        // Print job completed successfully
         this.emit('print-complete');
         this.logger.info('Print job completed successfully');
-        // 打印完成后，将状态设置回CONNECTED
-        this.state = PrinterState.CONNECTED;
-        this.emit('state-change', this.state);
       }
     } catch (error) {
-      const printError = error instanceof BluetoothPrintError
-        ? error
-        : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
+      this.logger.error('Print job failed with error:', error);
+      const printError =
+        error instanceof BluetoothPrintError
+          ? error
+          : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
       this.emit('error', printError);
-      // 打印失败后，将状态设置回CONNECTED
-      this.state = PrinterState.CONNECTED;
-      this.emit('state-change', this.state);
       throw printError;
-    }
-  }
-
-  /**
-   * Processes the print job in chunks
-   * Supports pause/resume and emits progress events
-   */
-  private async processJob(): Promise<void> {
-    if (!this.jobBuffer || !this.deviceId) return;
-
-    const printerChunkSize = 512;
-    const total = this.jobBuffer.length;
-    const deviceId = this.deviceId; // 缓存deviceId，避免闭包问题
-    const jobBuffer = this.jobBuffer; // 缓存jobBuffer，避免闭包问题
-
-    try {
-      while (this.jobOffset < jobBuffer.length) {
-        if (this.isPaused) {
-          this.logger.debug('Job paused at offset:', this.jobOffset);
-          return;
-        }
-
-        // 检查设备是否仍然连接
-        if (this.state !== PrinterState.CONNECTED && this.state !== PrinterState.PRINTING && this.state !== PrinterState.PAUSED) {
-          throw new BluetoothPrintError(
-            ErrorCode.DEVICE_DISCONNECTED,
-            'Device disconnected during print job'
-          );
-        }
-
-        const end = Math.min(this.jobOffset + printerChunkSize, jobBuffer.length);
-        const chunk = jobBuffer.slice(this.jobOffset, end);
-
-        await this.adapter.write(deviceId, chunk.buffer, this.adapterOptions);
-
-        this.jobOffset = end;
-
-        // Emit progress only if there are listeners, avoid unnecessary computations
-        if (this.hasListeners('progress')) {
-          this.emit('progress', { sent: this.jobOffset, total });
-        }
-      }
     } finally {
-      // 只有当任务完成时才清理缓冲区
-      if (this.jobOffset >= jobBuffer.length) {
-        this.jobBuffer = null;
-        this.jobOffset = 0;
-      }
+      this.updateState();
     }
   }
 }
