@@ -16,9 +16,10 @@ export interface IConnectionManager {
    * Connects to a Bluetooth device
    *
    * @param deviceId - Bluetooth device ID
+   * @param options - Connection options
    * @returns Promise<void>
    */
-  connect(deviceId: string): Promise<void>;
+  connect(deviceId: string, options?: { retries?: number; timeout?: number }): Promise<void>;
 
   /**
    * Disconnects from the current device
@@ -68,7 +69,7 @@ export interface IPrintJobManager {
    * @param buffer - Print data buffer
    * @returns Promise<void>
    */
-  start(buffer: Uint8Array): Promise<void>;
+  start(buffer: Uint8Array, options?: { jobId?: string }): Promise<void>;
 
   /**
    * Pauses the current print job
@@ -80,7 +81,7 @@ export interface IPrintJobManager {
    *
    * @returns Promise<void>
    */
-  resume(): Promise<void>;
+  resume(jobId?: string): Promise<void>;
 
   /**
    * Cancels the current print job
@@ -114,6 +115,20 @@ export interface IPrintJobManager {
    * @param options - Adapter options
    */
   setOptions(options: IAdapterOptions): void;
+
+  /**
+   * Sets the progress callback
+   * 
+   * @param callback - Progress callback function
+   */
+  setProgressCallback(callback?: (sent: number, total: number) => void): void;
+
+  /**
+   * Sets the job state change callback
+   * 
+   * @param callback - Job state change callback function
+   */
+  setJobStateCallback(callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void): void;
 }
 
 /**

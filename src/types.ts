@@ -125,7 +125,7 @@ export interface IPrinterDriver {
    * @param lines - Number of lines to feed (default: 1)
    * @returns Array of command buffers
    */
-  feed(lines: number): Uint8Array[];
+  feed(lines?: number): Uint8Array[];
 }
 
 /**

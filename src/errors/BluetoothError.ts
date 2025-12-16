@@ -69,13 +69,39 @@ export class BluetoothPrintError extends Error {
   }
 
   /**
-   * Returns a detailed error message including the error code
+   * Returns a detailed error message including the error code and stack trace
    */
   toString(): string {
     let result = `${this.name} [${this.code}]: ${this.message}`;
     if (this.originalError) {
       result += `\nCaused by: ${this.originalError.message}`;
+      if (this.originalError.stack) {
+        result += `\n${this.originalError.stack}`;
+      }
+    }
+    if (this.stack) {
+      result += `\n${this.stack}`;
     }
     return result;
+  }
+
+  /**
+   * Converts the error to a JSON object
+   * Useful for logging and debugging
+   */
+  toJSON(): object {
+    return {
+      name: this.name,
+      code: this.code,
+      message: this.message,
+      stack: this.stack,
+      originalError: this.originalError
+        ? {
+            name: this.originalError.name,
+            message: this.originalError.message,
+            stack: this.originalError.stack,
+          }
+        : undefined,
+    };
   }
 }

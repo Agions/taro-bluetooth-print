@@ -21,12 +21,11 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": true,
+    "moduleResolution": "bundler",
     "ignoreDeprecations": "6.0",
-    "moduleResolution": "node",
-    "baseUrl": "./",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "*": ["src/*", "src/*/index"]
+      "@/*": ["src/*"]
     },
     "typeRoots": ["./node_modules/@types", "./src/types", "./src/**/*.d.ts"],
     "esModuleInterop": true,

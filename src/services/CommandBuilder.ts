@@ -4,16 +4,14 @@
  * Builds print commands using the printer driver
  */
 
-import { Service } from 'typedi';
 import type { IPrinterDriver, IQrOptions } from '@/types';
-import { ICommandBuilder } from './interfaces';
+import { ICommandBuilder } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
 import { EscPos } from '@/drivers/EscPos';
 
 /**
  * Command Builder implementation
  */
-@Service()
 export class CommandBuilder implements ICommandBuilder {
   private driver: IPrinterDriver;
   private buffer: Uint8Array[] = [];

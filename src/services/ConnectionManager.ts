@@ -4,10 +4,9 @@
  * Manages Bluetooth device connections
  */
 
-import { Service } from 'typedi';
 import type { IPrinterAdapter } from '@/types';
 import { PrinterState } from '@/types';
-import { IConnectionManager } from './interfaces';
+import { IConnectionManager } from '@/services/interfaces';
 import { AdapterFactory } from '@/adapters/AdapterFactory';
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
@@ -15,7 +14,6 @@ import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 /**
  * Connection Manager implementation
  */
-@Service()
 export class ConnectionManager implements IConnectionManager {
   private adapter: IPrinterAdapter;
   private deviceId: string | null = null;
@@ -39,29 +37,55 @@ export class ConnectionManager implements IConnectionManager {
    * Connects to a Bluetooth device
    *
    * @param deviceId - Bluetooth device ID
+   * @param options - Connection options
    * @returns Promise<void>
    */
-  async connect(deviceId: string): Promise<void> {
+  async connect(deviceId: string, options?: { retries?: number; timeout?: number }): Promise<void> {
     this.logger.info('Connecting to device:', deviceId);
 
-    try {
-      this.deviceId = deviceId;
-      await this.adapter.connect(deviceId);
-      this.state = PrinterState.CONNECTED;
-      this.logger.info('Connected successfully');
-    } catch (error) {
-      this.deviceId = null;
-      this.state = PrinterState.DISCONNECTED;
-      const printError =
-        error instanceof BluetoothPrintError
-          ? error
-          : new BluetoothPrintError(
-              ErrorCode.CONNECTION_FAILED,
-              'Connection failed',
-              error as Error
-            );
-      this.logger.error('Connection failed:', printError);
-      throw printError;
+    const { retries = 0, timeout = 5000 } = options || {};
+    let attempts = 0;
+
+    while (attempts <= retries) {
+      try {
+        this.deviceId = deviceId;
+        this.state = PrinterState.CONNECTING;
+
+        // 添加连接超时处理
+        const connectPromise = this.adapter.connect(deviceId);
+        const timeoutPromise = new Promise<void>((_, reject) => {
+          setTimeout(() => {
+            reject(new BluetoothPrintError(
+              ErrorCode.CONNECTION_TIMEOUT,
+              `Connection to device ${deviceId} timed out after ${timeout}ms`
+            ));
+          }, timeout);
+        });
+
+        await Promise.race([connectPromise, timeoutPromise]);
+        this.state = PrinterState.CONNECTED;
+        this.logger.info('Connected successfully');
+        return;
+      } catch (error) {
+        attempts++;
+        if (attempts > retries) {
+          this.deviceId = null;
+          this.state = PrinterState.DISCONNECTED;
+          const printError =
+            error instanceof BluetoothPrintError
+              ? error
+              : new BluetoothPrintError(
+                ErrorCode.CONNECTION_FAILED,
+                `Connection failed after ${attempts} attempts`,
+                error as Error
+              );
+          this.logger.error('Connection failed:', printError);
+          throw printError;
+        }
+        this.logger.warn(`Connection attempt ${attempts}/${retries} failed, retrying...`, error);
+        // 重试前等待一段时间
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   }
 

@@ -113,17 +113,15 @@ export class Logger {
       [LogLevel.NONE]: 'NONE',
     };
 
-    const scopedPrefix = scope 
-      ? `${this.config.prefix}:${scope}` 
-      : this.config.prefix;
-    
+    const scopedPrefix = scope ? `${this.config.prefix}:${scope}` : this.config.prefix;
+
     return `${scopedPrefix} [${levelNames[level]}]`;
   }
 
   /**
    * Formats a complete log message for custom handlers
    */
-  private static formatMessage(level: LogLevel, message: string, args: unknown[], scope?: string): string {
+  private static formatMessage(level: LogLevel, message: string, scope?: string): string {
     const prefix = this.formatPrefix(level, scope);
     return `${prefix} ${message}`;
   }
@@ -137,7 +135,7 @@ export class Logger {
     }
 
     const prefix = this.formatPrefix(level, scope);
-    const formatted = this.formatMessage(level, message, args, scope);
+    const formatted = this.formatMessage(level, message, scope);
     const entry: LogEntry = {
       level,
       message,

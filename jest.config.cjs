@@ -21,12 +21,12 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\.tsx?$': ['ts-jest', {
       tsconfig: {
         esModuleInterop: true
       }
-    }
+    }]
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };

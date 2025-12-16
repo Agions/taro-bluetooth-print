@@ -34,7 +34,7 @@ export class Encoding {
   private static utf8Encoder = new TextEncoder();
   private static warningShown = false;
   private static config: EncodingConfig = {
-    showWarnings: true
+    showWarnings: true,
   };
 
   /**
@@ -90,7 +90,7 @@ export class Encoding {
     if (this.config.showWarnings && !this.warningShown) {
       logger.warn(
         `Encoding ${encoding} not yet fully implemented, falling back to UTF-8. ` +
-        `This may cause display issues with some printers.`
+          `This may cause display issues with some printers.`
       );
       this.warningShown = true;
     }
@@ -108,7 +108,7 @@ export class Encoding {
    * ```typescript
    * if (Encoding.isSupported('GBK')) {
    *   console.log('GBK is supported');
-   * } 
+   * }
    * ```
    */
   static isSupported(encoding: string): boolean {
