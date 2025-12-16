@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-12-16
+
+### Added
+
+- 增强了弱网适配功能，支持动态分片大小调整
+- 实现了指数退避重试策略和智能超时处理
+- 添加了断点续传功能，支持作业ID生成与管理
+- 实现了作业状态保存与加载机制
+- 增强了图片处理功能，支持多种抖动算法（Floyd-Steinberg、Atkinson）
+- 添加了图片对比度和亮度调整功能
+
+### Changed
+
+- 优化了灰度转换和缩放算法，提高图片处理性能
+- 更新了TypeScript配置，移除无效设置
+- 更新了npm依赖到最新兼容版本
+- 优化了代码结构，提高了代码质量
+
+### Fixed
+
+- 修复了测试中缺少reflect-metadata的问题
+- 修复了TypeScript编译错误
+- 确保了所有异步操作都有正确的清理机制
+
 ## [2.1.1] - 2025-12-02
 
 ### Added
