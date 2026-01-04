@@ -9,6 +9,7 @@ import { TaroAdapter } from './TaroAdapter';
 import { AlipayAdapter } from './AlipayAdapter';
 import { BaiduAdapter } from './BaiduAdapter';
 import { ByteDanceAdapter } from './ByteDanceAdapter';
+import { WebBluetoothAdapter } from './WebBluetoothAdapter';
 import { PlatformType, detectPlatform } from '@/utils/platform';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
@@ -34,6 +35,14 @@ export class AdapterFactory {
         return new BaiduAdapter();
       case PlatformType.BYTEDANCE:
         return new ByteDanceAdapter();
+      case PlatformType.WEB:
+        if (WebBluetoothAdapter.isSupported()) {
+          return new WebBluetoothAdapter();
+        }
+        throw new BluetoothPrintError(
+          ErrorCode.PLATFORM_NOT_SUPPORTED,
+          'Web Bluetooth API is not supported in this browser. Please use a supported browser (Chrome, Edge, Opera).'
+        );
       default:
         throw new BluetoothPrintError(
           ErrorCode.PLATFORM_NOT_SUPPORTED,
@@ -59,6 +68,14 @@ export class AdapterFactory {
         return new BaiduAdapter();
       case PlatformType.BYTEDANCE:
         return new ByteDanceAdapter();
+      case PlatformType.WEB:
+        if (WebBluetoothAdapter.isSupported()) {
+          return new WebBluetoothAdapter();
+        }
+        throw new BluetoothPrintError(
+          ErrorCode.PLATFORM_NOT_SUPPORTED,
+          'Web Bluetooth API is not supported in this browser.'
+        );
       default:
         throw new BluetoothPrintError(
           ErrorCode.PLATFORM_NOT_SUPPORTED,

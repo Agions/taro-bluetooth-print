@@ -209,7 +209,8 @@ export class TaroAdapter extends BaseAdapter {
       );
     }
 
-    let { chunkSize, delay, retries } = validatedOptions;
+    let { chunkSize } = validatedOptions;
+    const { delay, retries } = validatedOptions;
     const data = new Uint8Array(buffer);
     let totalChunks = Math.ceil(data.length / chunkSize);
 
@@ -225,8 +226,8 @@ export class TaroAdapter extends BaseAdapter {
     let successCount = 0;
     let failureCount = 0;
     let consecutiveFailures = 0;
-    let minChunkSize = 10; // 最小块大小
-    let maxChunkSize = 256; // 最大块大小
+    const minChunkSize = 10; // 最小块大小
+    const maxChunkSize = 256; // 最大块大小
     let baseDelay = delay; // 基础延迟
     const maxDelay = 200; // 最大延迟
     const connectionCheckInterval = 5; // 每5个块检查一次连接状态
@@ -259,7 +260,7 @@ export class TaroAdapter extends BaseAdapter {
         try {
           // 根据块大小动态调整超时时间 (1秒基础时间 + 每字节5ms)
           const timeoutMs = Math.max(1000, Math.min(10000, 1000 + chunk.length * 5));
-          
+
           // 添加写入超时处理
           const writePromise = Taro.writeBLECharacteristicValue({
             deviceId,
@@ -290,7 +291,7 @@ export class TaroAdapter extends BaseAdapter {
             );
           }
           this.logger.warn(`Chunk ${chunkNum} write failed, retry ${attempt}/${retries}`);
-          
+
           // 使用指数退避算法，重试间隔随重试次数增加而增加
           const retryDelay = baseDelay * Math.pow(2, attempt - 1);
           await new Promise(r => setTimeout(r, Math.min(retryDelay, maxDelay)));
@@ -302,7 +303,7 @@ export class TaroAdapter extends BaseAdapter {
         successCount++;
         consecutiveFailures = 0;
         failureCount = Math.max(0, failureCount - 1);
-        
+
         // 网络状况改善，增加块大小，减少延迟
         if (successCount % 3 === 0 && chunkSize < maxChunkSize) {
           chunkSize = Math.min(maxChunkSize, chunkSize + 5);
@@ -314,7 +315,7 @@ export class TaroAdapter extends BaseAdapter {
         failureCount++;
         consecutiveFailures++;
         successCount = Math.max(0, successCount - 1);
-        
+
         // 网络状况恶化，减少块大小，增加延迟
         if (consecutiveFailures >= 2 && chunkSize > minChunkSize) {
           chunkSize = Math.max(minChunkSize, chunkSize - 5);

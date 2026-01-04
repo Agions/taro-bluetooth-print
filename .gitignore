@@ -50,7 +50,4 @@ docs/api/
 docs/.vitepress/dist
 docs/.vitepress/cache
 
-.claude
-openspec
-AGENTS.md
-CLAUDE.md
+.kiro

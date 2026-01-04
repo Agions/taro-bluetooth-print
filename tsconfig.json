@@ -22,7 +22,6 @@
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": true,
     "moduleResolution": "bundler",
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

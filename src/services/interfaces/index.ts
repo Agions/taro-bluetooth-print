@@ -5,6 +5,8 @@
  */
 
 import { IAdapterOptions, IQrOptions, PrinterState, IPrinterAdapter } from '@/types';
+import { TextAlign, TextStyle } from '@/formatter';
+import { BarcodeOptions } from '@/barcode';
 
 /**
  * Connection Manager Interface
@@ -118,17 +120,19 @@ export interface IPrintJobManager {
 
   /**
    * Sets the progress callback
-   * 
+   *
    * @param callback - Progress callback function
    */
   setProgressCallback(callback?: (sent: number, total: number) => void): void;
 
   /**
    * Sets the job state change callback
-   * 
+   *
    * @param callback - Job state change callback function
    */
-  setJobStateCallback(callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void): void;
+  setJobStateCallback(
+    callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void
+  ): void;
 }
 
 /**
@@ -186,6 +190,71 @@ export interface ICommandBuilder {
    * @returns this - For method chaining
    */
   clear(): this;
+
+  /**
+   * Sets text alignment
+   *
+   * @param alignment - Text alignment (left, center, right)
+   * @returns this - For method chaining
+   */
+  align(alignment: TextAlign): this;
+
+  /**
+   * Sets character size (width and height scale)
+   *
+   * @param width - Width scale factor (1-8)
+   * @param height - Height scale factor (1-8)
+   * @returns this - For method chaining
+   */
+  setSize(width: number, height: number): this;
+
+  /**
+   * Sets bold text mode
+   *
+   * @param enabled - Enable or disable bold
+   * @returns this - For method chaining
+   */
+  setBold(enabled: boolean): this;
+
+  /**
+   * Sets underline text mode
+   *
+   * @param enabled - Enable or disable underline
+   * @returns this - For method chaining
+   */
+  setUnderline(enabled: boolean): this;
+
+  /**
+   * Sets inverse printing mode (white on black)
+   *
+   * @param enabled - Enable or disable inverse
+   * @returns this - For method chaining
+   */
+  setInverse(enabled: boolean): this;
+
+  /**
+   * Sets multiple text style properties at once
+   *
+   * @param style - Text style configuration
+   * @returns this - For method chaining
+   */
+  setStyle(style: TextStyle): this;
+
+  /**
+   * Resets all text formatting to default
+   *
+   * @returns this - For method chaining
+   */
+  resetStyle(): this;
+
+  /**
+   * Adds a 1D barcode to the print queue
+   *
+   * @param content - Barcode content/data
+   * @param options - Barcode options
+   * @returns this - For method chaining
+   */
+  barcode(content: string, options: BarcodeOptions): this;
 
   /**
    * Gets the current buffer

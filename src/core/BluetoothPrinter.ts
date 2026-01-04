@@ -185,10 +185,10 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
         error instanceof BluetoothPrintError
           ? error
           : new BluetoothPrintError(
-            ErrorCode.CONNECTION_FAILED,
-            'Connection failed',
-            error as Error
-          );
+              ErrorCode.CONNECTION_FAILED,
+              'Connection failed',
+              error as Error
+            );
       this.emit('error', printError);
       this.updateState();
       throw printError;
@@ -479,5 +479,134 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     } finally {
       this.updateState();
     }
+  }
+
+  // ============================================
+  // Text Formatting Methods (New in v2.2)
+  // ============================================
+
+  /**
+   * Sets text alignment
+   *
+   * @param alignment - Text alignment ('left', 'center', 'right')
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.align('center').text('Centered Text');
+   * ```
+   */
+  align(alignment: 'left' | 'center' | 'right'): this {
+    this.commandBuilder.align(alignment as import('@/formatter/TextFormatter').TextAlign);
+    return this;
+  }
+
+  /**
+   * Sets text size (width and height multiplier)
+   *
+   * @param width - Width multiplier (1-8)
+   * @param height - Height multiplier (1-8)
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.setSize(2, 2).text('Large Text');
+   * ```
+   */
+  setSize(width: number, height: number): this {
+    this.commandBuilder.setSize(width, height);
+    return this;
+  }
+
+  /**
+   * Sets bold text mode
+   *
+   * @param enabled - Whether to enable bold
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.setBold(true).text('Bold Text').setBold(false);
+   * ```
+   */
+  setBold(enabled: boolean): this {
+    this.commandBuilder.setBold(enabled);
+    return this;
+  }
+
+  /**
+   * Sets underline text mode
+   *
+   * @param enabled - Whether to enable underline
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.setUnderline(true).text('Underlined').setUnderline(false);
+   * ```
+   */
+  setUnderline(enabled: boolean): this {
+    this.commandBuilder.setUnderline(enabled);
+    return this;
+  }
+
+  /**
+   * Resets all text formatting to default
+   *
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.setBold(true).text('Bold').resetStyle().text('Normal');
+   * ```
+   */
+  resetStyle(): this {
+    this.commandBuilder.resetStyle();
+    return this;
+  }
+
+  /**
+   * Adds a barcode to the print queue
+   *
+   * @param content - Barcode content
+   * @param format - Barcode format ('CODE128', 'CODE39', 'EAN13', 'EAN8', 'UPCA')
+   * @param options - Optional barcode settings
+   * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * printer.barcode('1234567890128', 'EAN13', { height: 80 });
+   * ```
+   */
+  barcode(
+    content: string,
+    format: 'CODE128' | 'CODE39' | 'EAN13' | 'EAN8' | 'UPCA',
+    options?: { height?: number; width?: number; showText?: boolean }
+  ): this {
+    this.commandBuilder.barcode(content, {
+      format: format as import('@/barcode/BarcodeGenerator').BarcodeFormat,
+      ...options,
+    });
+    return this;
+  }
+
+  /**
+   * Gets the connection manager instance
+   * Useful for advanced connection management features
+   *
+   * @returns Connection manager instance
+   */
+  getConnectionManager(): IConnectionManager {
+    return this.connectionManager;
+  }
+
+  /**
+   * Gets the command builder instance
+   * Useful for advanced command building
+   *
+   * @returns Command builder instance
+   */
+  getCommandBuilder(): ICommandBuilder {
+    return this.commandBuilder;
   }
 }

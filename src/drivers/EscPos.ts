@@ -4,9 +4,22 @@
  */
 
 import { IPrinterDriver, IQrOptions } from '@/types';
+import { EncodingService } from '@/encoding';
 import { Encoding } from '@/utils/encoding';
 import { ImageProcessing } from '@/utils/image';
 import { Logger } from '@/utils/logger';
+
+/**
+ * ESC/POS driver options
+ */
+export interface EscPosOptions {
+  /** Use the new EncodingService for better GBK support (default: true) */
+  useEncodingService?: boolean;
+  /** Show warnings for unsupported characters (default: true) */
+  showEncodingWarnings?: boolean;
+  /** Fallback character for unsupported characters (default: '?') */
+  fallbackChar?: string;
+}
 
 /**
  * ESC/POS thermal printer driver
@@ -27,6 +40,20 @@ import { Logger } from '@/utils/logger';
  */
 export class EscPos implements IPrinterDriver {
   private readonly logger = Logger.scope('EscPos');
+  private readonly encodingService: EncodingService;
+  private readonly useEncodingService: boolean;
+
+  /**
+   * Creates a new EscPos driver instance
+   * @param options - Driver options
+   */
+  constructor(options?: EscPosOptions) {
+    this.useEncodingService = options?.useEncodingService ?? true;
+    this.encodingService = new EncodingService({
+      showWarnings: options?.showEncodingWarnings ?? true,
+      fallbackChar: options?.fallbackChar ?? '?',
+    });
+  }
 
   /**
    * Initializes the printer
@@ -54,6 +81,14 @@ export class EscPos implements IPrinterDriver {
     if (!content || typeof content !== 'string') {
       return [];
     }
+
+    // Use new EncodingService for better GBK/GB2312/Big5 support
+    if (this.useEncodingService && this.encodingService.isSupported(encoding)) {
+      const encoded = this.encodingService.encode(content, encoding);
+      return [encoded];
+    }
+
+    // Fall back to legacy encoding for backward compatibility
     const encoded = Encoding.encode(content, encoding);
     return [encoded];
   }
@@ -179,7 +214,11 @@ export class EscPos implements IPrinterDriver {
     // 4. Store Data (Function 180)
     // GS ( k pL pH 31 50 30 d1...dk
     // pL, pH: length of data + 3
-    const data = Encoding.encode(content, 'GBK');
+    // Use new EncodingService for better GBK support
+    const data =
+      this.useEncodingService && this.encodingService.isSupported('GBK')
+        ? this.encodingService.encode(content, 'GBK')
+        : Encoding.encode(content, 'GBK');
     const len = data.length + 3;
     const pL = len % 256;
     const pH = Math.floor(len / 256);

@@ -8,6 +8,8 @@ import type { IPrinterDriver, IQrOptions } from '@/types';
 import { ICommandBuilder } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
 import { EscPos } from '@/drivers/EscPos';
+import { TextFormatter, TextAlign, TextStyle } from '@/formatter';
+import { BarcodeGenerator, BarcodeOptions } from '@/barcode';
 
 /**
  * Command Builder implementation
@@ -16,6 +18,8 @@ export class CommandBuilder implements ICommandBuilder {
   private driver: IPrinterDriver;
   private buffer: Uint8Array[] = [];
   private readonly logger = Logger.scope('CommandBuilder');
+  private readonly formatter: TextFormatter;
+  private readonly barcodeGenerator: BarcodeGenerator;
 
   /**
    * Creates a new CommandBuilder instance
@@ -24,6 +28,8 @@ export class CommandBuilder implements ICommandBuilder {
    */
   constructor(driver?: IPrinterDriver) {
     this.driver = driver || new EscPos();
+    this.formatter = new TextFormatter();
+    this.barcodeGenerator = new BarcodeGenerator();
 
     // Initialize printer with ESC/POS init command
     this.buffer.push(...this.driver.init());
@@ -102,6 +108,152 @@ export class CommandBuilder implements ICommandBuilder {
     this.buffer = [];
     // Re-initialize printer
     this.buffer.push(...this.driver.init());
+    return this;
+  }
+
+  /**
+   * Sets text alignment
+   *
+   * @param alignment - Text alignment (left, center, right)
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.align(TextAlign.CENTER).text('Centered Text');
+   * ```
+   */
+  align(alignment: TextAlign): this {
+    this.logger.debug('Setting alignment:', alignment);
+    this.buffer.push(...this.formatter.align(alignment));
+    return this;
+  }
+
+  /**
+   * Sets character size (width and height scale)
+   *
+   * @param width - Width scale factor (1-8)
+   * @param height - Height scale factor (1-8)
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.setSize(2, 2).text('Double Size');
+   * ```
+   */
+  setSize(width: number, height: number): this {
+    this.logger.debug(`Setting size: ${width}x${height}`);
+    this.buffer.push(...this.formatter.setSize(width, height));
+    return this;
+  }
+
+  /**
+   * Sets bold text mode
+   *
+   * @param enabled - Enable or disable bold
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.setBold(true).text('Bold Text').setBold(false);
+   * ```
+   */
+  setBold(enabled: boolean): this {
+    this.logger.debug('Setting bold:', enabled);
+    this.buffer.push(...this.formatter.setBold(enabled));
+    return this;
+  }
+
+  /**
+   * Sets underline text mode
+   *
+   * @param enabled - Enable or disable underline
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.setUnderline(true).text('Underlined').setUnderline(false);
+   * ```
+   */
+  setUnderline(enabled: boolean): this {
+    this.logger.debug('Setting underline:', enabled);
+    this.buffer.push(...this.formatter.setUnderline(enabled));
+    return this;
+  }
+
+  /**
+   * Sets inverse printing mode (white on black)
+   *
+   * @param enabled - Enable or disable inverse
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.setInverse(true).text('Inverse Text').setInverse(false);
+   * ```
+   */
+  setInverse(enabled: boolean): this {
+    this.logger.debug('Setting inverse:', enabled);
+    this.buffer.push(...this.formatter.setInverse(enabled));
+    return this;
+  }
+
+  /**
+   * Sets multiple text style properties at once
+   *
+   * @param style - Text style configuration
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.setStyle({ align: TextAlign.CENTER, bold: true, heightScale: 2 });
+   * ```
+   */
+  setStyle(style: TextStyle): this {
+    this.logger.debug('Setting style:', style);
+    this.buffer.push(...this.formatter.setStyle(style));
+    return this;
+  }
+
+  /**
+   * Resets all text formatting to default
+   *
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.resetStyle().text('Normal Text');
+   * ```
+   */
+  resetStyle(): this {
+    this.logger.debug('Resetting style');
+    this.buffer.push(...this.formatter.resetStyle());
+    return this;
+  }
+
+  /**
+   * Adds a 1D barcode to the print queue
+   *
+   * @param content - Barcode content/data
+   * @param options - Barcode options (format, height, width, showText, textPosition)
+   * @returns this - For method chaining
+   *
+   * @example
+   * ```typescript
+   * builder.barcode('1234567890128', {
+   *   format: BarcodeFormat.EAN13,
+   *   height: 80,
+   *   showText: true
+   * });
+   * ```
+   */
+  barcode(content: string, options: BarcodeOptions): this {
+    this.logger.debug(`Adding barcode: ${content} (${options.format})`);
+    const commands = this.barcodeGenerator.generate(content, options);
+    if (commands.length > 0) {
+      this.buffer.push(...commands);
+    } else {
+      this.logger.warn(`Failed to generate barcode for content: ${content}`);
+    }
     return this;
   }
 

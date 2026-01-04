@@ -11,8 +11,8 @@ import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
-   * Print Job Manager implementation
-   */
+ * Print Job Manager implementation
+ */
 export class PrintJobManager implements IPrintJobManager {
   private adapter: IPrinterAdapter;
   private connectionManager: IConnectionManager;
@@ -28,7 +28,7 @@ export class PrintJobManager implements IPrintJobManager {
 
   /**
    * Sets the progress callback
-   * 
+   *
    * @param callback - Progress callback function
    */
   setProgressCallback(callback?: (sent: number, total: number) => void): void {
@@ -37,10 +37,12 @@ export class PrintJobManager implements IPrintJobManager {
 
   /**
    * Sets the job state change callback
-   * 
+   *
    * @param callback - Job state change callback function
    */
-  setJobStateCallback(callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void): void {
+  setJobStateCallback(
+    callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void
+  ): void {
     this.onJobStateChange = callback;
   }
 
@@ -133,7 +135,7 @@ export class PrintJobManager implements IPrintJobManager {
     if (!this._isInProgress || !this._isPaused) {
       // Try to load paused job if jobId is provided
       if (jobId) {
-        await this.loadJobState(jobId);
+        this.loadJobState(jobId);
       } else {
         this.logger.warn('Resume called but no paused print job');
         return;
@@ -187,7 +189,7 @@ export class PrintJobManager implements IPrintJobManager {
 
   /**
    * Generates a unique job ID
-   * 
+   *
    * @returns string - Unique job ID
    */
   private generateJobId(): string {
@@ -205,7 +207,9 @@ export class PrintJobManager implements IPrintJobManager {
     try {
       // In a real application, this would save to persistent storage
       // For now, we'll just log it
-      this.logger.debug(`Saved job state for ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`);
+      this.logger.debug(
+        `Saved job state for ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
+      );
 
       // Example: localStorage.setItem(`printJob-${this.jobId}`, JSON.stringify({
       //   jobId: this.jobId,
@@ -221,10 +225,10 @@ export class PrintJobManager implements IPrintJobManager {
 
   /**
    * Loads a saved job state
-   * 
+   *
    * @param jobId - Job ID to load
    */
-  private async loadJobState(jobId: string): Promise<void> {
+  private loadJobState(jobId: string): void {
     try {
       this.logger.debug(`Loading job state for ${jobId}`);
 
@@ -279,7 +283,7 @@ export class PrintJobManager implements IPrintJobManager {
 
   /**
    * Emits job state change event
-   * 
+   *
    * @param state - New job state
    */
   private emitJobState(state: 'in-progress' | 'paused' | 'completed' | 'cancelled'): void {
@@ -300,8 +304,6 @@ export class PrintJobManager implements IPrintJobManager {
     this._isPaused = true;
     this.logger.info('Print job paused');
   }
-
-
 
   /**
    * Gets the number of bytes remaining to print

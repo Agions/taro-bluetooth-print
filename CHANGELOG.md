@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-04
+
+### Added
+
+- **设备管理器 (DeviceManager)** - 蓝牙设备扫描和管理功能
+  - 支持设备过滤（名称、服务UUID）
+  - 设备发现事件监听
+  - 已配对设备管理
+
+- **打印队列 (PrintQueue)** - 打印任务队列管理
+  - 优先级排序（LOW/NORMAL/HIGH/URGENT）
+  - FIFO 处理机制
+  - 失败自动重试
+  - 队列暂停/恢复/清空
+
+- **离线缓存 (OfflineCache)** - 断网时自动缓存打印任务
+  - 本地存储持久化
+  - 任务过期清理
+  - 重连后自动同步
+
+- **模板引擎 (TemplateEngine)** - 收据和标签模板渲染
+  - 内置收据模板（店铺信息、商品列表、支付信息）
+  - 内置标签模板（商品名称、价格、条码）
+  - 变量替换和条件渲染
+  - 模板验证功能
+
+- **条码生成器 (BarcodeGenerator)** - 多格式条码支持
+  - Code128、Code39、EAN-13、EAN-8、UPC-A 格式
+  - 条码内容验证
+  - 可配置高度、宽度、文字位置
+
+- **文本格式化器 (TextFormatter)** - ESC/POS 文本格式化
+  - 对齐方式（左/中/右）
+  - 字体缩放（1-8倍）
+  - 粗体、下划线、反白样式
+
+- **预览渲染器 (PreviewRenderer)** - 打印预览功能
+  - ESC/POS 命令解析
+  - 渲染为 Base64 图像
+  - 支持文本、条码、二维码预览
+
+- **Web Bluetooth 适配器 (WebBluetoothAdapter)** - H5 环境支持
+  - 浏览器兼容性检测
+  - 设备请求和选择
+  - 完整的连接/断开/写入功能
+
+- **连接稳定性增强**
+  - 心跳检测机制
+  - 自动重连（可配置重试次数和间隔）
+  - 自适应传输参数（动态调整分片大小和延迟）
+
+- **BluetoothPrinter 新方法**
+  - `align(alignment)` - 设置文本对齐
+  - `setSize(width, height)` - 设置字体大小
+  - `setBold(enabled)` - 设置粗体
+  - `setUnderline(enabled)` - 设置下划线
+  - `resetStyle()` - 重置样式
+  - `barcode(content, format, options)` - 打印条码
+
+- **编码服务 (EncodingService)** - 完整的中文编码支持
+  - GBK、GB2312、Big5、UTF-8 编码
+  - 编码自动检测
+  - 不支持字符的替代处理
+
+### Changed
+
+- 更新了 `src/index.ts`，导出所有新模块
+- 更新了 `AdapterFactory`，支持 Web Bluetooth 平台
+- 增强了 `ConnectionManager`，支持心跳和自动重连
+- 更新了 API 文档和 README，添加新功能说明
+
+### Fixed
+
+- 修复了格式化相关的 lint 错误
+
 ## [2.1.2] - 2025-12-16
 
 ### Added

@@ -70,7 +70,7 @@ export class ImageProcessing {
       scalingAlgorithm = 'nearest',
       contrast = 1.0,
       brightness = 0.0,
-      threshold = 128
+      threshold = 128,
     } = options || {};
 
     // Scale image if target dimensions provided
@@ -103,10 +103,25 @@ export class ImageProcessing {
 
     if (useDithering) {
       // 使用指定的抖动算法
-      this.applyDithering(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, ditheringAlgorithm, threshold);
+      this.applyDithering(
+        grayscale,
+        processedWidth,
+        processedHeight,
+        bitmap,
+        bytesPerLine,
+        ditheringAlgorithm,
+        threshold
+      );
     } else {
       // 直接二值化，不使用抖动
-      this.applyThreshold(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, threshold);
+      this.applyThreshold(
+        grayscale,
+        processedWidth,
+        processedHeight,
+        bitmap,
+        bytesPerLine,
+        threshold
+      );
     }
 
     return bitmap;
@@ -160,7 +175,7 @@ export class ImageProcessing {
     // 对比度调整公式：output = (input - 128) * contrast + 128 + brightness * 255
     for (let i = 0; i < adjusted.length; i++) {
       const value = adjusted[i] || 0;
-      adjusted[i] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + (brightness * 255)));
+      adjusted[i] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + brightness * 255));
     }
 
     return adjusted;
@@ -388,30 +403,30 @@ export class ImageProcessing {
         // Interpolate each channel
         destData[destIndex] = Math.round(
           (srcData[i1] || 0) * w1 +
-          (srcData[i2] || 0) * w2 +
-          (srcData[i3] || 0) * w3 +
-          (srcData[i4] || 0) * w4
+            (srcData[i2] || 0) * w2 +
+            (srcData[i3] || 0) * w3 +
+            (srcData[i4] || 0) * w4
         ); // R
 
         destData[destIndex + 1] = Math.round(
           (srcData[i1 + 1] || 0) * w1 +
-          (srcData[i2 + 1] || 0) * w2 +
-          (srcData[i3 + 1] || 0) * w3 +
-          (srcData[i4 + 1] || 0) * w4
+            (srcData[i2 + 1] || 0) * w2 +
+            (srcData[i3 + 1] || 0) * w3 +
+            (srcData[i4 + 1] || 0) * w4
         ); // G
 
         destData[destIndex + 2] = Math.round(
           (srcData[i1 + 2] || 0) * w1 +
-          (srcData[i2 + 2] || 0) * w2 +
-          (srcData[i3 + 2] || 0) * w3 +
-          (srcData[i4 + 2] || 0) * w4
+            (srcData[i2 + 2] || 0) * w2 +
+            (srcData[i3 + 2] || 0) * w3 +
+            (srcData[i4 + 2] || 0) * w4
         ); // B
 
         destData[destIndex + 3] = Math.round(
           (srcData[i1 + 3] || 255) * w1 +
-          (srcData[i2 + 3] || 255) * w2 +
-          (srcData[i3 + 3] || 255) * w3 +
-          (srcData[i4 + 3] || 255) * w4
+            (srcData[i2 + 3] || 255) * w2 +
+            (srcData[i3 + 3] || 255) * w3 +
+            (srcData[i4 + 3] || 255) * w4
         ); // A
       }
     }
