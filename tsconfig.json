@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "5.0",
     "target": "es2018",
     "module": "esnext",
     "lib": ["es2018", "es2019", "es2020", "dom"],
