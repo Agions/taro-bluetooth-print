@@ -222,22 +222,25 @@ export class EventEmitter<T> {
 
     handlersCopy.forEach(handler => {
       promises.push(
-        new Promise<void>(resolve => {
+        (async () => {
           try {
             // 根据事件类型决定是否传递数据
+            let result: unknown;
             if (data === undefined || data === null) {
               // @ts-expect-error - 类型安全由调用方保证
-              handler();
+              result = handler();
             } else {
-              handler(data);
+              result = handler(data);
+            }
+            // 等待异步 handler 完成
+            if (result instanceof Promise) {
+              await result;
             }
           } catch (error) {
             // 捕获并处理事件处理程序中的错误，避免影响其他监听器
             console.error(`Error in event handler for "${String(event)}":`, error);
-          } finally {
-            resolve();
           }
-        })
+        })()
       );
     });
 

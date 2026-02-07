@@ -236,7 +236,13 @@ export class PreviewRenderer implements IPreviewRenderer {
           case 0x61: // ESC a - Alignment
             flushText();
             if (i + 2 < commands.length) {
-              state.alignment = commands[i + 2] as Alignment;
+              const alignValue = commands[i + 2];
+              state.alignment =
+                alignValue === Alignment.LEFT ||
+                alignValue === Alignment.CENTER ||
+                alignValue === Alignment.RIGHT
+                  ? alignValue
+                  : Alignment.LEFT;
             }
             i += 3;
             break;

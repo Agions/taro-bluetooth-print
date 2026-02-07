@@ -385,12 +385,16 @@ export class PrintQueue implements IPrintQueue {
       if (!job || job.status !== PrintJobStatus.PENDING) continue;
 
       this.activeJobs++;
-      void this.executeJob(job).finally(() => {
-        this.activeJobs--;
-        if (!this.isPaused) {
-          this.processQueue();
-        }
-      });
+      this.executeJob(job)
+        .catch(error => {
+          this.logger.error(`Unhandled error in job execution for ${job.id}:`, error);
+        })
+        .finally(() => {
+          this.activeJobs--;
+          if (!this.isPaused) {
+            this.processQueue();
+          }
+        });
     }
 
     this.isProcessing = false;

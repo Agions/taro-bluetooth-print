@@ -282,14 +282,6 @@ await cache.sync();
 | `resume()`                           | 恢复打印             | `Promise<void>` |
 | `cancel()`                           | 取消打印             | `void`          |
 | `remaining()`                        | 获取剩余字节数       | `number`        |
-| `qr(content, options?)`              | 打印二维码           | `this`          |
-| `cut()`                              | 切纸                 | `this`          |
-| `setOptions(options)`                | 设置适配器参数       | `this`          |
-| `print()`                            | 发送打印             | `Promise<void>` |
-| `pause()`                            | 暂停打印             | `void`          |
-| `resume()`                           | 恢复打印             | `Promise<void>` |
-| `cancel()`                           | 取消打印             | `void`          |
-| `remaining()`                        | 获取剩余字节数       | `number`        |
 
 ### 事件
 

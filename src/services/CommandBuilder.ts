@@ -17,6 +17,7 @@ import { BarcodeGenerator, BarcodeOptions } from '@/barcode';
 export class CommandBuilder implements ICommandBuilder {
   private driver: IPrinterDriver;
   private buffer: Uint8Array[] = [];
+  private _cachedBuffer: Uint8Array | null = null;
   private readonly logger = Logger.scope('CommandBuilder');
   private readonly formatter: TextFormatter;
   private readonly barcodeGenerator: BarcodeGenerator;
@@ -36,6 +37,14 @@ export class CommandBuilder implements ICommandBuilder {
   }
 
   /**
+   * Invalidates the cached combined buffer.
+   * Must be called whenever the internal buffer array is modified.
+   */
+  private invalidateCache(): void {
+    this._cachedBuffer = null;
+  }
+
+  /**
    * Adds text to the print queue
    *
    * @param content - Text content
@@ -45,6 +54,7 @@ export class CommandBuilder implements ICommandBuilder {
   text(content: string, encoding?: string): this {
     this.logger.debug('Adding text:', content.substring(0, 50));
     this.buffer.push(...this.driver.text(content, encoding));
+    this.invalidateCache();
     return this;
   }
 
@@ -57,6 +67,7 @@ export class CommandBuilder implements ICommandBuilder {
   feed(lines = 1): this {
     this.logger.debug('Adding feed:', lines);
     this.buffer.push(...this.driver.feed(lines));
+    this.invalidateCache();
     return this;
   }
 
@@ -68,6 +79,7 @@ export class CommandBuilder implements ICommandBuilder {
   cut(): this {
     this.logger.debug('Adding cut command');
     this.buffer.push(...this.driver.cut());
+    this.invalidateCache();
     return this;
   }
 
@@ -82,6 +94,7 @@ export class CommandBuilder implements ICommandBuilder {
   image(data: Uint8Array, width: number, height: number): this {
     this.logger.debug(`Adding image: ${width}x${height}`);
     this.buffer.push(...this.driver.image(data, width, height));
+    this.invalidateCache();
     return this;
   }
 
@@ -95,6 +108,7 @@ export class CommandBuilder implements ICommandBuilder {
   qr(content: string, options?: IQrOptions): this {
     this.logger.debug('Adding QR code:', content.substring(0, 50));
     this.buffer.push(...this.driver.qr(content, options));
+    this.invalidateCache();
     return this;
   }
 
@@ -108,6 +122,7 @@ export class CommandBuilder implements ICommandBuilder {
     this.buffer = [];
     // Re-initialize printer
     this.buffer.push(...this.driver.init());
+    this.invalidateCache();
     return this;
   }
 
@@ -125,6 +140,7 @@ export class CommandBuilder implements ICommandBuilder {
   align(alignment: TextAlign): this {
     this.logger.debug('Setting alignment:', alignment);
     this.buffer.push(...this.formatter.align(alignment));
+    this.invalidateCache();
     return this;
   }
 
@@ -143,6 +159,7 @@ export class CommandBuilder implements ICommandBuilder {
   setSize(width: number, height: number): this {
     this.logger.debug(`Setting size: ${width}x${height}`);
     this.buffer.push(...this.formatter.setSize(width, height));
+    this.invalidateCache();
     return this;
   }
 
@@ -160,6 +177,7 @@ export class CommandBuilder implements ICommandBuilder {
   setBold(enabled: boolean): this {
     this.logger.debug('Setting bold:', enabled);
     this.buffer.push(...this.formatter.setBold(enabled));
+    this.invalidateCache();
     return this;
   }
 
@@ -177,6 +195,7 @@ export class CommandBuilder implements ICommandBuilder {
   setUnderline(enabled: boolean): this {
     this.logger.debug('Setting underline:', enabled);
     this.buffer.push(...this.formatter.setUnderline(enabled));
+    this.invalidateCache();
     return this;
   }
 
@@ -194,6 +213,7 @@ export class CommandBuilder implements ICommandBuilder {
   setInverse(enabled: boolean): this {
     this.logger.debug('Setting inverse:', enabled);
     this.buffer.push(...this.formatter.setInverse(enabled));
+    this.invalidateCache();
     return this;
   }
 
@@ -211,6 +231,7 @@ export class CommandBuilder implements ICommandBuilder {
   setStyle(style: TextStyle): this {
     this.logger.debug('Setting style:', style);
     this.buffer.push(...this.formatter.setStyle(style));
+    this.invalidateCache();
     return this;
   }
 
@@ -227,6 +248,7 @@ export class CommandBuilder implements ICommandBuilder {
   resetStyle(): this {
     this.logger.debug('Resetting style');
     this.buffer.push(...this.formatter.resetStyle());
+    this.invalidateCache();
     return this;
   }
 
@@ -251,6 +273,7 @@ export class CommandBuilder implements ICommandBuilder {
     const commands = this.barcodeGenerator.generate(content, options);
     if (commands.length > 0) {
       this.buffer.push(...commands);
+      this.invalidateCache();
     } else {
       this.logger.warn(`Failed to generate barcode for content: ${content}`);
     }
@@ -263,6 +286,11 @@ export class CommandBuilder implements ICommandBuilder {
    * @returns Uint8Array - Current print buffer
    */
   getBuffer(): Uint8Array {
+    // Return cached buffer if available
+    if (this._cachedBuffer) {
+      return this._cachedBuffer;
+    }
+
     // Combine all buffers
     const totalLength = this.buffer.reduce((acc, b) => acc + b.length, 0);
     const combined = new Uint8Array(totalLength);
@@ -271,6 +299,8 @@ export class CommandBuilder implements ICommandBuilder {
       combined.set(b, offset);
       offset += b.length;
     }
+
+    this._cachedBuffer = combined;
     return combined;
   }
 

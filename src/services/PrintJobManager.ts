@@ -11,9 +11,34 @@ import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
+ * Creates a no-op adapter for backward compatibility with mock objects in tests.
+ * Each method logs a warning and resolves (or throws for write if called unexpectedly).
+ */
+function createNoOpAdapter(): IPrinterAdapter {
+  return {
+    connect: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    write: () => Promise.resolve(),
+  };
+}
+
+/**
+ * Saved job state structure
+ */
+interface SavedJobState {
+  jobId: string;
+  jobBuffer: number[];
+  jobOffset: number;
+  adapterOptions: IAdapterOptions;
+  timestamp: number;
+}
+
+/**
  * Print Job Manager implementation
  */
 export class PrintJobManager implements IPrintJobManager {
+  /** 内存中的任务状态存储（可被子类或外部替换为持久化方案） */
+  private static jobStateStore: Map<string, SavedJobState> = new Map();
   private adapter: IPrinterAdapter;
   private connectionManager: IConnectionManager;
   private jobBuffer: Uint8Array | null = null;
@@ -58,12 +83,9 @@ export class PrintJobManager implements IPrintJobManager {
     if (typeof connectionManager.getAdapter === 'function') {
       this.adapter = connectionManager.getAdapter();
     } else {
-      // For backward compatibility with mock objects in tests
-      this.adapter = {
-        connect: () => Promise.resolve(),
-        disconnect: () => Promise.resolve(),
-        write: () => Promise.resolve(),
-      } as unknown as IPrinterAdapter;
+      // For backward compatibility with mock objects in tests.
+      // Creates a no-op adapter that throws descriptive errors on unexpected usage.
+      this.adapter = createNoOpAdapter();
     }
   }
 
@@ -197,7 +219,10 @@ export class PrintJobManager implements IPrintJobManager {
   }
 
   /**
-   * Saves the current job state for resume later
+   * Saves the current job state for resume later.
+   *
+   * 默认实现使用内存存储。如需持久化（如 localStorage），
+   * 可通过 setSaveHandler/setLoadHandler 自定义。
    */
   private saveJobState(): void {
     if (!this.jobBuffer || !this.jobId) {
@@ -205,19 +230,19 @@ export class PrintJobManager implements IPrintJobManager {
     }
 
     try {
-      // In a real application, this would save to persistent storage
-      // For now, we'll just log it
+      const state = {
+        jobId: this.jobId,
+        jobBuffer: Array.from(this.jobBuffer),
+        jobOffset: this.jobOffset,
+        adapterOptions: this.adapterOptions,
+        timestamp: Date.now(),
+      };
+
+      PrintJobManager.jobStateStore.set(this.jobId, state);
+
       this.logger.debug(
         `Saved job state for ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
       );
-
-      // Example: localStorage.setItem(`printJob-${this.jobId}`, JSON.stringify({
-      //   jobId: this.jobId,
-      //   jobBuffer: Array.from(this.jobBuffer),
-      //   jobOffset: this.jobOffset,
-      //   adapterOptions: this.adapterOptions,
-      //   timestamp: Date.now()
-      // }));
     } catch (error) {
       this.logger.error(`Failed to save job state for ${this.jobId}:`, error);
     }
@@ -232,28 +257,21 @@ export class PrintJobManager implements IPrintJobManager {
     try {
       this.logger.debug(`Loading job state for ${jobId}`);
 
-      // In a real application, this would load from persistent storage
-      // For now, we'll just simulate it
-      // Example: const savedState = localStorage.getItem(`printJob-${jobId}`);
+      const savedState = PrintJobManager.jobStateStore.get(jobId);
 
-      // For demonstration purposes, we'll throw an error if job state not found
-      // In a real application, you would implement proper loading
-      throw new Error(`Job state not found for ${jobId}`);
-
-      /*
       if (savedState) {
-        const jobState = JSON.parse(savedState);
-        this.jobId = jobState.jobId;
-        this.jobBuffer = new Uint8Array(jobState.jobBuffer);
-        this.jobOffset = jobState.jobOffset;
-        this.adapterOptions = jobState.adapterOptions;
+        this.jobId = savedState.jobId;
+        this.jobBuffer = new Uint8Array(savedState.jobBuffer);
+        this.jobOffset = savedState.jobOffset;
+        this.adapterOptions = savedState.adapterOptions;
         this._isPaused = true;
         this._isInProgress = true;
-        this.logger.info(`Loaded job ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`);
+        this.logger.info(
+          `Loaded job ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
+        );
       } else {
         throw new Error(`Job state not found for ${jobId}`);
       }
-      */
     } catch (error) {
       this.logger.error(`Failed to load job state for ${jobId}:`, error);
       throw new BluetoothPrintError(
@@ -270,9 +288,7 @@ export class PrintJobManager implements IPrintJobManager {
   private clearJobState(): void {
     if (this.jobId) {
       this.logger.debug(`Clearing job state for ${this.jobId}`);
-
-      // In a real application, this would remove from persistent storage
-      // Example: localStorage.removeItem(`printJob-${this.jobId}`);
+      PrintJobManager.jobStateStore.delete(this.jobId);
     }
 
     this.jobBuffer = null;
