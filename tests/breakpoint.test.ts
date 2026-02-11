@@ -1,4 +1,4 @@
-
+import { vi, describe, test, expect, beforeEach, afterEach, Mock } from 'vitest';
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder as any;
 
@@ -9,23 +9,23 @@ import { IPrinterAdapter } from '../src/types';
 
 // Mock Taro API
 global.Taro = {
-  getBLEConnectionState: jest.fn().mockResolvedValue({ connected: true }),
+  getBLEConnectionState: vi.fn().mockResolvedValue({ connected: true }),
 } as any;
 
 // Create a mock adapter that implements IPrinterAdapter interface
 describe('BluetoothPrinter Breakpoint', () => {
   let printer: BluetoothPrinter;
-  let mockAdapter: jest.Mocked<IPrinterAdapter>;
+  let mockAdapter: Mock<IPrinterAdapter>;
 
   beforeEach(async () => {
     // Create a mock adapter that implements IPrinterAdapter interface
     mockAdapter = {
-      connect: jest.fn().mockResolvedValue(undefined),
-      disconnect: jest.fn().mockResolvedValue(undefined),
-      write: jest.fn().mockResolvedValue(undefined),
-      startDiscovery: jest.fn().mockResolvedValue(undefined),
-      stopDiscovery: jest.fn().mockResolvedValue(undefined),
-      onStateChange: jest.fn()
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      write: vi.fn().mockResolvedValue(undefined),
+      startDiscovery: vi.fn().mockResolvedValue(undefined),
+      stopDiscovery: vi.fn().mockResolvedValue(undefined),
+      onStateChange: vi.fn()
     };
 
     printer = new BluetoothPrinter(mockAdapter as any);
@@ -63,7 +63,7 @@ describe('BluetoothPrinter Breakpoint', () => {
 
   test('resume continues printing', async () => {
     // Create a mock that will wait for our signal before completing the first write
-    let resumeWrite: () => void;
+    let resumeWrite: () => void = () => {};
     const writePromise = new Promise<void>(resolve => {
       resumeWrite = resolve;
     });
@@ -95,7 +95,7 @@ describe('BluetoothPrinter Breakpoint', () => {
 
     // Check that the job is paused and has remaining bytes
     expect(printer.remaining()).toBeGreaterThan(0);
-    expect(printer['printJobManager']._isPaused).toBe(true);
+    expect((printer as any)['printJobManager'].isPaused()).toBe(true);
 
     // Resume the job
     await printer.resume();
@@ -106,7 +106,7 @@ describe('BluetoothPrinter Breakpoint', () => {
 
   test('cancel clears job', async () => {
     // Create a mock that will wait for our signal before completing the first write
-    let resumeWrite: () => void;
+    let resumeWrite: () => void = () => {};
     const writePromise = new Promise<void>(resolve => {
       resumeWrite = resolve;
     });
@@ -138,7 +138,7 @@ describe('BluetoothPrinter Breakpoint', () => {
 
     // Check that the job is paused and has remaining bytes
     expect(printer.remaining()).toBeGreaterThan(0);
-    expect(printer['printJobManager']._isPaused).toBe(true);
+    expect((printer as any)['printJobManager'].isPaused()).toBe(true);
 
     // Cancel the job
     printer.cancel();

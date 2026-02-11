@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder as any;

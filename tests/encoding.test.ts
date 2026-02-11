@@ -1,3 +1,4 @@
+import { vi, describe, test, expect, beforeEach, afterEach, Mock } from 'vitest';
 /**
  * Unit tests for Encoding utility
  */
@@ -52,7 +53,7 @@ describe('Encoding', () => {
 
     it('should fallback to UTF-8 for GBK encoding', () => {
       const text = '测试文本';
-      const warnSpy = jest.spyOn(Logger, 'warn');
+      const warnSpy = vi.spyOn(Logger, 'warn');
 
       const result = Encoding.encode(text, 'GBK');
 

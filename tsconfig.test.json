@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "lib": ["es2018", "es2019", "es2020", "dom"],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "noEmit": true
+  },
+  "include": ["src", "tests"],
+  "exclude": ["dist", "node_modules", "docs"]
+}

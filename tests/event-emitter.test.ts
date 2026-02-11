@@ -1,3 +1,4 @@
+import { vi, describe, test, expect, beforeEach, afterEach, Mock } from 'vitest';
 /**
  * Unit tests for EventEmitter
  */
@@ -42,7 +43,7 @@ describe('EventEmitter', () => {
 
   describe('on', () => {
     it('should register event handler', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       emitter.on('message', handler);
 
       emitter.triggerMessage('test');
@@ -52,8 +53,8 @@ describe('EventEmitter', () => {
     });
 
     it('should allow multiple handlers for same event', () => {
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
 
       emitter.on('message', handler1);
       emitter.on('message', handler2);
@@ -65,7 +66,7 @@ describe('EventEmitter', () => {
     });
 
     it('should return unsubscribe function', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       const unsubscribe = emitter.on('message', handler);
 
       emitter.triggerMessage('test1');
@@ -77,7 +78,7 @@ describe('EventEmitter', () => {
     });
 
     it('should handle void events', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       emitter.on('complete', handler);
 
       emitter.triggerComplete();
@@ -88,7 +89,7 @@ describe('EventEmitter', () => {
 
   describe('once', () => {
     it('should trigger handler only once', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       emitter.once('message', handler);
 
       emitter.triggerMessage('test1');
@@ -100,7 +101,7 @@ describe('EventEmitter', () => {
     });
 
     it('should return unsubscribe function', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
       const unsubscribe = emitter.once('message', handler);
 
       unsubscribe();
@@ -112,8 +113,8 @@ describe('EventEmitter', () => {
 
   describe('off', () => {
     it('should remove specific handler', () => {
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
 
       emitter.on('message', handler1);
       emitter.on('message', handler2);
@@ -126,7 +127,7 @@ describe('EventEmitter', () => {
     });
 
     it('should do nothing if handler not found', () => {
-      const handler = jest.fn();
+      const handler = vi.fn();
 
       emitter.off('message', handler);
       emitter.triggerMessage('test');
@@ -138,8 +139,8 @@ describe('EventEmitter', () => {
 
   describe('emit', () => {
     it('should call all handlers with event data', () => {
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
 
       emitter.on('data', handler1);
       emitter.on('data', handler2);
@@ -151,11 +152,11 @@ describe('EventEmitter', () => {
     });
 
     it('should catch errors in handlers', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const errorHandler = jest.fn(() => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const errorHandler = vi.fn(() => {
         throw new Error('Handler error');
       });
-      const normalHandler = jest.fn();
+      const normalHandler = vi.fn();
 
       emitter.on('message', errorHandler);
       emitter.on('message', normalHandler);
@@ -178,10 +179,10 @@ describe('EventEmitter', () => {
     it('should return number of listeners for event', () => {
       expect(emitter.listenerCount('message')).toBe(0);
 
-      emitter.on('message', jest.fn());
+      emitter.on('message', vi.fn());
       expect(emitter.listenerCount('message')).toBe(1);
 
-      emitter.on('message', jest.fn());
+      emitter.on('message', vi.fn());
       expect(emitter.listenerCount('message')).toBe(2);
     });
 
@@ -192,8 +193,8 @@ describe('EventEmitter', () => {
 
   describe('removeAllListeners', () => {
     it('should remove all listeners', () => {
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
 
       emitter.on('message', handler1);
       emitter.on('data', handler2);

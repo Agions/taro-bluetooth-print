@@ -12,6 +12,15 @@ export { EventEmitter } from './core/EventEmitter';
 
 // Drivers
 export { EscPos } from './drivers/EscPos';
+export { TsplDriver } from './drivers/TsplDriver';
+export type {
+  LabelSize,
+  TextOptions as TsplTextOptions,
+  BarcodeOptions as TsplBarcodeOptions,
+  QRCodeOptions as TsplQRCodeOptions,
+  BoxOptions,
+  LineOptions,
+} from './drivers/TsplDriver';
 
 // Adapters
 export { TaroAdapter } from './adapters/TaroAdapter';
@@ -89,6 +98,11 @@ export type {
   DriverConfig,
   LoggingConfig,
 } from './config/PrinterConfig';
+
+// Plugin System
+export { PluginManager } from './plugins/PluginManager';
+export { createLoggingPlugin, createRetryPlugin } from './plugins';
+export type { Plugin, PluginHooks, PluginOptions, PluginFactory } from './plugins/types';
 
 // Types
 export * from './types';

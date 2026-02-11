@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 /**
  * Unit tests for BluetoothPrintError
  */

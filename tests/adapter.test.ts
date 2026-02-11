@@ -1,13 +1,14 @@
+import { vi, describe, test, expect, beforeEach, afterEach, Mock } from 'vitest';
 
 import { TaroAdapter } from '../src/adapters/TaroAdapter';
 import { PrinterState } from '../src/types';
 
 // Mock Taro
-const mockWriteBLECharacteristicValue = jest.fn();
-const mockGetBLEDeviceServices = jest.fn();
-const mockGetBLEDeviceCharacteristics = jest.fn();
-const mockCreateBLEConnection = jest.fn();
-const mockGetBLEConnectionState = jest.fn();
+const mockWriteBLECharacteristicValue = vi.fn();
+const mockGetBLEDeviceServices = vi.fn();
+const mockGetBLEDeviceCharacteristics = vi.fn();
+const mockCreateBLEConnection = vi.fn();
+const mockGetBLEConnectionState = vi.fn();
 
 global.Taro = {
   writeBLECharacteristicValue: mockWriteBLECharacteristicValue,
@@ -15,8 +16,8 @@ global.Taro = {
   getBLEDeviceCharacteristics: mockGetBLEDeviceCharacteristics,
   createBLEConnection: mockCreateBLEConnection,
   getBLEConnectionState: mockGetBLEConnectionState,
-  closeBLEConnection: jest.fn(),
-  onBLEConnectionStateChange: jest.fn(),
+  closeBLEConnection: vi.fn(),
+  onBLEConnectionStateChange: vi.fn(),
 } as any;
 
 // Default mock implementation for getBLEConnectionState
@@ -30,7 +31,7 @@ describe('TaroAdapter Weak Network', () => {
 
   beforeEach(async () => {
     adapter = new TaroAdapter();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Setup default mocks
     mockCreateBLEConnection.mockResolvedValue(undefined);
@@ -43,7 +44,7 @@ describe('TaroAdapter Weak Network', () => {
 
     // Connect to set up service cache
     await adapter.connect(deviceId);
-    jest.clearAllMocks(); // Clear connection mocks
+    vi.clearAllMocks(); // Clear connection mocks
   });
 
   test('write retries on failure', async () => {

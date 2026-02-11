@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-11
+
+### Added
+
+- **插件系统 (Plugin System)** - 可扩展的插件架构
+  - `PluginManager` 管理插件生命周期
+  - 支持 beforeConnect/afterConnect/beforePrint/afterPrint 等钩子
+  - 内置 `LoggingPlugin` 详细日志记录
+  - 内置 `RetryPlugin` 自动重试与指数退避
+
+- **TSPL 标签打印驱动 (TsplDriver)** - TSC 打印机语言支持
+  - 标签尺寸、间隙、速度、密度设置
+  - 文本打印（多字体、旋转、缩放）
+  - 条码支持（Code128、Code39、EAN-13/8、UPC-A）
+  - 二维码支持
+  - 图形绘制（矩形、线条、反白）
+
+### Changed
+
+- **升级 Taro 至 v4.x** - 从 3.6.x 升级到 4.1.11
+- **升级 Vite 至 v7.x** - 从 5.x 升级到 7.3.1
+- **测试框架迁移至 Vitest** - 替换 Jest，测试速度提升 ~6x
+- **升级其他依赖**:
+  - vite-plugin-dts: 3.9.1 → 4.5.4
+  - prettier: 3.2.4 → 3.8.1
+  - rimraf: 5.0.0 → 6.1.2
+  - terser: 5.24.0 → 5.46.0
+
+### Fixed
+
+- 修复 TypeScript 测试配置兼容性问题
+- 修复 breakpoint.test.ts 中的类型错误
+- 修复 package.json exports 条件顺序警告
+
+### Removed
+
+- 移除 Jest 相关依赖 (jest, ts-jest, @types/jest, jest-environment-jsdom)
+
 ## [2.2.0] - 2026-01-04
 
 ### Added

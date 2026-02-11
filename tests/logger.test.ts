@@ -1,3 +1,4 @@
+import { vi, describe, test, expect, beforeEach, afterEach, Mock } from 'vitest';
 /**
  * Unit tests for Logger
  */
@@ -10,9 +11,9 @@ describe('Logger', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation();
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
     // Reset to default level
     Logger.setLevel(LogLevel.WARN);
   });
