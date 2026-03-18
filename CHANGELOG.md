@@ -1,238 +1,73 @@
-# Changelog
+# 更新日志 / Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.0] - 2026-02-11
-
-### Added
-
-- **插件系统 (Plugin System)** - 可扩展的插件架构
-  - `PluginManager` 管理插件生命周期
-  - 支持 beforeConnect/afterConnect/beforePrint/afterPrint 等钩子
-  - 内置 `LoggingPlugin` 详细日志记录
-  - 内置 `RetryPlugin` 自动重试与指数退避
-
-- **TSPL 标签打印驱动 (TsplDriver)** - TSC 打印机语言支持
-  - 标签尺寸、间隙、速度、密度设置
-  - 文本打印（多字体、旋转、缩放）
-  - 条码支持（Code128、Code39、EAN-13/8、UPC-A）
-  - 二维码支持
-  - 图形绘制（矩形、线条、反白）
-
-### Changed
-
-- **升级 Taro 至 v4.x** - 从 3.6.x 升级到 4.1.11
-- **升级 Vite 至 v7.x** - 从 5.x 升级到 7.3.1
-- **测试框架迁移至 Vitest** - 替换 Jest，测试速度提升 ~6x
-- **升级其他依赖**:
-  - vite-plugin-dts: 3.9.1 → 4.5.4
-  - prettier: 3.2.4 → 3.8.1
-  - rimraf: 5.0.0 → 6.1.2
-  - terser: 5.24.0 → 5.46.0
-
-### Fixed
-
-- 修复 TypeScript 测试配置兼容性问题
-- 修复 breakpoint.test.ts 中的类型错误
-- 修复 package.json exports 条件顺序警告
-
-### Removed
-
-- 移除 Jest 相关依赖 (jest, ts-jest, @types/jest, jest-environment-jsdom)
-
-## [2.2.0] - 2026-01-04
+## [2.3.0] - 2024-03-18
 
-### Added
+### 新增
 
-- **设备管理器 (DeviceManager)** - 蓝牙设备扫描和管理功能
-  - 支持设备过滤（名称、服务UUID）
-  - 设备发现事件监听
-  - 已配对设备管理
-
-- **打印队列 (PrintQueue)** - 打印任务队列管理
-  - 优先级排序（LOW/NORMAL/HIGH/URGENT）
-  - FIFO 处理机制
-  - 失败自动重试
-  - 队列暂停/恢复/清空
+- **驱动**: 新增 ZplDriver (斑马标签打印机)
+- **驱动**: 新增 CpclDriver (CPCL 移动打印机)
+- **适配器**: 新增 HarmonyOSAdapter (鸿蒙系统)
+- **示例**: 新增微信小程序完整示例
+- **示例**: 新增 H5 WebBluetooth 示例
+- **示例**: 新增鸿蒙 HarmonyOS 示例
+- **示例**: 新增 React Native 示例
+- **文档**: 新增驱动使用指南
+- **文档**: 新增平台适配器文档
+- **文档**: 完善快速开始指南
+- **文档**: 完善功能特性文档
+- **文档**: 完善故障排除文档
 
-- **离线缓存 (OfflineCache)** - 断网时自动缓存打印任务
-  - 本地存储持久化
-  - 任务过期清理
-  - 重连后自动同步
+### 优化
 
-- **模板引擎 (TemplateEngine)** - 收据和标签模板渲染
-  - 内置收据模板（店铺信息、商品列表、支付信息）
-  - 内置标签模板（商品名称、价格、条码）
-  - 变量替换和条件渲染
-  - 模板验证功能
+- **代码**: 添加 drivers/index.ts 模块导出
+- **代码**: 添加 services/index.ts 服务层导出
+- **代码**: 简化 src/index.ts 主入口
+- **代码**: 修复 lint 格式问题
 
-- **条码生成器 (BarcodeGenerator)** - 多格式条码支持
-  - Code128、Code39、EAN-13、EAN-8、UPC-A 格式
-  - 条码内容验证
-  - 可配置高度、宽度、文字位置
+### 修复
 
-- **文本格式化器 (TextFormatter)** - ESC/POS 文本格式化
-  - 对齐方式（左/中/右）
-  - 字体缩放（1-8倍）
-  - 粗体、下划线、反白样式
-
-- **预览渲染器 (PreviewRenderer)** - 打印预览功能
-  - ESC/POS 命令解析
-  - 渲染为 Base64 图像
-  - 支持文本、条码、二维码预览
+- 修复文档中的问题
+- 优化代码结构
 
-- **Web Bluetooth 适配器 (WebBluetoothAdapter)** - H5 环境支持
-  - 浏览器兼容性检测
-  - 设备请求和选择
-  - 完整的连接/断开/写入功能
+---
 
-- **连接稳定性增强**
-  - 心跳检测机制
-  - 自动重连（可配置重试次数和间隔）
-  - 自适应传输参数（动态调整分片大小和延迟）
+## [2.2.0] - 2024-xx-xx
 
-- **BluetoothPrinter 新方法**
-  - `align(alignment)` - 设置文本对齐
-  - `setSize(width, height)` - 设置字体大小
-  - `setBold(enabled)` - 设置粗体
-  - `setUnderline(enabled)` - 设置下划线
-  - `resetStyle()` - 重置样式
-  - `barcode(content, format, options)` - 打印条码
+### 新增
 
-- **编码服务 (EncodingService)** - 完整的中文编码支持
-  - GBK、GB2312、Big5、UTF-8 编码
-  - 编码自动检测
-  - 不支持字符的替代处理
+- 模板引擎
+- 打印预览
+- 插件系统
+- 文本格式化
 
-### Changed
+---
 
-- 更新了 `src/index.ts`，导出所有新模块
-- 更新了 `AdapterFactory`，支持 Web Bluetooth 平台
-- 增强了 `ConnectionManager`，支持心跳和自动重连
-- 更新了 API 文档和 README，添加新功能说明
+## [2.1.0] - 2024-xx-xx
 
-### Fixed
+### 新增
 
-- 修复了格式化相关的 lint 错误
+- TSPL 驱动
+- 离线缓存
+- 打印队列
 
-## [2.1.2] - 2025-12-16
+---
 
-### Added
+## [2.0.0] - 2024-xx-xx
 
-- 增强了弱网适配功能，支持动态分片大小调整
-- 实现了指数退避重试策略和智能超时处理
-- 添加了断点续传功能，支持作业ID生成与管理
-- 实现了作业状态保存与加载机制
-- 增强了图片处理功能，支持多种抖动算法（Floyd-Steinberg、Atkinson）
-- 添加了图片对比度和亮度调整功能
+### 新增
 
-### Changed
+- 完整的 ESC/POS 支持
+- 微信/支付宝/百度/字节小程序适配器
+- WebBluetooth 适配器
+- 完整的 TypeScript 支持
 
-- 优化了灰度转换和缩放算法，提高图片处理性能
-- 更新了TypeScript配置，移除无效设置
-- 更新了npm依赖到最新兼容版本
-- 优化了代码结构，提高了代码质量
+---
 
-### Fixed
+## [1.x] - 早期版本
 
-- 修复了测试中缺少reflect-metadata的问题
-- 修复了TypeScript编译错误
-- 确保了所有异步操作都有正确的清理机制
-
-## [2.1.1] - 2025-12-02
-
-### Added
-
-- Encoding类添加了配置选项，支持禁用GBK编码警告
-- Logger类添加了自定义日志处理选项
-- EventEmitter类添加了prepend和prependOnce方法
-- EventEmitter类添加了emitAsync方法，支持异步事件处理
-- EventEmitter类添加了getListeners和eventNames方法
-
-### Changed
-
-- 优化了Encoding类的警告机制，只在第一次使用时显示警告
-- 改进了Logger类的日志格式，保持与测试期望一致
-- 增强了EventEmitter类的API灵活性
-- 提高了代码质量，减少了any类型的使用
-
-### Fixed
-
-- 修复了Jest未正常退出问题，添加了定时器清理逻辑
-- 修复了TypeScript编译错误
-- 修复了变量赋值前使用的问题
-- 修复了重复标识符问题
-- 确保了所有异步操作都有正确的清理机制
-
-## [2.1.0] - 2025-11-25
-
-### Added
-
-- 支持支付宝小程序平台
-- 支持百度小程序平台
-- 支持字节跳动小程序平台
-- 实现了平台自动检测机制
-- 新增了AdapterFactory用于自动选择适配器
-- 新增了BaseAdapter基类，提供通用功能
-- 完善了平台检测工具
-
-### Changed
-
-- 优化了BluetoothPrinter类，使其使用AdapterFactory自动选择适配器
-- 更新了README.md，添加了跨平台支持信息
-- 优化了构建配置，提高了构建效率
-
-### Fixed
-
-- 修复了TypeScript错误
-- 修复了测试用例中的问题
-- 优化了代码结构，提高了代码可读性
-
-## [2.0.3] - 2025-11-22
-
-### Changed
-
-- 优化了构建配置
-- 完善了文档
-
-## [2.0.2] - 2025-11-21
-
-### Fixed
-
-- 修复了部分TypeScript错误
-
-## [2.0.1] - 2025-11-21
-
-### Changed
-
-- 优化了代码结构
-- 完善了文档
-
-## [2.0.0] - 2025-10-25
-
-### Added
-
-- 全新的架构设计
-- 支持断点续传
-- 支持弱网适配
-- 支持图片打印
-- 支持二维码打印
-- 完善的事件系统
-- 详细的文档
-
-### Changed
-
-- 重写了核心代码
-- 优化了API设计
-- 提高了性能和可靠性
-
-## [1.0.0] - 2025-03-01
-
-### Added
-
-- 初始版本
-- 基本的蓝牙打印功能
-- 支持微信小程序
+初始版本，仅支持基础打印功能。
