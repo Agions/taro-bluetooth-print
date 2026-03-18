@@ -65,10 +65,12 @@ export const createLoggingPlugin: PluginFactory = (options?: LoggingPluginOption
       afterPrint: (bytesSent: number) => {
         const elapsed = Date.now() - startTime;
         const speed = ((bytesSent / elapsed) * 1000).toFixed(2);
-        logger.info(`${formatTime()}Print complete: ${bytesSent} bytes in ${elapsed}ms (${speed} B/s)`);
+        logger.info(
+          `${formatTime()}Print complete: ${bytesSent} bytes in ${elapsed}ms (${speed} B/s)`
+        );
       },
 
-      onError: (error) => {
+      onError: error => {
         logger.error(`${formatTime()}Error [${error.code}]: ${error.message}`);
         return false; // Don't suppress the error
       },

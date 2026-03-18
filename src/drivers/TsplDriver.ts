@@ -1,7 +1,7 @@
 /**
  * TSPL Driver
  * TSC Printer Language driver for label/barcode printers
- * 
+ *
  * TSPL is commonly used in thermal transfer label printers (TSC, Zebra, etc.)
  */
 
@@ -112,11 +112,11 @@ export interface LineOptions {
 
 /**
  * TSPL Driver for label printers
- * 
+ *
  * @example
  * ```typescript
  * const tspl = new TsplDriver();
- * 
+ *
  * const commands = tspl
  *   .size(60, 40)
  *   .gap(3)
@@ -216,14 +216,7 @@ export class TsplDriver {
    * @param options - Text options
    */
   text(content: string, options: TextOptions): this {
-    const {
-      x,
-      y,
-      font = 2,
-      rotation = 0,
-      xMultiplier = 1,
-      yMultiplier = 1,
-    } = options;
+    const { x, y, font = 2, rotation = 0, xMultiplier = 1, yMultiplier = 1 } = options;
 
     // TEXT x, y, "font", rotation, x-mul, y-mul, "content"
     this.commands.push(
@@ -269,14 +262,7 @@ export class TsplDriver {
    * @param options - QR code options
    */
   qrcode(content: string, options: QRCodeOptions): this {
-    const {
-      x,
-      y,
-      eccLevel = 'M',
-      cellWidth = 6,
-      mode = 'A',
-      rotation = 0,
-    } = options;
+    const { x, y, eccLevel = 'M', cellWidth = 6, mode = 'A', rotation = 0 } = options;
 
     // QRCODE x, y, ECC level, cell width, mode, rotation, "content"
     this.commands.push(
@@ -301,7 +287,7 @@ export class TsplDriver {
    */
   line(options: LineOptions): this {
     const { x1, y1, x2, y2, thickness = 2 } = options;
-    
+
     if (x1 === x2 || y1 === y2) {
       // Horizontal or vertical line - use BAR command
       const width = Math.abs(x2 - x1) || thickness;
@@ -309,7 +295,9 @@ export class TsplDriver {
       this.commands.push(`BAR ${Math.min(x1, x2)},${Math.min(y1, y2)},${width},${height}`);
     } else {
       // Diagonal line - use DIAGONAL command if supported
-      this.commands.push(`DIAGONAL ${x1},${y1},${thickness},${Math.sqrt((x2-x1)**2 + (y2-y1)**2)},${Math.atan2(y2-y1, x2-x1) * 180 / Math.PI}`);
+      this.commands.push(
+        `DIAGONAL ${x1},${y1},${thickness},${Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)},${(Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI}`
+      );
     }
     return this;
   }

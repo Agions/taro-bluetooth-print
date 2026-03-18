@@ -1,334 +1,262 @@
 # API 参考
 
-## 核心类
+## BluetoothPrinter (主类)
 
-### BluetoothPrinter
+```typescript
+import { BluetoothPrinter } from 'taro-bluetooth-print';
 
-用于与蓝牙打印机交互的核心类，提供了简洁易用的 API 用于连接设备、发送打印命令和管理打印任务。
+const printer = new BluetoothPrinter(adapter?, driver?);
+```
 
-#### 构造函数
+### 构造函数
 
 ```typescript
 new BluetoothPrinter(adapter?: IPrinterAdapter, driver?: IPrinterDriver)
 ```
 
-- **`adapter`**: 打印机适配器，负责处理蓝牙设备通信（默认：`TaroAdapter`）
-- **`driver`**: 打印机驱动，负责生成设备特定的打印命令（默认：`EscPos`）
+### 方法
 
-#### 方法
+#### 连接管理
 
-##### 连接管理
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `connect(deviceId)` | `Promise<void>` | 连接蓝牙设备 |
+| `disconnect()` | `Promise<void>` | 断开连接 |
+| `getState()` | `PrinterState` | 获取连接状态 |
 
-- `connect(deviceId: string): Promise<this>` - 连接到蓝牙设备
-- `disconnect(): Promise<void>` - 断开连接
+#### 打印指令
 
-##### 打印内容
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `text(content, encoding?)` | `this` | 添加文本 |
+| `feed(lines?)` | `this` | 进纸 |
+| `qr(content, options?)` | `this` | 二维码 |
+| `barcode(content, format, options?)` | `this` | 条码 |
+| `image(data, width, height)` | `this` | 图片 |
+| `cut()` | `this` | 切纸 |
+| `align(alignment)` | `this` | 对齐方式 |
+| `setSize(width, height)` | `this` | 字体大小 |
+| `setBold(enabled)` | `this` | 加粗 |
+| `setUnderline(enabled)` | `this` | 下划线 |
+| `resetStyle()` | `this` | 重置样式 |
+| `print()` | `Promise<void>` | 执行打印 |
 
-- `text(content: string, encoding?: string): this` - 添加文本
-- `feed(lines?: number): this` - 走纸
-- `cut(): this` - 切纸
-- `image(data: Uint8Array, width: number, height: number): this` - 添加图片
-- `qr(content: string, options?: IQrOptions): this` - 添加二维码
-- `barcode(content: string, format: string, options?: object): this` - 添加条码 (v2.2+)
+#### 打印控制
 
-##### 文本格式化 (v2.2+)
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `pause()` | `void` | 暂停打印 |
+| `resume()` | `Promise<void>` | 恢复打印 |
+| `cancel()` | `void` | 取消打印 |
+| `remaining()` | `number` | 剩余字节数 |
 
-- `align(alignment: 'left' | 'center' | 'right'): this` - 设置对齐方式
-- `setSize(width: number, height: number): this` - 设置字体大小
-- `setBold(enabled: boolean): this` - 设置粗体
-- `setUnderline(enabled: boolean): this` - 设置下划线
-- `resetStyle(): this` - 重置样式
+#### 配置
 
-##### 打印控制
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `setOptions(options)` | `this` | 设置适配器参数 |
+| `getOptions()` | `IAdapterOptions` | 获取当前配置 |
 
-- `print(): Promise<void>` - 执行打印
-- `pause(): void` - 暂停打印
-- `resume(): Promise<void>` - 恢复打印
-- `cancel(): void` - 取消打印
-- `remaining(): number` - 获取剩余字节数
+#### 事件
+
+| 事件 | 数据 | 说明 |
+|------|------|------|
+| `progress` | `{ sent, total }` | 打印进度 |
+| `error` | `BluetoothPrintError` | 错误事件 |
+| `print-complete` | `void` | 打印完成 |
+| `state-change` | `PrinterState` | 状态变化 |
+| `connected` | `string` (deviceId) | 已连接 |
+| `disconnected` | `string` (deviceId) | 已断开 |
 
 ---
 
-## 新增模块 (v2.2+)
+## EscPos (驱动)
 
-### DeviceManager
+```typescript
+import { EscPos } from 'taro-bluetooth-print';
 
-设备管理器，提供蓝牙设备扫描和管理功能。
+const driver = new EscPos(options?);
+```
+
+### 构造函数选项
+
+```typescript
+interface EscPosOptions {
+  useEncodingService?: boolean;     // 使用编码服务 (默认 true)
+  showEncodingWarnings?: boolean;    // 显示编码警告 (默认 true)
+  fallbackChar?: string;             // 替代字符 (默认 '?')
+}
+```
+
+### 方法
+
+| 方法 | 说明 |
+|------|------|
+| `init()` | 初始化打印机 |
+| `text(content, encoding?)` | 文本指令 |
+| `feed(lines?)` | 进纸指令 |
+| `cut()` | 切纸指令 |
+| `image(data, width, height)` | 图片指令 |
+| `qr(content, options?)` | 二维码指令 |
+
+---
+
+## TsplDriver (驱动)
+
+```typescript
+const driver = new TsplDriver();
+```
+
+### 方法
+
+| 方法 | 参数 | 说明 |
+|------|------|------|
+| `size(width, height)` | mm | 设置标签尺寸 |
+| `gap(gap, offset?)` | mm | 设置间隙 |
+| `speed(speed)` | 1-10 | 打印速度 |
+| `density(density)` | 0-15 | 打印浓度 |
+| `direction(dir)` | 0/1 | 打印方向 |
+| `clear()` | - | 清除缓冲区 |
+| `text(content, options)` | - | 添加文本 |
+| `barcode(content, options)` | - | 添加条码 |
+| `qrcode(content, options)` | - | 添加二维码 |
+| `box(options)` | - | 绘制矩形 |
+| `line(options)` | - | 绘制线条 |
+| `print(copies?, sets?)` | - | 执行打印 |
+| `cut()` | - | 切纸 |
+| `getBuffer()` | - | 获取指令 |
+
+### 类型
+
+```typescript
+interface TextOptions {
+  x: number;
+  y: number;
+  font?: number;        // 1-8
+  rotation?: 0|90|180|270;
+  xMultiplier?: number; // 1-10
+  yMultiplier?: number; // 1-10
+}
+
+interface BarcodeOptions {
+  x: number;
+  y: number;
+  type: '128'|'39'|'EAN13'|'EAN8'|'UPCA'|'QRCODE';
+  height?: number;
+  narrow?: number;
+  wide?: number;
+  showText?: boolean;
+  rotation?: 0|90|180|270;
+}
+```
+
+---
+
+## ZplDriver (驱动)
+
+```typescript
+const driver = new ZplDriver();
+```
+
+### 方法
+
+| 方法 | 说明 |
+|------|------|
+| `startFormat()` / `endFormat()` | 格式开始/结束 |
+| `labelHome(x, y)` | 标签位置 |
+| `text(content, options)` | 文本 |
+| `font(content, x, y, h, w)` | 内置字体 |
+| `barcode(content, options)` | 条码 |
+| `qrcode(content, options)` | 二维码 |
+| `box(options)` | 矩形 |
+| `line(x1, y1, x2, y2, w)` | 线条 |
+| `circle(x, y, d, t)` | 圆形 |
+| `setDarkness(n)` | 浓度 |
+| `setSpeed(n)` | 速度 |
+| `print(qty)` | 打印 |
+| `getBuffer()` | 获取指令 |
+
+---
+
+## CpclDriver (驱动)
+
+```typescript
+const driver = new CpclDriver(width?, height?);
+```
+
+### 方法
+
+| 方法 | 说明 |
+|------|------|
+| `pageStart()` / `pageEnd()` | 页面 |
+| `usePageSize(size)` | 标准尺寸 |
+| `setPageSize(w, h)` | 自定义尺寸 |
+| `setFont(f, xm, ym, r)` | 字体 |
+| `text(content)` | 文本 |
+| `textAt(content, options)` | 带位置文本 |
+| `barcode(content, options)` | 条码 |
+| `qrcode(content, options)` | 二维码 |
+| `line(options)` | 线条 |
+| `box(options)` | 矩形 |
+| `cut()` / `partialCut()` | 切纸 |
+| `beep(n, d)` | 蜂鸣 |
+| `getBuffer()` | 获取指令 |
+
+---
+
+## DeviceManager (设备管理)
 
 ```typescript
 import { DeviceManager } from 'taro-bluetooth-print';
 
-const deviceManager = new DeviceManager();
-
-// 监听设备发现
-deviceManager.on('device-found', device => {
-  console.log('发现设备:', device.name);
-});
-
-// 开始扫描
-await deviceManager.startScan({ timeout: 10000 });
-
-// 获取已发现的设备
-const devices = deviceManager.getDiscoveredDevices();
-
-// 停止扫描
-await deviceManager.stopScan();
+const manager = new DeviceManager();
 ```
 
-#### 配置选项
+### 方法
 
-```typescript
-interface ScanOptions {
-  timeout?: number; // 扫描超时时间 (默认: 15000ms)
-  serviceUUIDs?: string[]; // 服务 UUID 过滤
-  nameFilter?: string | RegExp; // 设备名称过滤
-  allowDuplicates?: boolean; // 是否允许重复设备
-}
-```
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `startScan(options?)` | `Promise<void>` | 开始扫描 |
+| `stopScan()` | `void` | 停止扫描 |
+| `getDiscoveredDevices()` | `BluetoothDevice[]` | 获取设备列表 |
+| `getDevice(deviceId)` | `BluetoothDevice?` | 获取指定设备 |
+
+### 事件
+
+| 事件 | 数据 |
+|------|------|
+| `device-found` | `BluetoothDevice` |
+| `device-updated` | `BluetoothDevice` |
+| `device-lost` | `BluetoothDevice` |
+| `scan-started` | `void` |
+| `scan-stopped` | `void` |
 
 ---
 
-### PrintQueue
-
-打印队列，支持优先级排序和失败重试。
+## PrintQueue (打印队列)
 
 ```typescript
 import { PrintQueue } from 'taro-bluetooth-print';
 
-const queue = new PrintQueue({
-  maxSize: 100,
-  defaultRetries: 3,
-  retryDelay: 1000,
-});
-
-// 添加任务
-const jobId = queue.add(printData, { priority: 'HIGH' });
-
-// 监听事件
-queue.on('job-completed', job => {
-  console.log('任务完成:', job.id);
-});
-
-// 暂停/恢复队列
-queue.pause();
-queue.resume();
+const queue = new PrintQueue(config?);
 ```
 
-#### 任务优先级
+### 方法
 
-```typescript
-enum PrintJobPriority {
-  LOW = 0,
-  NORMAL = 1,
-  HIGH = 2,
-  URGENT = 3,
-}
-```
-
----
-
-### OfflineCache
-
-离线缓存，在断开连接时自动保存打印任务。
-
-```typescript
-import { OfflineCache } from 'taro-bluetooth-print';
-
-const cache = new OfflineCache({
-  maxJobs: 50,
-  expiryTime: 24 * 60 * 60 * 1000, // 24小时
-});
-
-// 保存任务
-await cache.save({ id: 'job-1', data: printData });
-
-// 获取所有缓存任务
-const jobs = await cache.getAll();
-
-// 同步到打印队列
-await cache.sync();
-
-// 清理过期任务
-await cache.cleanup();
-```
-
----
-
-### TemplateEngine
-
-模板引擎，支持收据和标签模板渲染。
-
-```typescript
-import { TemplateEngine } from 'taro-bluetooth-print';
-
-const engine = new TemplateEngine();
-
-// 渲染收据
-const receiptData = engine.renderReceipt({
-  store: { name: '示例商店', address: '北京市朝阳区' },
-  order: { id: 'ORD-001', date: '2024-01-01' },
-  items: [
-    { name: '商品A', quantity: 2, price: 29.9 },
-    { name: '商品B', quantity: 1, price: 49.9 },
-  ],
-  payment: {
-    subtotal: 109.7,
-    total: 109.7,
-    method: '微信支付',
-  },
-});
-
-// 渲染标签
-const labelData = engine.renderLabel({
-  name: '商品名称',
-  price: 99.9,
-  barcode: '6901234567890',
-  barcodeFormat: 'EAN13',
-});
-```
-
----
-
-### BarcodeGenerator
-
-条码生成器，支持多种条码格式。
-
-```typescript
-import { BarcodeGenerator, BarcodeFormat } from 'taro-bluetooth-print';
-
-const generator = new BarcodeGenerator();
-
-// 生成条码命令
-const commands = generator.generate('1234567890128', {
-  format: BarcodeFormat.EAN13,
-  height: 80,
-  showText: true,
-});
-
-// 验证条码内容
-const result = generator.validate('1234567890128', BarcodeFormat.EAN13);
-if (!result.valid) {
-  console.error(result.errors);
-}
-```
-
-#### 支持的格式
-
-- `CODE128` - Code 128
-- `CODE39` - Code 39
-- `EAN13` - EAN-13
-- `EAN8` - EAN-8
-- `UPCA` - UPC-A
-
----
-
-### TextFormatter
-
-文本格式化器，生成 ESC/POS 格式化命令。
-
-```typescript
-import { TextFormatter, TextAlign } from 'taro-bluetooth-print';
-
-const formatter = new TextFormatter();
-
-// 设置样式
-const commands = formatter.setStyle({
-  align: TextAlign.CENTER,
-  bold: true,
-  widthScale: 2,
-  heightScale: 2,
-});
-
-// 重置样式
-const resetCommands = formatter.resetStyle();
-```
-
----
-
-### PreviewRenderer
-
-预览渲染器，将 ESC/POS 命令渲染为图像预览。
-
-```typescript
-import { PreviewRenderer } from 'taro-bluetooth-print';
-
-const renderer = new PreviewRenderer();
-
-// 渲染预览
-const preview = await renderer.render(escPosCommands, {
-  paperWidth: 58,
-  dpi: 203,
-});
-
-console.log(preview.base64); // Base64 图像
-console.log(preview.width, preview.height); // 图像尺寸
-```
-
----
-
-### WebBluetoothAdapter
-
-Web Bluetooth 适配器，支持 H5 环境。
-
-```typescript
-import { WebBluetoothAdapter } from 'taro-bluetooth-print';
-
-// 检查浏览器支持
-if (WebBluetoothAdapter.isSupported()) {
-  const adapter = new WebBluetoothAdapter();
-
-  // 请求设备（弹出浏览器选择框）
-  const device = await adapter.requestDevice();
-
-  // 连接
-  await adapter.connect(device.id);
-
-  // 写入数据
-  await adapter.write(device.id, buffer);
-
-  // 断开连接
-  await adapter.disconnect(device.id);
-}
-```
-
----
-
-### ConnectionManager
-
-连接管理器，支持心跳检测和自动重连。
-
-```typescript
-import { ConnectionManager } from 'taro-bluetooth-print';
-
-const manager = new ConnectionManager(adapter, {
-  heartbeatEnabled: true,
-  heartbeatInterval: 5000,
-  autoReconnect: true,
-  maxReconnectAttempts: 3,
-  reconnectInterval: 2000,
-});
-
-// 监听事件
-manager.on('reconnecting', ({ attempt, maxAttempts }) => {
-  console.log(`重连中 ${attempt}/${maxAttempts}`);
-});
-
-manager.on('reconnected', deviceId => {
-  console.log('重连成功:', deviceId);
-});
-
-manager.on('reconnect-failed', ({ error }) => {
-  console.error('重连失败:', error);
-});
-```
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `add(data, options?)` | `string` | 添加任务 |
+| `pause()` | `void` | 暂停队列 |
+| `resume()` | `void` | 恢复队列 |
+| `clear()` | `void` | 清空队列 |
+| `getJobs()` | `PrintJob[]` | 获取任务列表 |
+| `getPendingCount()` | `number` | 等待数量 |
 
 ---
 
 ## 类型定义
 
 ### PrinterState
-
-打印机状态枚举。
 
 ```typescript
 enum PrinterState {
@@ -337,139 +265,26 @@ enum PrinterState {
   CONNECTED = 'connected',
   DISCONNECTING = 'disconnecting',
   PRINTING = 'printing',
-  PAUSED = 'paused',
+  PAUSED = 'paused'
 }
 ```
 
 ### IAdapterOptions
 
-适配器配置选项。
-
 ```typescript
 interface IAdapterOptions {
-  chunkSize?: number; // 数据分片大小（默认：20 字节）
-  delay?: number; // 分片之间的延迟，单位毫秒（默认：20ms）
-  retries?: number; // 写入失败时的重试次数（默认：3）
+  chunkSize?: number;  // 默认 20
+  delay?: number;      // 默认 20ms
+  retries?: number;    // 默认 3
 }
 ```
 
 ### IQrOptions
 
-二维码配置选项。
-
 ```typescript
 interface IQrOptions {
-  model?: 1 | 2; // 二维码模型（默认：2）
-  size?: number; // 模块大小 1-16（默认：6）
-  errorCorrection?: 'L' | 'M' | 'Q' | 'H'; // 纠错级别（默认：'M'）
-}
-```
-
-### BarcodeOptions
-
-条码配置选项。
-
-```typescript
-interface BarcodeOptions {
-  format: BarcodeFormat; // 条码格式
-  height?: number; // 条码高度 1-255（默认：80）
-  width?: number; // 条码宽度 2-6（默认：3）
-  showText?: boolean; // 是否显示文字（默认：true）
-  textPosition?: 'above' | 'below' | 'both' | 'none';
-}
-```
-
-### PrintProgress
-
-打印进度信息。
-
-```typescript
-interface PrintProgress {
-  sent: number; // 已发送字节数
-  total: number; // 总字节数
-}
-```
-
-### DeviceInfo
-
-设备信息。
-
-```typescript
-interface DeviceInfo {
-  deviceId: string; // 设备 ID
-  name: string; // 设备名称
-  rssi?: number; // 信号强度
-  advertisData?: ArrayBuffer; // 广播数据
-}
-```
-
----
-
-## 配置
-
-### PrinterConfig
-
-打印机配置接口。
-
-```typescript
-interface PrinterConfig {
-  adapter?: AdapterConfig;
-  driver?: DriverConfig;
-  logging?: LoggingConfig;
-}
-
-interface AdapterConfig {
-  chunkSize?: number;
-  delay?: number;
-  retries?: number;
-}
-
-interface DriverConfig {
-  encoding?: string;
-}
-
-interface LoggingConfig {
-  level?: LogLevel;
-}
-```
-
-### ConnectionManagerConfig
-
-连接管理器配置。
-
-```typescript
-interface ConnectionManagerConfig {
-  heartbeatEnabled?: boolean; // 启用心跳检测（默认：true）
-  heartbeatInterval?: number; // 心跳间隔（默认：5000ms）
-  autoReconnect?: boolean; // 启用自动重连（默认：true）
-  maxReconnectAttempts?: number; // 最大重连次数（默认：3）
-  reconnectInterval?: number; // 重连间隔（默认：2000ms）
-  connectionTimeout?: number; // 连接超时（默认：10000ms）
-}
-```
-
-### QueueConfig
-
-打印队列配置。
-
-```typescript
-interface QueueConfig {
-  maxSize?: number; // 最大队列长度（默认：100）
-  defaultRetries?: number; // 默认重试次数（默认：3）
-  retryDelay?: number; // 重试间隔（默认：1000ms）
-  autoProcess?: boolean; // 自动处理队列（默认：true）
-}
-```
-
-### CacheConfig
-
-离线缓存配置。
-
-```typescript
-interface CacheConfig {
-  maxJobs?: number; // 最大缓存任务数（默认：100）
-  expiryTime?: number; // 任务过期时间（默认：24小时）
-  storagePrefix?: string; // 存储键前缀
-  autoSync?: boolean; // 自动同步（默认：true）
+  model?: 1 | 2;                      // 默认 2
+  size?: number;                       // 1-16, 默认 6
+  errorCorrection?: 'L'|'M'|'Q'|'H';  // 默认 'M'
 }
 ```

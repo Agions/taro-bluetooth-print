@@ -341,6 +341,127 @@ if ('bluetooth' in navigator) {
 | `PRINT_JOB_IN_PROGRESS` | 打印任务进行中 | 等待当前任务完成或取消 |
 | `DEVICE_DISCONNECTED` | 设备已断开 | 重新连接设备 |
 
+## 驱动特定问题
+
+### ESC/POS 驱动
+
+**问题**: 中文打印乱码
+
+**解决方案**:
+```typescript
+// 确保使用正确的编码
+driver.text('中文内容', 'GBK');
+
+// 如果仍有问题，检查打印机编码设置
+driver.init(); // 初始化打印机恢复默认编码
+```
+
+**问题**: 二维码无法打印
+
+**解决方案**:
+- 二维码内容过长会导致打印失败，尝试缩短内容
+- 确保纠错级别设置正确 (L/M/Q/H)
+- 某些打印机只支持 Model 2
+
+### TSPL 驱动
+
+**问题**: 标签位置偏移
+
+**解决方案**:
+```typescript
+// 调整标签尺寸和间隙
+driver.size(60, 40).gap(3);
+
+// 调整偏移
+driver.gap(3, 2); // 第二个参数是偏移量
+```
+
+**问题**: 条码扫描不出来
+
+**解决方案**:
+- 增加条码高度 `height: 80+`
+- 确保 `showText` 设为 `true` 便于校验
+- 检查 x, y 坐标是否超出标签范围
+
+### ZPL 驱动
+
+**问题**: 打印内容位置不对
+
+**解决方案**:
+```typescript
+// ZPL 使用点(dots)作为单位，默认 203 DPI
+// 1mm ≈ 8 dots
+driver.labelHome(80, 80); // 约 10mm x 10mm
+```
+
+**问题**: 字体显示不对
+
+**解决方案**:
+- ZPL 使用内置字体，指定正确的字体编号
+- `0` = 常用字体，数字越大可能是不同字体
+
+### CPCL 驱动
+
+**问题**: 页面尺寸不对
+
+**解决方案**:
+```typescript
+// 使用标准尺寸
+driver.usePageSize('4X6');
+
+// 或自定义
+driver.setPageSize(576, 864); // 4" x 6" @ 144 DPI
+```
+
+## 平台特定问题
+
+### 鸿蒙 HarmonyOS
+
+**问题**: 无法扫描到设备
+
+**解决方案**:
+```typescript
+const adapter = new HarmonyOSAdapter({ debug: true });
+
+// 检查蓝牙是否开启
+const enabled = await adapter.isEnabled();
+if (!enabled) {
+  await adapter.enable();
+}
+
+// 检查是否在鸿蒙环境
+if (!adapter.isSupported()) {
+  console.warn('非鸿蒙环境或API不可用');
+}
+```
+
+**问题**: 连接成功但无法打印
+
+**解决方案**:
+- 检查 BLE 服务和特征值是否正确
+- 某些打印机需要先获取服务列表
+- 确认写入特征值是否支持写入
+
+### Web Bluetooth
+
+**问题**: 浏览器提示不支持
+
+**要求**:
+- 必须使用 HTTPS (或 localhost)
+- Chrome 56+ / Edge 79+ / Opera 43+
+- Safari 和 Firefox 暂不支持
+
+**问题**: 无法发现设备
+
+**解决方案**:
+```typescript
+// 请求设备时添加过滤器
+adapter.requestDevice({
+  filters: [{ services: ['00001800-0000-1000-8000-00805f9b34fb'] }],
+  optionalServices: ['00001801-0000-1000-8000-00805f9b34fb']
+});
+```
+
 ## 获取帮助
 
 如果以上方案都无法解决您的问题：

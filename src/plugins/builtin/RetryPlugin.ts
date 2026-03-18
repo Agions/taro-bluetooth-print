@@ -42,10 +42,7 @@ export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): 
   let currentDelay = opts.initialDelay;
 
   const shouldRetry = (error: BluetoothPrintError): boolean => {
-    return (
-      retryCount < opts.maxRetries &&
-      opts.retryableErrors.includes(error.code)
-    );
+    return retryCount < opts.maxRetries && opts.retryableErrors.includes(error.code);
   };
 
   const sleep = (ms: number): Promise<void> => {
@@ -77,14 +74,11 @@ export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): 
             `Retryable error occurred (attempt ${retryCount}/${opts.maxRetries}): ${error.code}`
           );
           logger.info(`Waiting ${currentDelay}ms before retry...`);
-          
+
           await sleep(currentDelay);
-          
+
           // Exponential backoff
-          currentDelay = Math.min(
-            currentDelay * opts.backoffMultiplier,
-            opts.maxDelay
-          );
+          currentDelay = Math.min(currentDelay * opts.backoffMultiplier, opts.maxDelay);
 
           // Note: Returning false means error is not suppressed
           // The actual retry logic would need to be implemented in the printer
@@ -93,9 +87,7 @@ export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): 
         }
 
         if (retryCount > 0) {
-          logger.error(
-            `Failed after ${retryCount} retries: ${error.code} - ${error.message}`
-          );
+          logger.error(`Failed after ${retryCount} retries: ${error.code} - ${error.message}`);
         }
 
         return false;
@@ -103,7 +95,9 @@ export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): 
     },
 
     init: () => {
-      logger.info(`Retry plugin initialized (max: ${opts.maxRetries}, delay: ${opts.initialDelay}ms)`);
+      logger.info(
+        `Retry plugin initialized (max: ${opts.maxRetries}, delay: ${opts.initialDelay}ms)`
+      );
     },
   };
 };

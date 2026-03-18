@@ -242,15 +242,13 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
       this.logger.info('Device connected successfully');
 
       // Listen for connection state changes
-      this.getApi().onBLEConnectionStateChange(
-        (res: { deviceId: string; connected: boolean }) => {
-          if (res.deviceId === deviceId && !res.connected) {
-            this.logger.warn('Device disconnected unexpectedly');
-            this.updateState(PrinterState.DISCONNECTED);
-            this.cleanupDevice(deviceId);
-          }
+      this.getApi().onBLEConnectionStateChange((res: { deviceId: string; connected: boolean }) => {
+        if (res.deviceId === deviceId && !res.connected) {
+          this.logger.warn('Device disconnected unexpectedly');
+          this.updateState(PrinterState.DISCONNECTED);
+          this.cleanupDevice(deviceId);
         }
-      );
+      });
     } catch (error) {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);

@@ -1,0 +1,347 @@
+/**
+ * H5 Web Bluetooth 示例
+ * 
+ * 使用方法：
+ * 1. 使用 HTTPS 或 localhost 运行
+ * 2. 在浏览器中打开页面
+ * 3. 点击"选择打印机"按钮
+ */
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Bluetooth 打印示例</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    h2 { font-size: 16px; margin: 0 0 12px; color: #333; }
+    
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .btn-primary { background: #007aff; color: white; }
+    .btn-success { background: #34c759; color: white; }
+    .btn-danger { background: #ff3b30; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .status.disconnected { background: #ffe5e5; color: #ff3b30; }
+    .status.connecting { background: #fff3e0; color: #ff9800; }
+    .status.connected { background: #e5f9e5; color: #34c759; }
+    
+    .progress-bar {
+      height: 8px;
+      background: #e5e5e5;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #007aff;
+      transition: width 0.3s;
+    }
+    
+    .log {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-item { margin: 4px 0; }
+    .log-time { color: #6a9955; }
+    .log-error { color: #f48771; }
+    .log-success { color: #89d185; }
+    
+    .device-list { margin-top: 12px; }
+    .device-item {
+      padding: 12px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .device-item:hover { background: #f9f9f9; }
+    .device-name { font-weight: 500; }
+    .device-id { font-size: 12px; color: #666; }
+    
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; margin-bottom: 4px; font-size: 14px; }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📱 Web Bluetooth 打印</h1>
+  
+  <!-- 连接状态 -->
+  <div class="card">
+    <h2>连接状态</h2>
+    <div id="status" class="status disconnected">未连接</div>
+    <button id="btn-select" class="btn btn-primary">选择打印机</button>
+    <button id="btn-disconnect" class="btn btn-danger" style="display:none;">断开</button>
+  </div>
+  
+  <!-- 打印选项 -->
+  <div class="card">
+    <h2>打印选项</h2>
+    
+    <div class="form-group">
+      <label>打印类型</label>
+      <select id="print-type">
+        <option value="test">测试页</option>
+        <option value="receipt">收据</option>
+        <option value="label">标签</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>编码</label>
+      <select id="encoding">
+        <option value="GBK">GBK (中文)</option>
+        <option value="UTF-8">UTF-8</option>
+      </select>
+    </div>
+    
+    <button id="btn-print" class="btn btn-success" disabled>开始打印</button>
+    
+    <div id="progress-container" style="display:none;">
+      <span id="progress-text">0%</span>
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 日志 -->
+  <div class="card">
+    <h2>日志</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script type="module">
+    import { BluetoothPrinter, WebBluetoothAdapter } from '../dist/index.es.js';
+
+    // 初始化
+    const adapter = new WebBluetoothAdapter();
+    const printer = new BluetoothPrinter(adapter);
+    
+    // DOM 元素
+    const statusEl = document.getElementById('status');
+    const btnSelect = document.getElementById('btn-select');
+    const btnDisconnect = document.getElementById('btn-disconnect');
+    const btnPrint = document.getElementById('btn-print');
+    const progressContainer = document.getElementById('progress-container');
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
+    const logEl = document.getElementById('log');
+    const printType = document.getElementById('print-type');
+    const encoding = document.getElementById('encoding');
+    
+    let connected = false;
+
+    // 日志
+    function log(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const className = type === 'error' ? 'log-error' : type === 'success' ? 'log-success' : '';
+      logEl.innerHTML += `<div class="log-item"><span class="log-time">[${time}]</span> ${message}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // 更新状态
+    function updateStatus(text, state) {
+      statusEl.textContent = text;
+      statusEl.className = `status ${state}`;
+    }
+
+    // 事件监听
+    printer.on('progress', ({ sent, total }) => {
+      const percent = ((sent / total) * 100).toFixed(1);
+      progressText.textContent = `${percent}%`;
+      progressFill.style.width = `${percent}%`;
+    });
+
+    printer.on('error', (error) => {
+      log(`错误: ${error.code} - ${error.message}`, 'error');
+      updateStatus('打印失败', 'disconnected');
+    });
+
+    printer.on('print-complete', () => {
+      log('打印完成', 'success');
+      updateStatus('打印完成', 'connected');
+      progressContainer.style.display = 'none';
+      btnPrint.disabled = false;
+    });
+
+    // 选择打印机
+    btnSelect.addEventListener('click', async () => {
+      try {
+        updateStatus('正在选择设备...', 'connecting');
+        
+        // 请求设备
+        await adapter.requestDevice({
+          filters: [{
+            name: 'Printer'  // 可选：过滤名称包含 Printer 的设备
+          }],
+          optionalServices: ['00001800-0000-1000-8000-00805f9b34fb']
+        });
+        
+        const devices = adapter.getDiscoveredDevices();
+        
+        if (devices.length === 0) {
+          log('未发现设备，请确保打印机已开启蓝牙', 'error');
+          updateStatus('未发现设备', 'disconnected');
+          return;
+        }
+        
+        // 连接第一个设备
+        const device = devices[0];
+        log(`正在连接: ${device.name || '未知设备'}...`, 'info');
+        updateStatus('正在连接...', 'connecting');
+        
+        await printer.connect(device.deviceId);
+        
+        connected = true;
+        btnSelect.style.display = 'none';
+        btnDisconnect.style.display = 'inline-block';
+        btnPrint.disabled = false;
+        
+        log(`已连接: ${device.name || '未知设备'}`, 'success');
+        updateStatus('已连接', 'connected');
+        
+      } catch (error) {
+        log(`连接失败: ${error.message}`, 'error');
+        updateStatus('连接失败', 'disconnected');
+      }
+    });
+
+    // 断开连接
+    btnDisconnect.addEventListener('click', async () => {
+      try {
+        await printer.disconnect();
+        connected = false;
+        btnSelect.style.display = 'inline-block';
+        btnDisconnect.style.display = 'none';
+        btnPrint.disabled = true;
+        log('已断开连接', 'info');
+        updateStatus('已断开', 'disconnected');
+      } catch (error) {
+        log(`断开失败: ${error.message}`, 'error');
+      }
+    });
+
+    // 打印
+    btnPrint.addEventListener('click', async () => {
+      if (!connected) {
+        log('请先连接打印机', 'error');
+        return;
+      }
+
+      const enc = encoding.value;
+      const type = printType.value;
+      
+      btnPrint.disabled = true;
+      progressContainer.style.display = 'block';
+      progressFill.style.width = '0%';
+      updateStatus('正在打印...', 'connecting');
+      
+      try {
+        if (type === 'test') {
+          // 打印测试页
+          await printer
+            .text('=== Web Bluetooth 测试 ===', enc)
+            .feed()
+            .text('时间: ' + new Date().toLocaleString(), enc)
+            .feed(2)
+            .qr('https://example.com', { size: 6 })
+            .feed(2)
+            .cut()
+            .print();
+            
+        } else if (type === 'receipt') {
+          // 打印收据
+          const items = [
+            { name: '商品A', price: 10, qty: 2 },
+            { name: '商品B', price: 20, qty: 1 },
+          ];
+          const total = 40;
+          
+          await printer
+            .align('center')
+            .setSize(2, 2)
+            .text('商店名称', enc)
+            .resetStyle()
+            .feed()
+            .text('------------------------', enc)
+            .feed();
+          
+          items.forEach(item => {
+            const line = `${item.name} x${item.qty}`.padEnd(15) + `¥${item.price * item.qty}`;
+            printer.text(line, enc);
+          });
+          
+          await printer
+            .feed()
+            .text('------------------------', enc)
+            .feed()
+            .setBold(true)
+            .text(`合计: ¥${total}`, enc)
+            .resetStyle()
+            .feed(3)
+            .cut()
+            .print();
+            
+        } else if (type === 'label') {
+          // 标签需要使用 TsplDriver
+          log('请使用标签打印功能', 'error');
+        }
+        
+      } catch (error) {
+        log(`打印失败: ${error.message}`, 'error');
+        updateStatus('打印失败', 'disconnected');
+        btnPrint.disabled = false;
+        progressContainer.style.display = 'none';
+      }
+    });
+
+    log('页面加载完成，请点击"选择打印机"开始', 'info');
+  </script>
+</body>
+</html>
