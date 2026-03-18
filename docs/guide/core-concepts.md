@@ -57,7 +57,6 @@ await printer.disconnect();
 |--------|------|
 | TaroAdapter | 微信/支付宝/百度/字节跳动小程序 |
 | WebBluetoothAdapter | H5 (浏览器) |
-| HarmonyOSAdapter | 鸿蒙 HarmonyOS |
 
 ### 4. DeviceManager (设备管理)
 

@@ -177,7 +177,6 @@ const buffer = cpcl
 | 支付宝小程序 | `AlipayAdapter` | 完整支持 |
 | 百度小程序 | `BaiduAdapter` | 完整支持 |
 | 字节跳动小程序 | `ByteDanceAdapter` | 完整支持 |
-| 鸿蒙 HarmonyOS | `HarmonyOSAdapter` | 原生支持 |
 
 ### 使用特定适配器
 
@@ -188,20 +187,4 @@ import { BluetoothPrinter, WebBluetoothAdapter } from 'taro-bluetooth-print';
 const printer = new BluetoothPrinter({
   adapter: new WebBluetoothAdapter()
 });
-
-// 使用鸿蒙
-import { HarmonyOSAdapter } from 'taro-bluetooth-print';
-
-const printer = new BluetoothPrinter({
-  adapter: new HarmonyOSAdapter({ debug: true })
-});
 ```
-
-### 鸿蒙适配器特性
-
-- 原生 HarmonyOS BLE API 支持
-- 自动设备发现
-- GATT 连接管理
-- 通知/订阅支持
-- 信号强度检测 (RSSI)
-- 调试日志选项

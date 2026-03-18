@@ -8,7 +8,6 @@
 |--------|------|----------|
 | `TaroAdapter` | 微信/支付宝/百度/字节跳动小程序 | ✅ 完整支持 |
 | `WebBluetoothAdapter` | H5 (浏览器) | ✅ 完整支持 |
-| `HarmonyOSAdapter` | 鸿蒙 HarmonyOS | ✅ 新增支持 |
 
 ## TaroAdapter
 
@@ -97,57 +96,6 @@ await printer.text('Hello from Web!').cut().print();
 
 ---
 
-## HarmonyOSAdapter
-
-适用于华为鸿蒙 HarmonyOS 设备，提供原生 BLE 支持。
-
-### 使用方式
-
-```typescript
-import { BluetoothPrinter, HarmonyOSAdapter } from 'taro-bluetooth-print';
-
-const adapter = new HarmonyOSAdapter({
-  debug: true,      // 开启调试日志
-  timeout: 10000,   // 连接超时
-  autoReconnect: false  // 自动重连
-});
-
-const printer = new BluetoothPrinter(adapter);
-
-// 检查蓝牙状态
-const enabled = await adapter.isEnabled();
-if (!enabled) {
-  await adapter.enable();
-}
-
-// 扫描设备
-const devices = await adapter.scan(10000);
-
-// 连接并打印
-await printer.connect(devices[0].deviceId);
-await printer.text('Hello HarmonyOS!').cut().print();
-```
-
-### 特性
-
-- 原生 HarmonyOS BLE API
-- 完整的 GATT 支持
-- 通知/订阅
-- RSSI 信号检测
-
-### 设备信息
-
-```typescript
-// 扫描时获取设备信息
-adapter.onDeviceFound((device) => {
-  console.log('设备:', device.name);
-  console.log('ID:', device.deviceId);
-  console.log('信号:', device.RSSI);
-});
-```
-
----
-
 ## 选择适配器
 
 根据您的开发平台选择合适的适配器：
@@ -156,7 +104,6 @@ adapter.onDeviceFound((device) => {
 import { BluetoothPrinter } from 'taro-bluetooth-print';
 import { TaroAdapter } from './adapters/TaroAdapter';
 import { WebBluetoothAdapter } from './adapters/WebBluetoothAdapter';
-import { HarmonyOSAdapter } from './adapters/HarmonyOSAdapter';
 import { detectPlatform } from './utils/platform';
 
 // 自动检测平台
@@ -172,9 +119,6 @@ switch (platform) {
     break;
   case 'web':
     adapter = new WebBluetoothAdapter();
-    break;
-  case 'harmonyos':
-    adapter = new HarmonyOSAdapter();
     break;
   default:
     adapter = new TaroAdapter(); // 默认

@@ -415,33 +415,6 @@ driver.setPageSize(576, 864); // 4" x 6" @ 144 DPI
 
 ## 平台特定问题
 
-### 鸿蒙 HarmonyOS
-
-**问题**: 无法扫描到设备
-
-**解决方案**:
-```typescript
-const adapter = new HarmonyOSAdapter({ debug: true });
-
-// 检查蓝牙是否开启
-const enabled = await adapter.isEnabled();
-if (!enabled) {
-  await adapter.enable();
-}
-
-// 检查是否在鸿蒙环境
-if (!adapter.isSupported()) {
-  console.warn('非鸿蒙环境或API不可用');
-}
-```
-
-**问题**: 连接成功但无法打印
-
-**解决方案**:
-- 检查 BLE 服务和特征值是否正确
-- 某些打印机需要先获取服务列表
-- 确认写入特征值是否支持写入
-
 ### Web Bluetooth
 
 **问题**: 浏览器提示不支持
