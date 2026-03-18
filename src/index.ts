@@ -19,16 +19,9 @@ export { AlipayAdapter } from './adapters/AlipayAdapter';
 export { BaiduAdapter } from './adapters/BaiduAdapter';
 export { ByteDanceAdapter } from './adapters/ByteDanceAdapter';
 export { WebBluetoothAdapter } from './adapters/WebBluetoothAdapter';
-export { HarmonyOSAdapter } from './adapters/HarmonyOSAdapter';
 export { AdapterFactory } from './adapters/AdapterFactory';
 export { BaseAdapter } from './adapters/BaseAdapter';
 export type { WebBluetoothRequestOptions } from './adapters/WebBluetoothAdapter';
-export type {
-  HarmonyOSDeviceInfo,
-  HarmonyOSBLEService,
-  HarmonyOSBLECharacteristic,
-  HarmonyOSAdapterOptions,
-} from './adapters/HarmonyOSAdapter';
 
 // Services - 服务层
 export * from './services';

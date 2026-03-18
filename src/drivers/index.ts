@@ -5,8 +5,31 @@
 
 export { EscPos, type EscPosOptions } from './EscPos';
 
-export { TsplDriver, type LabelSize, type TextOptions, type BarcodeOptions, type QRCodeOptions, type BoxOptions, type LineOptions } from './TsplDriver';
+export {
+  TsplDriver,
+  type LabelSize,
+  type TextOptions,
+  type BarcodeOptions,
+  type QRCodeOptions,
+  type BoxOptions,
+  type LineOptions,
+} from './TsplDriver';
 
-export { ZplDriver, type ZplLabelSize, type ZplTextOptions, type ZplBarcodeOptions, type ZplQRCodeOptions, type ZplBoxOptions } from './ZplDriver';
+export {
+  ZplDriver,
+  type ZplLabelSize,
+  type ZplTextOptions,
+  type ZplBarcodeOptions,
+  type ZplQRCodeOptions,
+  type ZplBoxOptions,
+} from './ZplDriver';
 
-export { CpclDriver, type CPCLPageSize, type CpclTextOptions, type CpclBarcodeOptions, type CpclQRCodeOptions, type CpclLineOptions, type CpclBoxOptions } from './CpclDriver';
+export {
+  CpclDriver,
+  type CPCLPageSize,
+  type CpclTextOptions,
+  type CpclBarcodeOptions,
+  type CpclQRCodeOptions,
+  type CpclLineOptions,
+  type CpclBoxOptions,
+} from './CpclDriver';
