@@ -5,6 +5,8 @@
 
 export { EscPos, type EscPosOptions } from './EscPos';
 
+export { GPrinterDriver, type GPrinterOptions } from './GPrinterDriver';
+
 export {
   TsplDriver,
   type LabelSize,
