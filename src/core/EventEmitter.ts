@@ -24,12 +24,12 @@
  * });
  * ```
  */
-export class EventEmitter<T> {
-  // 使用Map存储事件监听器，Set确保每个监听器唯一
-  private listeners: Map<keyof T, Set<(data: T[keyof T]) => void>> = new Map();
+import { Logger } from '@/utils/logger';
 
-  // Debug mode flag
+export class EventEmitter<T> {
+  private listeners: Map<keyof T, Set<(data: T[keyof T]) => void>> = new Map();
   private debugMode = false;
+  private readonly logger = Logger.scope('EventEmitter');
 
   /**
    * Subscribe to an event
@@ -45,7 +45,7 @@ export class EventEmitter<T> {
     this.listeners.get(event)!.add(handler as (data: T[keyof T]) => void);
 
     if (this.debugMode) {
-      console.debug(`EventEmitter: Added listener for "${String(event)}"`, {
+      this.logger.debug(`EventEmitter: Added listener for "${String(event)}"`, {
         listenerCount: this.listenerCount(event),
       });
     }
@@ -90,7 +90,7 @@ export class EventEmitter<T> {
     this.listeners.set(event, newHandlers);
 
     if (this.debugMode) {
-      console.debug(`EventEmitter: Prepend listener for "${String(event)}"`, {
+      this.logger.debug(`EventEmitter: Prepend listener for "${String(event)}"`, {
         listenerCount: this.listenerCount(event),
       });
     }
@@ -125,7 +125,7 @@ export class EventEmitter<T> {
       handlers.delete(handler as (data: T[keyof T]) => void);
 
       if (this.debugMode) {
-        console.debug(`EventEmitter: Removed listener for "${String(event)}"`, {
+        this.logger.debug(`EventEmitter: Removed listener for "${String(event)}"`, {
           listenerCount: handlers.size,
         });
       }
@@ -135,7 +135,7 @@ export class EventEmitter<T> {
         this.listeners.delete(event);
 
         if (this.debugMode) {
-          console.debug(`EventEmitter: Removed event "${String(event)}" (no more listeners)`);
+          this.logger.debug(`EventEmitter: Removed event "${String(event)}" (no more listeners)`);
         }
       }
     }
@@ -154,7 +154,7 @@ export class EventEmitter<T> {
     const data = args[0] as T[K];
 
     if (this.debugMode) {
-      console.debug(`EventEmitter: Emitting "${String(event)}"`, {
+      this.logger.debug(`EventEmitter: Emitting "${String(event)}"`, {
         data,
         listenerCount: this.listenerCount(event),
       });
@@ -184,7 +184,7 @@ export class EventEmitter<T> {
           }
         } catch (error) {
           // 捕获并处理事件处理程序中的错误，避免影响其他监听器
-          console.error(`Error in event handler for "${String(event)}":`, error);
+          this.logger.error(`Error in event handler for "${String(event)}":`, error);
         }
       }
     }
@@ -204,7 +204,7 @@ export class EventEmitter<T> {
     const data = args[0] as T[K];
 
     if (this.debugMode) {
-      console.debug(`EventEmitter: Emitting async "${String(event)}"`, {
+      this.logger.debug(`EventEmitter: Emitting async "${String(event)}"`, {
         data,
         listenerCount: this.listenerCount(event),
       });
@@ -238,7 +238,7 @@ export class EventEmitter<T> {
             }
           } catch (error) {
             // 捕获并处理事件处理程序中的错误，避免影响其他监听器
-            console.error(`Error in event handler for "${String(event)}":`, error);
+            this.logger.error(`Error in event handler for "${String(event)}":`, error);
           }
         })()
       );
@@ -247,7 +247,7 @@ export class EventEmitter<T> {
     await Promise.all(promises);
 
     if (this.debugMode) {
-      console.debug(`EventEmitter: Finished emitting async "${String(event)}"`);
+      this.logger.debug(`EventEmitter: Finished emitting async "${String(event)}"`);
     }
   }
 
@@ -262,7 +262,7 @@ export class EventEmitter<T> {
       this.listeners.delete(event);
 
       if (this.debugMode) {
-        console.debug(
+        this.logger.debug(
           `EventEmitter: Removed all ${listenerCount} listeners for "${String(event)}"`
         );
       }
@@ -272,7 +272,7 @@ export class EventEmitter<T> {
       this.listeners.clear();
 
       if (this.debugMode) {
-        console.debug(`EventEmitter: Removed all ${eventCount} events and their listeners`);
+        this.logger.debug(`EventEmitter: Removed all ${eventCount} events and their listeners`);
       }
     }
   }
@@ -327,7 +327,7 @@ export class EventEmitter<T> {
    */
   setDebugMode(enabled: boolean): void {
     this.debugMode = enabled;
-    console.debug(`EventEmitter: Debug mode ${enabled ? 'enabled' : 'disabled'}`);
+    this.logger.debug(`EventEmitter: Debug mode ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
