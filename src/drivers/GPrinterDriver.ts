@@ -5,7 +5,7 @@
  * 大部分命令与标准 ESC/POS 兼容，部分特殊命令需要额外处理
  */
 
-import { EscPos } from './EscPos';
+import { EscPos, type EscPosOptions } from './EscPos';
 
 /**
  * GPrinter Driver for GiaoBao (佳博) thermal printers
@@ -23,6 +23,12 @@ import { EscPos } from './EscPos';
  * commands = driver.cut();
  * ```
  */
+
+/**
+ * GPrinter options (same as EscPosOptions)
+ */
+export type GPrinterOptions = EscPosOptions;
+
 export class GPrinterDriver extends EscPos {
   /**
    * 佳博打印机特定: 打开钱箱

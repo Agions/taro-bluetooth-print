@@ -60,7 +60,7 @@ export interface PrinterEvents {
  * ```
  */
 export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
-  private readonly logger = Logger.scope('BluetoothPrinter');
+  private readonly printerLogger = Logger.scope('BluetoothPrinter');
 
   /** Current printer state */
   public state: PrinterState = PrinterState.DISCONNECTED;
@@ -155,7 +155,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     }
 
     this.emit('state-change', this.state);
-    this.logger.debug('State updated:', this.state);
+    this.printerLogger.debug('State updated:', this.state);
   }
 
   /**
@@ -171,13 +171,13 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async connect(deviceId: string): Promise<this> {
-    this.logger.info('Connecting to device:', deviceId);
+    this.printerLogger.info('Connecting to device:', deviceId);
 
     try {
       await this.connectionManager.connect(deviceId);
       this.updateState();
       this.emit('connected', deviceId);
-      this.logger.info('Connected successfully');
+      this.printerLogger.info('Connected successfully');
 
       return this;
     } catch (error) {
@@ -208,18 +208,18 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   async disconnect(): Promise<void> {
     const deviceId = this.connectionManager.getDeviceId();
     if (!deviceId) {
-      this.logger.warn('Disconnect called but no device connected');
+      this.printerLogger.warn('Disconnect called but no device connected');
       return;
     }
 
-    this.logger.info('Disconnecting from device:', deviceId);
+    this.printerLogger.info('Disconnecting from device:', deviceId);
 
     try {
       await this.connectionManager.disconnect();
       this.printJobManager.cancel();
       this.updateState();
       this.emit('disconnected', deviceId);
-      this.logger.info('Disconnected successfully');
+      this.printerLogger.info('Disconnected successfully');
     } catch (error) {
       const printError = new BluetoothPrintError(
         ErrorCode.DEVICE_DISCONNECTED,
@@ -346,7 +346,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   pause(): void {
     this.printJobManager.pause();
     this.updateState();
-    this.logger.info('Print job paused');
+    this.printerLogger.info('Print job paused');
   }
 
   /**
@@ -360,12 +360,12 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async resume(): Promise<void> {
-    this.logger.info('Resuming print job');
+    this.printerLogger.info('Resuming print job');
 
     try {
       await this.printJobManager.resume();
       this.updateState();
-      this.logger.info('Print job resumed');
+      this.printerLogger.info('Print job resumed');
     } catch (error) {
       const printError = new BluetoothPrintError(
         ErrorCode.PRINT_JOB_FAILED,
@@ -390,7 +390,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     this.printJobManager.cancel();
     this.commandBuilder.clear();
     this.updateState();
-    this.logger.info('Print job cancelled');
+    this.printerLogger.info('Print job cancelled');
   }
 
   /**
@@ -439,7 +439,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     }
 
     const buffer = this.commandBuilder.getBuffer();
-    this.logger.info(`Starting print job: ${buffer.length} bytes`);
+    this.printerLogger.info(`Starting print job: ${buffer.length} bytes`);
 
     // Clear the command buffer after getting the buffer for printing
     this.commandBuilder.clear();
@@ -462,14 +462,14 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
 
       if (isPaused) {
         // Print job was paused
-        this.logger.info('Print job paused');
+        this.printerLogger.info('Print job paused');
       } else {
         // Print job completed successfully
         this.emit('print-complete');
-        this.logger.info('Print job completed successfully');
+        this.printerLogger.info('Print job completed successfully');
       }
     } catch (error) {
-      this.logger.error('Print job failed with error:', error);
+      this.printerLogger.error('Print job failed with error:', error);
       const printError =
         error instanceof BluetoothPrintError
           ? error

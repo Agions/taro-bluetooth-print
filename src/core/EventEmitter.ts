@@ -29,7 +29,7 @@ import { Logger } from '@/utils/logger';
 export class EventEmitter<T> {
   private listeners: Map<keyof T, Set<(data: T[keyof T]) => void>> = new Map();
   private debugMode = false;
-  private readonly logger = Logger.scope('EventEmitter');
+  protected readonly logger = Logger.scope('EventEmitter');
 
   /**
    * Subscribe to an event

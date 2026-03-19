@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&color=00d8ff" alt="license">
   <img src="https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square" alt="stars">
   <img src="https://img.shields.io/github/forks/agions/taro-bluetooth-print?style=flat-square" alt="forks">
+  <img src="https://img.shields.io/bundlephobia/minzip/taro-bluetooth-print?style=flat-square" alt="bundle size">
 </p>
 
 <p align="center">
@@ -44,6 +45,14 @@ yarn add taro-bluetooth-print
 # pnpm
 pnpm add taro-bluetooth-print
 ```
+
+## 📊 性能
+
+| 指标 | 值 |
+|------|-----|
+| Bundle 大小 | **26 KB** (gzip) |
+| Tree-shaking | ✅ 支持 |
+| 按需加载 | ✅ 编码表懒加载 |
 
 ## 🚀 快速开始
 

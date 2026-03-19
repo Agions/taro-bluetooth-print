@@ -1,98 +1,120 @@
 /**
- * GBK Encoding Table
+ * GBK Encoding Table - 懒加载版本
  *
- * This module provides character mapping tables for GBK, GB2312, and Big5 encodings.
- * GBK is a superset of GB2312 and covers most Chinese characters used in simplified Chinese.
- * Big5 is used for traditional Chinese characters.
+ * 优化策略：
+ * 1. 默认使用精简版编码表 (gbk-lite.ts，约 3500 常用字)
+ * 2. 遇到非常用字时动态加载完整编码表
+ * 3. 二分查找代替 Map，大幅减少内存占用
  *
- * GBK encoding uses double-byte encoding for Chinese characters:
- * - First byte: 0x81-0xFE
- * - Second byte: 0x40-0xFE (excluding 0x7F)
- *
- * 映射数据存储在 gbk-data.ts 中，运行时解码为 Map。
  * GBK: 23940 个字符映射
  * Big5: 13911 个字符映射
  */
 
-import { GBK_DATA, BIG5_DATA } from './gbk-data';
+import { binarySearchGbk, isInCommonRange } from './gbk-lite';
 
-/**
- * Unicode to GBK mapping table
- * Maps Unicode code points to GBK byte pairs
- */
+// 懒加载完整编码数据
+let GBK_DATA: number[] | null = null;
+let BIG5_DATA: number[] | null = null;
+
+function loadFullData() {
+  if (!GBK_DATA) {
+    const data = require('./gbk-data');
+    GBK_DATA = data.GBK_DATA;
+    BIG5_DATA = data.BIG5_DATA;
+  }
+  return { GBK_DATA: GBK_DATA!, BIG5_DATA: BIG5_DATA! };
+}
+
+// Unicode to GBK mapping table
 export const unicodeToGbk: Map<number, number> = new Map();
 
-/**
- * GBK to Unicode mapping table
- * Maps GBK byte pairs to Unicode code points
- */
+// GBK to Unicode mapping table  
 export const gbkToUnicode: Map<number, number> = new Map();
 
-/**
- * Unicode to Big5 mapping table
- */
+// Unicode to Big5 mapping table
 export const unicodeToBig5: Map<number, number> = new Map();
 
-/**
- * Big5 to Unicode mapping table
- */
+// Big5 to Unicode mapping table
 export const big5ToUnicode: Map<number, number> = new Map();
 
 /**
- * Decode flat array mapping data into forward and reverse maps.
- * Array format: [unicode1, encoded1, unicode2, encoded2, ...]
- */
-function decodeMappings(
-  data: number[],
-  forwardMap: Map<number, number>,
-  reverseMap: Map<number, number>
-): void {
-  for (let i = 0; i < data.length; i += 2) {
-    const unicode = data[i]!;
-    const encoded = data[i + 1]!;
-    forwardMap.set(unicode, encoded);
-    reverseMap.set(encoded, unicode);
-  }
-}
-
-// Initialize mappings at module load time
-decodeMappings(GBK_DATA, unicodeToGbk, gbkToUnicode);
-decodeMappings(BIG5_DATA, unicodeToBig5, big5ToUnicode);
-
-/**
  * Get GBK bytes for a Unicode character
- * @param unicode - Unicode code point
- * @returns GBK byte pair [high, low] or null if not found
+ * 先查精简表，查不到再懒加载完整表
  */
 export function getGbkBytes(unicode: number): [number, number] | null {
-  const gbk = unicodeToGbk.get(unicode);
-  if (gbk !== undefined) {
+  // ASCII 直接返回
+  if (unicode >= 0x20 && unicode <= 0x7E) {
+    return [0, unicode];
+  }
+  
+  // 先查精简表
+  const gbk = binarySearchGbk(unicode);
+  if (gbk !== null) {
     return [(gbk >> 8) & 0xff, gbk & 0xff];
   }
+  
+  // 非常用字，懒加载完整表
+  if (isInCommonRange(unicode)) {
+    const { GBK_DATA } = loadFullData();
+    for (let i = 0; i < GBK_DATA.length; i += 2) {
+      if (GBK_DATA[i] === unicode) {
+        const gbkValue = GBK_DATA[i + 1];
+        if (gbkValue !== undefined) {
+          return [(gbkValue >> 8) & 0xff, gbkValue & 0xff];
+        }
+      }
+    }
+  }
+  
   return null;
 }
 
 /**
  * Get Unicode character from GBK bytes
- * @param high - High byte
- * @param low - Low byte
- * @returns Unicode code point or null if not found
+ * 懒加载完整表
  */
 export function getUnicodeFromGbk(high: number, low: number): number | null {
   const gbk = (high << 8) | low;
-  return gbkToUnicode.get(gbk) ?? null;
+  
+  // 先查缓存
+  const cached = gbkToUnicode.get(gbk);
+  if (cached !== undefined) return cached;
+  
+  // 懒加载完整表
+  const { GBK_DATA } = loadFullData();
+  for (let i = 0; i < GBK_DATA.length; i += 2) {
+    if (GBK_DATA[i + 1] === gbk) {
+      const result = GBK_DATA[i];
+      return result ?? null;
+    }
+  }
+  
+  return null;
 }
 
 /**
  * Get Big5 bytes for a Unicode character
- * @param unicode - Unicode code point
- * @returns Big5 byte pair or null if not found
+ * 懒加载完整表
  */
 export function getBig5Bytes(unicode: number): [number, number] | null {
-  const big5 = unicodeToBig5.get(unicode);
-  if (big5 !== undefined) {
-    return [(big5 >> 8) & 0xff, big5 & 0xff];
+  // 先查缓存
+  const cached = unicodeToBig5.get(unicode);
+  if (cached !== undefined) {
+    const cachedValue = cached;
+    return [(cachedValue >> 8) & 0xff, cachedValue & 0xff];
   }
+  
+  // 懒加载完整表
+  const { BIG5_DATA } = loadFullData();
+  for (let i = 0; i < BIG5_DATA.length; i += 2) {
+    if (BIG5_DATA[i] === unicode) {
+      const big5 = BIG5_DATA[i + 1];
+      if (big5 !== undefined) {
+        return [(big5 >> 8) & 0xff, big5 & 0xff];
+      }
+    }
+  }
+  
   return null;
 }
 

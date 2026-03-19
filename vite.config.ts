@@ -22,7 +22,7 @@ export default defineConfig({
       }
     },
     rollupOptions: {
-      external: ['@tarojs/taro'],
+      external: ['@tarojs/taro', /^@tarojs\//],
       output: {
         globals: {
           '@tarojs/taro': 'Taro'
@@ -31,7 +31,8 @@ export default defineConfig({
         compact: true,
         // 禁用生成sourcemap以减少文件体积
         sourcemap: false,
-        // 优化代码分割和tree-shaking
+        // 禁用代码分割（与 lib 模式不兼容）
+        // 代码分割通过 sub-export 实现
         manualChunks: undefined
       },
       // 优化tree-shaking
@@ -39,10 +40,7 @@ export default defineConfig({
         propertyReadSideEffects: false,
         tryCatchDeoptimization: false,
         // 启用严格的tree-shaking
-        moduleSideEffects: (id) => {
-          // 仅允许必要的副作用
-          return id.includes('reflect-metadata')
-        }
+        moduleSideEffects: false
       }
     },
     target: 'es2015',

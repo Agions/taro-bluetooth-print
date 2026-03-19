@@ -71,7 +71,7 @@ export class ConnectionManager
   private adapter: IPrinterAdapter;
   private deviceId: string | null = null;
   private state: PrinterState = PrinterState.DISCONNECTED;
-  private readonly logger = Logger.scope('ConnectionManager');
+  private readonly connLogger = Logger.scope('ConnectionManager');
   private readonly config: Required<ConnectionManagerConfig>;
 
   // Heartbeat state
@@ -102,7 +102,7 @@ export class ConnectionManager
   private handleStateChange(newState: PrinterState): void {
     const previousState = this.state;
     this.state = newState;
-    this.logger.debug('State changed:', { from: previousState, to: newState });
+    this.connLogger.debug('State changed:', { from: previousState, to: newState });
     this.emit('state-change', newState);
 
     // Handle unexpected disconnection
@@ -112,7 +112,7 @@ export class ConnectionManager
       this.deviceId &&
       !this.isReconnecting
     ) {
-      this.logger.warn('Unexpected disconnection detected');
+      this.connLogger.warn('Unexpected disconnection detected');
       this.emit('disconnected', this.deviceId);
       this.stopHeartbeat();
 
@@ -127,7 +127,7 @@ export class ConnectionManager
    * Connects to a Bluetooth device
    */
   async connect(deviceId: string, options?: { retries?: number; timeout?: number }): Promise<void> {
-    this.logger.info('Connecting to device:', deviceId);
+    this.connLogger.info('Connecting to device:', deviceId);
 
     const { retries = 0, timeout = this.config.connectionTimeout } = options || {};
     let attempts = 0;
@@ -159,7 +159,7 @@ export class ConnectionManager
         this.state = PrinterState.CONNECTED;
         this.emit('state-change', PrinterState.CONNECTED);
         this.emit('connected', deviceId);
-        this.logger.info('Connected successfully');
+        this.connLogger.info('Connected successfully');
 
         // Start heartbeat if enabled
         if (this.config.heartbeatEnabled) {
@@ -181,11 +181,11 @@ export class ConnectionManager
                   `Connection failed after ${attempts} attempts`,
                   error as Error
                 );
-          this.logger.error('Connection failed:', printError);
+          this.connLogger.error('Connection failed:', printError);
           this.emit('error', printError);
           throw printError;
         }
-        this.logger.warn(`Connection attempt ${attempts}/${retries} failed, retrying...`, error);
+        this.connLogger.warn(`Connection attempt ${attempts}/${retries} failed, retrying...`, error);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -200,12 +200,12 @@ export class ConnectionManager
     this.isReconnecting = false;
 
     if (!this.deviceId) {
-      this.logger.warn('Disconnect called but no device connected');
+      this.connLogger.warn('Disconnect called but no device connected');
       return;
     }
 
     const deviceId = this.deviceId;
-    this.logger.info('Disconnecting from device:', deviceId);
+    this.connLogger.info('Disconnecting from device:', deviceId);
 
     try {
       await this.adapter.disconnect(deviceId);
@@ -213,14 +213,14 @@ export class ConnectionManager
       this.state = PrinterState.DISCONNECTED;
       this.emit('state-change', PrinterState.DISCONNECTED);
       this.emit('disconnected', deviceId);
-      this.logger.info('Disconnected successfully');
+      this.connLogger.info('Disconnected successfully');
     } catch (error) {
       const printError = new BluetoothPrintError(
         ErrorCode.DEVICE_DISCONNECTED,
         'Disconnect failed',
         error as Error
       );
-      this.logger.error('Disconnect failed:', printError);
+      this.connLogger.error('Disconnect failed:', printError);
       this.emit('error', printError);
       throw printError;
     }
@@ -236,7 +236,7 @@ export class ConnectionManager
       this.checkHeartbeat();
     }, this.config.heartbeatInterval);
 
-    this.logger.debug('Heartbeat started with interval:', this.config.heartbeatInterval);
+    this.connLogger.debug('Heartbeat started with interval:', this.config.heartbeatInterval);
   }
 
   /**
@@ -246,7 +246,7 @@ export class ConnectionManager
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
-      this.logger.debug('Heartbeat stopped');
+      this.connLogger.debug('Heartbeat stopped');
     }
   }
 
@@ -262,12 +262,12 @@ export class ConnectionManager
       const isConnected = this.isConnected();
 
       if (isConnected) {
-        this.logger.debug('Heartbeat OK');
+        this.connLogger.debug('Heartbeat OK');
       } else {
         this.handleHeartbeatLost();
       }
     } catch (error) {
-      this.logger.warn('Heartbeat check failed:', error);
+      this.connLogger.warn('Heartbeat check failed:', error);
       this.handleHeartbeatLost();
     }
   }
@@ -278,7 +278,7 @@ export class ConnectionManager
   private handleHeartbeatLost(): void {
     if (!this.deviceId) return;
 
-    this.logger.warn('Heartbeat lost for device:', this.deviceId);
+    this.connLogger.warn('Heartbeat lost for device:', this.deviceId);
     this.emit('heartbeat-lost', this.deviceId);
     this.stopHeartbeat();
 
@@ -317,7 +317,7 @@ export class ConnectionManager
     const deviceId = this.deviceId;
 
     if (this.reconnectAttempts > this.config.maxReconnectAttempts) {
-      this.logger.error('Max reconnect attempts reached');
+      this.connLogger.error('Max reconnect attempts reached');
       this.isReconnecting = false;
       this.emit('reconnect-failed', {
         deviceId,
@@ -330,7 +330,7 @@ export class ConnectionManager
       return;
     }
 
-    this.logger.info(
+    this.connLogger.info(
       `Reconnect attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts}`
     );
     this.emit('reconnecting', {
@@ -345,7 +345,7 @@ export class ConnectionManager
     this.adapter
       .connect(deviceId)
       .then(() => {
-        this.logger.info('Reconnected successfully');
+        this.connLogger.info('Reconnected successfully');
         this.isReconnecting = false;
         this.reconnectAttempts = 0;
         this.state = PrinterState.CONNECTED;
@@ -357,7 +357,7 @@ export class ConnectionManager
         }
       })
       .catch(error => {
-        this.logger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
+        this.connLogger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
 
         this.reconnectTimer = setTimeout(() => {
           this.attemptReconnect();
@@ -434,7 +434,7 @@ export class ConnectionManager
     }
 
     if (this.isReconnecting) {
-      this.logger.warn('Reconnect already in progress');
+      this.connLogger.warn('Reconnect already in progress');
       return;
     }
 
@@ -448,7 +448,7 @@ export class ConnectionManager
     this.clearReconnectTimer();
     this.isReconnecting = false;
     this.reconnectAttempts = 0;
-    this.logger.info('Reconnect stopped');
+    this.connLogger.info('Reconnect stopped');
   }
 
   /**
