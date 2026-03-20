@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -33,16 +34,14 @@ jobs:
         run: npm run lint || true
 
       - name: Publish to npm
-        run: npm publish
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
