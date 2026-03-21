@@ -6,6 +6,7 @@
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
 // Declare Baidu global for TypeScript
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface BaiduGlobal extends MiniProgramBLEApi {}
 
 declare const swan: BaiduGlobal;

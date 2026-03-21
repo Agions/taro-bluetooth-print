@@ -510,7 +510,10 @@ export class TemplateEngine implements ITemplateEngine {
   private substituteVariables(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, key: string) => {
       const value = this.getNestedValue(data, key);
-      return value !== undefined ? String(value) : '';
+      if (value === undefined) return '';
+      if (typeof value === 'object') return JSON.stringify(value);
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      return String(value);
     });
   }
 

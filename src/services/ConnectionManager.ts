@@ -185,7 +185,10 @@ export class ConnectionManager
           this.emit('error', printError);
           throw printError;
         }
-        this.connLogger.warn(`Connection attempt ${attempts}/${retries} failed, retrying...`, error);
+        this.connLogger.warn(
+          `Connection attempt ${attempts}/${retries} failed, retrying...`,
+          error
+        );
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }

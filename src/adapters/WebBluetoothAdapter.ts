@@ -359,7 +359,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
         })
         .catch(error => {
           clearTimeout(timeoutId);
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         });
     });
   }

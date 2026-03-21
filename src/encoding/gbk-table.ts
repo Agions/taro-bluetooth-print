@@ -16,19 +16,21 @@ import { binarySearchGbk, isInCommonRange } from './gbk-lite';
 let GBK_DATA: number[] | null = null;
 let BIG5_DATA: number[] | null = null;
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports,@typescript-eslint/no-unsafe-assignment
+const data: { GBK_DATA: number[]; BIG5_DATA: number[] } = require('./gbk-data');
+
 function loadFullData() {
   if (!GBK_DATA) {
-    const data = require('./gbk-data');
     GBK_DATA = data.GBK_DATA;
     BIG5_DATA = data.BIG5_DATA;
   }
-  return { GBK_DATA: GBK_DATA!, BIG5_DATA: BIG5_DATA! };
+  return { GBK_DATA: GBK_DATA, BIG5_DATA: BIG5_DATA! };
 }
 
 // Unicode to GBK mapping table
 export const unicodeToGbk: Map<number, number> = new Map();
 
-// GBK to Unicode mapping table  
+// GBK to Unicode mapping table
 export const gbkToUnicode: Map<number, number> = new Map();
 
 // Unicode to Big5 mapping table
@@ -43,16 +45,16 @@ export const big5ToUnicode: Map<number, number> = new Map();
  */
 export function getGbkBytes(unicode: number): [number, number] | null {
   // ASCII 直接返回
-  if (unicode >= 0x20 && unicode <= 0x7E) {
+  if (unicode >= 0x20 && unicode <= 0x7e) {
     return [0, unicode];
   }
-  
+
   // 先查精简表
   const gbk = binarySearchGbk(unicode);
   if (gbk !== null) {
     return [(gbk >> 8) & 0xff, gbk & 0xff];
   }
-  
+
   // 非常用字，懒加载完整表
   if (isInCommonRange(unicode)) {
     const { GBK_DATA } = loadFullData();
@@ -65,7 +67,7 @@ export function getGbkBytes(unicode: number): [number, number] | null {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -75,11 +77,11 @@ export function getGbkBytes(unicode: number): [number, number] | null {
  */
 export function getUnicodeFromGbk(high: number, low: number): number | null {
   const gbk = (high << 8) | low;
-  
+
   // 先查缓存
   const cached = gbkToUnicode.get(gbk);
   if (cached !== undefined) return cached;
-  
+
   // 懒加载完整表
   const { GBK_DATA } = loadFullData();
   for (let i = 0; i < GBK_DATA.length; i += 2) {
@@ -88,7 +90,7 @@ export function getUnicodeFromGbk(high: number, low: number): number | null {
       return result ?? null;
     }
   }
-  
+
   return null;
 }
 
@@ -103,7 +105,7 @@ export function getBig5Bytes(unicode: number): [number, number] | null {
     const cachedValue = cached;
     return [(cachedValue >> 8) & 0xff, cachedValue & 0xff];
   }
-  
+
   // 懒加载完整表
   const { BIG5_DATA } = loadFullData();
   for (let i = 0; i < BIG5_DATA.length; i += 2) {
@@ -114,7 +116,7 @@ export function getBig5Bytes(unicode: number): [number, number] | null {
       }
     }
   }
-  
+
   return null;
 }
 
