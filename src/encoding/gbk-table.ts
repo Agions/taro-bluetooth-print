@@ -11,18 +11,16 @@
  */
 
 import { binarySearchGbk, isInCommonRange } from './gbk-lite';
+import { GBK_DATA as FULL_GBK_DATA, BIG5_DATA as FULL_BIG5_DATA } from './gbk-data';
 
 // 懒加载完整编码数据
 let GBK_DATA: number[] | null = null;
 let BIG5_DATA: number[] | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports,@typescript-eslint/no-unsafe-assignment
-const data: { GBK_DATA: number[]; BIG5_DATA: number[] } = require('./gbk-data');
-
 function loadFullData() {
   if (!GBK_DATA) {
-    GBK_DATA = data.GBK_DATA;
-    BIG5_DATA = data.BIG5_DATA;
+    GBK_DATA = FULL_GBK_DATA;
+    BIG5_DATA = FULL_BIG5_DATA;
   }
   return { GBK_DATA: GBK_DATA, BIG5_DATA: BIG5_DATA! };
 }
