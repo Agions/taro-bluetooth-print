@@ -21,14 +21,14 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install yarn
-        run: npm install -g yarn
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       - name: Install dependencies
-        run: yarn install --ignore-scripts
+        run: pnpm install --ignore-scripts
 
       - name: Build
-        run: yarn build
+        run: pnpm run build
 
       - name: Publish to npm
         run: npm publish --access public
