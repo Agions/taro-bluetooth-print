@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-03-21
+
+### 优化
+
+- **打包**: 优化打包体积 -87%，编码数据懒加载
+- **CI/CD**: 更新 GitHub Actions workflows，替换已弃用的 actions
+
+### 修复
+
+- 修复 EventEmitter lint 警告
+- 修复 lint 错误和 CI 问题
+
+### 新增
+
+- **驱动**: 添加 GPrinterDriver 佳博驱动
+- **测试**: 添加驱动单元测试
+
+---
+
 ## [2.3.0] - 2024-03-18
 
 ### 新增
