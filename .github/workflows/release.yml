@@ -22,10 +22,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: npm install --ignore-scripts || npm install --ignore-scripts --force || true
+        run: |
+          npm install --ignore-scripts 2>&1 || true
+          npm install 2>&1 || true
 
       - name: Build
-        run: npm run build
+        run: npx vite build
 
       - name: Publish to npm
         run: npm publish --access public
