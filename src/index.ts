@@ -98,11 +98,7 @@ export type {
 } from './config/PrinterConfig';
 
 export { PrinterConfigManager, printerConfigManager } from './config/PrinterConfigManager';
-export type {
-  SavedPrinter,
-  GlobalConfig,
-  IConfigStorage,
-} from './config/PrinterConfigManager';
+export type { SavedPrinter, GlobalConfig, IConfigStorage } from './config/PrinterConfigManager';
 
 // Plugin System - 插件系统
 export { PluginManager } from './plugins/PluginManager';

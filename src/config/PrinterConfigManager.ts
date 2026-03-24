@@ -425,12 +425,16 @@ export class PrinterConfigManager {
    * Export all configuration as JSON
    */
   export(): string {
-    return JSON.stringify({
-      printers: Array.from(this.printers.values()),
-      globalConfig: this.globalConfig,
-      lastUsedPrinterId: this.lastUsedPrinterId,
-      exportedAt: Date.now(),
-    }, null, 2);
+    return JSON.stringify(
+      {
+        printers: Array.from(this.printers.values()),
+        globalConfig: this.globalConfig,
+        lastUsedPrinterId: this.lastUsedPrinterId,
+        exportedAt: Date.now(),
+      },
+      null,
+      2
+    );
   }
 
   /**

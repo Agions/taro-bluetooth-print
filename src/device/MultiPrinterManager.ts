@@ -26,6 +26,7 @@
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 import { BluetoothPrinter } from '@/core/BluetoothPrinter';
+import { PrinterState } from '@/types';
 
 /**
  * Printer connection info
@@ -137,11 +138,12 @@ export class MultiPrinterManager {
    * Emit an event
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   private emit<K extends keyof MultiPrinterManagerEvents>(event: K, data: any): void {
     this.listeners[event].forEach(handler => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (handler as any)(data);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        (handler as (data: any) => void)(data);
       } catch (error) {
         this.logger.error(`Error in event handler for "${event}":`, error);
       }
@@ -200,7 +202,7 @@ export class MultiPrinterManager {
       const printer = new BluetoothPrinter();
 
       // Set up error handler
-      printer.on('error', (error) => {
+      printer.on('error', error => {
         this.emit('printer-error', { printerId, error });
       });
 
@@ -323,13 +325,10 @@ export class MultiPrinterManager {
   /**
    * Print to a specific printer
    */
-  async print(printerId: string, data: Uint8Array): Promise<void> {
+  print(printerId: string, data: Uint8Array): void {
     const connection = this.printers.get(printerId);
     if (!connection) {
-      throw new BluetoothPrintError(
-        ErrorCode.DEVICE_NOT_FOUND,
-        `Printer not found: ${printerId}`
-      );
+      throw new BluetoothPrintError(ErrorCode.DEVICE_NOT_FOUND, `Printer not found: ${printerId}`);
     }
 
     connection.lastActivity = Date.now();
@@ -358,6 +357,7 @@ export class MultiPrinterManager {
     }
 
     const printPromises = Array.from(this.printers.entries()).map(
+      // eslint-disable-next-line @typescript-eslint/require-await
       async ([printerId, connection]) => {
         try {
           // Update activity
@@ -401,7 +401,7 @@ export class MultiPrinterManager {
    */
   getIdlePrinters(): PrinterConnection[] {
     return Array.from(this.printers.values())
-      .filter(c => c.printer.state === 'connected')
+      .filter(c => c.printer.state === PrinterState.CONNECTED)
       .sort((a, b) => (a.lastActivity ?? 0) - (b.lastActivity ?? 0));
   }
 
@@ -420,7 +420,7 @@ export class MultiPrinterManager {
     };
 
     for (const connection of this.printers.values()) {
-      if (connection.printer.state === 'connected') {
+      if (connection.printer.state === PrinterState.CONNECTED) {
         stats.connected++;
       }
 

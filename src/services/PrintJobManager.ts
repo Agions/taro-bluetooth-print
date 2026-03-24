@@ -40,10 +40,10 @@ interface SavedJobState {
 export class PrintJobManager implements IPrintJobManager {
   /** Instance-level job state storage (per-printer support) */
   private instanceJobStateStore: Map<string, SavedJobState> = new Map();
-  
+
   /** Static job state store for backward compatibility */
   private static _jobStateStore: Map<string, SavedJobState> = new Map();
-  
+
   /**
    * Get the static job state store (for backward compatibility)
    * @deprecated Use instance-level store instead for multi-printer support
@@ -332,7 +332,7 @@ export class PrintJobManager implements IPrintJobManager {
   /**
    * Clean up expired job states from static store.
    * Call this periodically to prevent memory leaks.
-   * 
+   *
    * @param maxAge - Maximum age in ms (default: 1 hour)
    */
   static cleanupExpiredJobs(maxAge = 3600000): number {

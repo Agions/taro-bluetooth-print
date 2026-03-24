@@ -92,11 +92,11 @@ type BatchEventHandlerMap = {
  * Default batch configuration
  */
 const DEFAULT_CONFIG: BatchConfig = {
-  maxBatchSize: 1024 * 50,      // 50KB max per batch
-  maxWaitTime: 1000,            // 1 second max wait
-  minBatchSize: 1,              // Process even single jobs
-  enableMerging: true,          // Enable content merging
-  autoProcessInterval: 500,     // Check every 500ms
+  maxBatchSize: 1024 * 50, // 50KB max per batch
+  maxWaitTime: 1000, // 1 second max wait
+  minBatchSize: 1, // Process even single jobs
+  enableMerging: true, // Enable content merging
+  autoProcessInterval: 500, // Check every 500ms
 };
 
 /**
@@ -136,20 +136,14 @@ export class BatchPrintManager {
   /**
    * Register event listener
    */
-  on<K extends keyof BatchEvents>(
-    event: K,
-    callback: BatchEvents[K]
-  ): void {
+  on<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
     this.listeners[event].add(callback);
   }
 
   /**
    * Remove event listener
    */
-  off<K extends keyof BatchEvents>(
-    event: K,
-    callback: BatchEvents[K]
-  ): void {
+  off<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
     this.listeners[event].delete(callback);
   }
 
@@ -157,11 +151,11 @@ export class BatchPrintManager {
    * Emit an event
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private emit<K extends keyof BatchEvents>(event: K, data: any): void {
+  private emit<K extends keyof BatchEvents>(event: K, data: Parameters<BatchEvents[K]>[0]): void {
     this.listeners[event].forEach(handler => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (handler as any)(data);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        (handler as (data: Parameters<BatchEvents[K]>[0]) => void)(data);
       } catch (error) {
         this.logger.error(`Error in event handler for "${event}":`, error);
       }
@@ -176,11 +170,7 @@ export class BatchPrintManager {
    * @param metadata - Optional metadata
    * @returns Job ID
    */
-  addJob(
-    data: Uint8Array,
-    priority = 1,
-    metadata?: Record<string, unknown>
-  ): string {
+  addJob(data: Uint8Array, priority = 1, metadata?: Record<string, unknown>): string {
     const id = this.generateId();
     const job: BatchJob = {
       id,
@@ -216,7 +206,9 @@ export class BatchPrintManager {
   /**
    * Add multiple jobs at once
    */
-  addJobs(jobs: Array<{ data: Uint8Array; priority?: number; metadata?: Record<string, unknown> }>): string[] {
+  addJobs(
+    jobs: Array<{ data: Uint8Array; priority?: number; metadata?: Record<string, unknown> }>
+  ): string[] {
     return jobs.map(job => this.addJob(job.data, job.priority, job.metadata));
   }
 
@@ -279,9 +271,7 @@ export class BatchPrintManager {
    * @param processor - Function to send batch data to printer
    * @returns Number of jobs processed
    */
-  async processBatch(
-    processor: (data: Uint8Array) => Promise<void>
-  ): Promise<number> {
+  async processBatch(processor: (data: Uint8Array) => Promise<void>): Promise<number> {
     if (this.isProcessing) {
       throw new BluetoothPrintError(
         ErrorCode.PRINT_JOB_IN_PROGRESS,
@@ -390,7 +380,11 @@ export class BatchPrintManager {
 
     // Large single job
     const firstJob = this.jobs[0];
-    if (this.jobs.length === 1 && firstJob && firstJob.data.length >= this.config.maxBatchSize * 0.8) {
+    if (
+      this.jobs.length === 1 &&
+      firstJob &&
+      firstJob.data.length >= this.config.maxBatchSize * 0.8
+    ) {
       return true;
     }
 

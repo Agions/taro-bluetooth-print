@@ -139,12 +139,15 @@ export class PrintHistory {
   /**
    * Update job status
    */
-  updateJob(id: string, updates: Partial<{
-    status: PrintJobStatus | 'unknown';
-    startedAt: number;
-    completedAt: number;
-    error: string;
-  }>): void {
+  updateJob(
+    id: string,
+    updates: Partial<{
+      status: PrintJobStatus | 'unknown';
+      startedAt: number;
+      completedAt: number;
+      error: string;
+    }>
+  ): void {
     const entry = this.entries.get(id);
     if (!entry) {
       this.logger.warn(`History entry not found: ${id}`);
@@ -242,9 +245,7 @@ export class PrintHistory {
     }
 
     const completed = entries.filter(e => e.status === PrintJobStatus.COMPLETED);
-    const failed = entries.filter(e => 
-      e.status === PrintJobStatus.FAILED || e.error
-    );
+    const failed = entries.filter(e => e.status === PrintJobStatus.FAILED || e.error);
     const cancelled = entries.filter(e => e.status === PrintJobStatus.CANCELLED);
 
     const totalDuration = completed
@@ -320,8 +321,9 @@ export class PrintHistory {
     }
 
     // Remove oldest entries
-    const sorted = Array.from(this.entries.entries())
-      .sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const sorted = Array.from(this.entries.entries()).sort(
+      (a, b) => a[1].createdAt - b[1].createdAt
+    );
 
     const toRemove = sorted.slice(0, this.entries.size - this.maxEntries);
     for (const [id] of toRemove) {

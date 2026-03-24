@@ -70,8 +70,8 @@ const ESCPOS_STATUS_NUL = 0x04; // ENQ
 /**
  * Status response bit masks for common printers
  */
-const STATUS_BIT_PAPER_OUT = 0x20;   // Bit 5: Paper out
-const STATUS_BIT_PAPER_LOW = 0x40;   // Bit 6: Paper low
+const STATUS_BIT_PAPER_OUT = 0x20; // Bit 5: Paper out
+const STATUS_BIT_PAPER_LOW = 0x40; // Bit 6: Paper low
 
 /**
  * Printer Status Service
@@ -109,18 +109,12 @@ export class PrinterStatus {
       // Set up timeout promise
       const timeoutPromise = new Promise<ArrayBuffer>((_, reject) => {
         setTimeout(() => {
-          reject(new BluetoothPrintError(
-            ErrorCode.CONNECTION_TIMEOUT,
-            'Status query timed out'
-          ));
+          reject(new BluetoothPrintError(ErrorCode.CONNECTION_TIMEOUT, 'Status query timed out'));
         }, timeout);
       });
 
       // Read response with timeout
-      const response = await Promise.race([
-        readFunc(),
-        timeoutPromise
-      ]);
+      const response = await Promise.race([readFunc(), timeoutPromise]);
 
       return this.parseStatus(new Uint8Array(response), includeRaw);
     } catch (error) {
