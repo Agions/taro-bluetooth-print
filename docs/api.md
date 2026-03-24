@@ -288,3 +288,216 @@ interface IQrOptions {
   errorCorrection?: 'L'|'M'|'Q'|'H';  // 默认 'M'
 }
 ```
+
+---
+
+## MultiPrinterManager (多打印机管理)
+
+```typescript
+import { MultiPrinterManager } from 'taro-bluetooth-print';
+
+const manager = new MultiPrinterManager();
+```
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `connect(printerId, deviceId, name?)` | `Promise<string>` | 连接打印机 |
+| `disconnect(printerId)` | `Promise<void>` | 断开打印机 |
+| `disconnectAll()` | `Promise<void>` | 断开所有 |
+| `getPrinter(printerId)` | `BluetoothPrinter?` | 获取打印机实例 |
+| `getAllPrinters()` | `PrinterConnection[]` | 获取所有连接 |
+| `isConnected(printerId)` | `boolean` | 是否已连接 |
+| `broadcast(data, options?)` | `Promise<{ success, failed }>` | 广播到所有 |
+| `getIdlePrinters()` | `PrinterConnection[]` | 获取空闲打印机 |
+| `cleanupInactive(maxIdleMs?)` | `Promise<number>` | 清理空闲打印机 |
+| `destroy()` | `Promise<void>` | 销毁管理器 |
+
+### 事件
+
+| 事件 | 数据 |
+|------|------|
+| `printer-connected` | `PrinterConnection` |
+| `printer-disconnected` | `{ printerId, deviceId }` |
+| `printer-error` | `{ printerId, error }` |
+| `broadcast-complete` | `{ success, failed }` |
+
+---
+
+## PrinterConfigManager (配置管理)
+
+```typescript
+import { PrinterConfigManager } from 'taro-bluetooth-print';
+
+const configManager = new PrinterConfigManager(storage?);
+```
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `savePrinter(printer)` | `string` | 保存打印机配置 |
+| `getPrinter(id)` | `SavedPrinter?` | 获取打印机配置 |
+| `getSavedPrinters()` | `SavedPrinter[]` | 获取所有已保存 |
+| `getDefaultPrinter()` | `SavedPrinter?` | 获取默认打印机 |
+| `removePrinter(id)` | `boolean` | 删除打印机配置 |
+| `setDefaultPrinter(id)` | `void` | 设置默认打印机 |
+| `setLastUsed(id)` | `void` | 设置最后使用 |
+| `loadPrinterConfig(id)` | `PrintConfig` | 加载打印配置 |
+| `getGlobalConfig()` | `GlobalConfig` | 获取全局配置 |
+| `updateGlobalConfig(updates)` | `void` | 更新全局配置 |
+| `export()` | `string` | 导出配置 JSON |
+| `import(json, merge?)` | `number` | 导入配置 JSON |
+| `clear()` | `void` | 清除所有配置 |
+
+---
+
+## BatchPrintManager (批量打印)
+
+```typescript
+import { BatchPrintManager } from 'taro-bluetooth-print';
+
+const batch = new BatchPrintManager(config?);
+```
+
+### 配置
+
+```typescript
+interface BatchConfig {
+  maxBatchSize: number;        // 最大批次大小 (默认 50KB)
+  maxWaitTime: number;         // 最大等待时间 ms (默认 1000)
+  minBatchSize: number;         // 最小批次数量 (默认 1)
+  enableMerging: boolean;       // 启用合并 (默认 true)
+  autoProcessInterval: number;  // 自动处理间隔 ms (默认 500)
+}
+```
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `addJob(data, priority?, metadata?)` | `string` | 添加任务 |
+| `addJobs(jobs[])` | `string[]` | 批量添加 |
+| `cancelJob(id)` | `boolean` | 取消任务 |
+| `cancelAll()` | `void` | 取消所有 |
+| `processBatch(processor)` | `Promise<number>` | 处理批次 |
+| `getPendingJobs()` | `BatchJob[]` | 获取待处理 |
+| `getStats()` | `BatchStats` | 获取统计 |
+| `resetStats()` | `void` | 重置统计 |
+| `destroy()` | `void` | 销毁管理器 |
+
+### 事件
+
+| 事件 | 数据 |
+|------|------|
+| `batch-ready` | `BatchJob[]` |
+| `batch-processed` | `{ jobCount, bytes }` |
+| `job-added` | `BatchJob` |
+| `job-rejected` | `{ reason }` |
+
+---
+
+## PrintHistory (打印历史)
+
+```typescript
+import { PrintHistory } from 'taro-bluetooth-print';
+
+const history = new PrintHistory(maxEntries?);
+```
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `addJob(params)` | `string` | 添加记录 |
+| `updateJob(id, updates)` | `void` | 更新记录 |
+| `getEntry(id)` | `PrintHistoryEntry?` | 获取记录 |
+| `getRecent(count?)` | `PrintHistoryEntry[]` | 获取最近 |
+| `query(options?)` | `PrintHistoryEntry[]` | 查询记录 |
+| `getStats(options?)` | `PrintHistoryStats` | 获取统计 |
+| `export()` | `string` | 导出 JSON |
+| `import(json)` | `number` | 导入 JSON |
+| `clear()` | `void` | 清除历史 |
+
+---
+
+## PrinterStatus (状态查询)
+
+```typescript
+import { PrinterStatus } from 'taro-bluetooth-print';
+
+const status = new PrinterStatus();
+```
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `getStatus(writeFn, readFn, options?)` | `Promise<PrinterStatusInfo>` | 查询状态 |
+| `checkPaper(writeFn, readFn)` | `Promise<PaperStatus>` | 检查纸张 |
+| `isReady(writeFn, readFn)` | `Promise<boolean>` | 检查就绪 |
+| `static toString(status)` | `string` | 格式化状态 |
+
+### 类型
+
+```typescript
+enum PaperStatus {
+  OK = 'ok',
+  LOW = 'low',
+  OUT = 'out',
+  UNKNOWN = 'unknown'
+}
+
+interface PrinterStatusInfo {
+  paper: PaperStatus;
+  coverOpen?: boolean;
+  cutterError?: boolean;
+  motorError?: boolean;
+  overTemp?: boolean;
+  batteryLevel?: number;
+  timestamp: number;
+  rawStatus?: Uint8Array;
+}
+```
+
+---
+
+## BarcodeGenerator (条码生成器)
+
+```typescript
+import { BarcodeGenerator, BarcodeFormat } from 'taro-bluetooth-print';
+
+const generator = new BarcodeGenerator();
+```
+
+### 支持格式
+
+- `CODE128` - 可变长度，字母数字
+- `CODE39` - 可变长度，字母数字+特殊字符
+- `EAN13` - 13位数字
+- `EAN8` - 8位数字
+- `UPCA` - 12位数字
+- `ITF` - 交插25码
+- `CODABAR` - 数字+起止字符
+
+### 方法
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `generate(content, options)` | `Uint8Array[]` | 生成条码指令 |
+| `validate(content, format)` | `ValidationResult` | 校验条码内容 |
+| `getSupportedFormats()` | `BarcodeFormat[]` | 获取支持格式 |
+
+### 校验
+
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: Array<{
+    field: string;
+    message: string;
+    code: string;
+  }>;
+}
+```

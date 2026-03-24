@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-03-24
+
+### 新增
+
+- **MultiPrinterManager**: 多打印机并发管理，支持广播打印和负载均衡
+- **PrinterConfigManager**: 打印机配置持久化管理，支持导出/导入配置
+- **BatchPrintManager**: 批量打印优化，自动合并小任务减少蓝牙通信开销
+- **PrintHistory**: 打印历史追踪，支持统计和查询
+- **PrinterStatus**: 打印机状态查询，支持纸张/电量/错误状态检测
+- **条码校验**: BarcodeGenerator 新增 validate() 方法，支持 EAN-13/EAN-8/UPC-A/Code39/Code128/ITF/CODABAR 格式校验
+
+### 优化
+
+- **PrintJobManager**: 修复静态状态存储导致的内存泄漏问题，新增实例级别存储和 destroy() 方法
+- **PrinterStatus**: 修复 TypeScript 类型检查问题
+- **事件系统**: 优化 MultiPrinterManager 和 BatchPrintManager 的事件类型定义
+
+### 文档
+
+- 更新 README.md 新增功能介绍
+- 完善 API 文档
+
+---
+
 ## [2.3.1] - 2026-03-21
 
 ### 优化

@@ -1,7 +1,8 @@
 /**
  * Print Job Manager Service
  *
- * Manages print jobs, including pause/resume/cancel functionality
+ * Manages print jobs, including pause/resume/cancel functionality.
+ * Supports job state persistence for resume capability.
  */
 
 import type { IPrinterAdapter } from '@/types';
@@ -37,8 +38,19 @@ interface SavedJobState {
  * Print Job Manager implementation
  */
 export class PrintJobManager implements IPrintJobManager {
-  /** 内存中的任务状态存储（可被子类或外部替换为持久化方案） */
-  private static jobStateStore: Map<string, SavedJobState> = new Map();
+  /** Instance-level job state storage (per-printer support) */
+  private instanceJobStateStore: Map<string, SavedJobState> = new Map();
+  
+  /** Static job state store for backward compatibility */
+  private static _jobStateStore: Map<string, SavedJobState> = new Map();
+  
+  /**
+   * Get the static job state store (for backward compatibility)
+   * @deprecated Use instance-level store instead for multi-printer support
+   */
+  private static get jobStateStore(): Map<string, SavedJobState> {
+    return PrintJobManager._jobStateStore;
+  }
   private adapter: IPrinterAdapter;
   private connectionManager: IConnectionManager;
   private jobBuffer: Uint8Array | null = null;
@@ -221,8 +233,8 @@ export class PrintJobManager implements IPrintJobManager {
   /**
    * Saves the current job state for resume later.
    *
-   * 默认实现使用内存存储。如需持久化（如 localStorage），
-   * 可通过 setSaveHandler/setLoadHandler 自定义。
+   * Uses instance-level storage by default. Falls back to static store
+   * for backward compatibility.
    */
   private saveJobState(): void {
     if (!this.jobBuffer || !this.jobId) {
@@ -230,14 +242,16 @@ export class PrintJobManager implements IPrintJobManager {
     }
 
     try {
-      const state = {
+      const state: SavedJobState = {
         jobId: this.jobId,
         jobBuffer: Array.from(this.jobBuffer),
         jobOffset: this.jobOffset,
-        adapterOptions: this.adapterOptions,
+        adapterOptions: { ...this.adapterOptions },
         timestamp: Date.now(),
       };
 
+      // Save to both instance and static store for backward compatibility
+      this.instanceJobStateStore.set(this.jobId, state);
       PrintJobManager.jobStateStore.set(this.jobId, state);
 
       this.logger.debug(
@@ -257,13 +271,17 @@ export class PrintJobManager implements IPrintJobManager {
     try {
       this.logger.debug(`Loading job state for ${jobId}`);
 
-      const savedState = PrintJobManager.jobStateStore.get(jobId);
+      // Try instance store first, then fall back to static store
+      let savedState = this.instanceJobStateStore.get(jobId);
+      if (!savedState) {
+        savedState = PrintJobManager.jobStateStore.get(jobId);
+      }
 
       if (savedState) {
         this.jobId = savedState.jobId;
         this.jobBuffer = new Uint8Array(savedState.jobBuffer);
         this.jobOffset = savedState.jobOffset;
-        this.adapterOptions = savedState.adapterOptions;
+        this.adapterOptions = { ...savedState.adapterOptions };
         this._isPaused = true;
         this._isInProgress = true;
         this.logger.info(
@@ -288,6 +306,8 @@ export class PrintJobManager implements IPrintJobManager {
   private clearJobState(): void {
     if (this.jobId) {
       this.logger.debug(`Clearing job state for ${this.jobId}`);
+      // Clear from both stores
+      this.instanceJobStateStore.delete(this.jobId);
       PrintJobManager.jobStateStore.delete(this.jobId);
     }
 
@@ -295,6 +315,46 @@ export class PrintJobManager implements IPrintJobManager {
     this.jobOffset = 0;
     this.jobId = null;
     this.adapterOptions = {};
+  }
+
+  /**
+   * Cleanup resources and clear all job state.
+   * Call this when the printer is no longer needed.
+   */
+  destroy(): void {
+    this.cancel();
+    this.instanceJobStateStore.clear();
+    this.onProgress = undefined;
+    this.onJobStateChange = undefined;
+    this.logger.info('PrintJobManager destroyed');
+  }
+
+  /**
+   * Clean up expired job states from static store.
+   * Call this periodically to prevent memory leaks.
+   * 
+   * @param maxAge - Maximum age in ms (default: 1 hour)
+   */
+  static cleanupExpiredJobs(maxAge = 3600000): number {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [jobId, state] of PrintJobManager.jobStateStore.entries()) {
+      if (now - state.timestamp > maxAge) {
+        PrintJobManager.jobStateStore.delete(jobId);
+        cleaned++;
+      }
+    }
+
+    return cleaned;
+  }
+
+  /**
+   * Get count of pending job states in static store.
+   * Useful for debugging memory usage.
+   */
+  static getStaticStoreSize(): number {
+    return PrintJobManager.jobStateStore.size;
   }
 
   /**

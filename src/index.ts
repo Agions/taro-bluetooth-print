@@ -27,8 +27,16 @@ export type { WebBluetoothRequestOptions } from './adapters/WebBluetoothAdapter'
 export * from './services';
 
 // Device Management - 设备管理
-export { DeviceManager } from './device/DeviceManager';
+export { DeviceManager, deviceManager } from './device/DeviceManager';
 export type { BluetoothDevice, ScanOptions, DeviceManagerEvents } from './device/DeviceManager';
+
+export { MultiPrinterManager, multiPrinterManager } from './device/MultiPrinterManager';
+export type {
+  PrinterConnection,
+  MultiConnectOptions,
+  BroadcastOptions,
+  MultiPrinterManagerEvents,
+} from './device/MultiPrinterManager';
 
 // Print Queue - 打印队列
 export { PrintQueue } from './queue/PrintQueue';
@@ -88,6 +96,13 @@ export type {
   DriverConfig,
   LoggingConfig,
 } from './config/PrinterConfig';
+
+export { PrinterConfigManager, printerConfigManager } from './config/PrinterConfigManager';
+export type {
+  SavedPrinter,
+  GlobalConfig,
+  IConfigStorage,
+} from './config/PrinterConfigManager';
 
 // Plugin System - 插件系统
 export { PluginManager } from './plugins/PluginManager';

@@ -10,3 +10,11 @@ export type {
   DeviceManagerEvents,
   IDeviceManager,
 } from './DeviceManager';
+
+export { MultiPrinterManager, multiPrinterManager } from './MultiPrinterManager';
+export type {
+  PrinterConnection,
+  MultiConnectOptions,
+  BroadcastOptions,
+  MultiPrinterManagerEvents,
+} from './MultiPrinterManager';
