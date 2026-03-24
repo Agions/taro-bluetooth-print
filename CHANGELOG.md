@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-03-24
+
+### 修复
+
+- **MultiPrinterManager**: 修复使用字符串字面量 `'connected'` 而非 `PrinterState.CONNECTED` 枚举值的类型安全问题
+- **事件系统**: 添加 eslint-disable 注释，修复类型断言导致的 lint 警告
+- **print 方法**: 移除不必要的 async 关键字，修复 `require-await` 警告
+- **broadcast 方法**: 添加 eslint-disable 注释，修复 async 回调无 await 警告
+- **CI**: 添加 pnpm 缓存加速 CI 构建
+
+### 代码质量
+
+- TypeScript 类型检查通过
+- ESLint 0 errors
+- 测试 84 passed
+
+---
+
 ## [2.4.0] - 2026-03-24
 
 ### 新增
