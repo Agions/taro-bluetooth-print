@@ -38,4 +38,20 @@ export {
   type BatchEvents,
 } from './BatchPrintManager';
 
+export {
+  PrintStatistics,
+  printStatistics,
+  type PrintStatisticsData,
+  type JobTrackingMeta,
+} from './PrintStatistics';
+
+export {
+  ScheduledRetryManager,
+  scheduledRetryManager,
+  type ScheduledRetry,
+  type RetryOptions,
+  type ScheduledRetryEvents,
+  type ScheduledRetryManagerConfig,
+} from './ScheduledRetryManager';
+
 export * from './interfaces';

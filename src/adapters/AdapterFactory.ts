@@ -9,6 +9,7 @@ import { TaroAdapter } from './TaroAdapter';
 import { AlipayAdapter } from './AlipayAdapter';
 import { BaiduAdapter } from './BaiduAdapter';
 import { ByteDanceAdapter } from './ByteDanceAdapter';
+import { QQAdapter } from './QQAdapter';
 import { WebBluetoothAdapter } from './WebBluetoothAdapter';
 import { PlatformType, detectPlatform } from '@/utils/platform';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
@@ -35,6 +36,8 @@ export class AdapterFactory {
         return new BaiduAdapter();
       case PlatformType.BYTEDANCE:
         return new ByteDanceAdapter();
+      case PlatformType.QQ:
+        return new QQAdapter();
       case PlatformType.WEB:
         if (WebBluetoothAdapter.isSupported()) {
           return new WebBluetoothAdapter();
@@ -68,6 +71,8 @@ export class AdapterFactory {
         return new BaiduAdapter();
       case PlatformType.BYTEDANCE:
         return new ByteDanceAdapter();
+      case PlatformType.QQ:
+        return new QQAdapter();
       case PlatformType.WEB:
         if (WebBluetoothAdapter.isSupported()) {
           return new WebBluetoothAdapter();

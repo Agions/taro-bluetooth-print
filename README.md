@@ -34,9 +34,15 @@
 - 🛠️ **TypeScript** - 完整的类型定义和 JSDoc
 - 📡 **多打印机管理** - MultiPrinterManager 支持多设备并发
 - 💰 **配置持久化** - PrinterConfigManager 保存打印机配置
-- 📦 **批量打印优化** - BatchPrintManager 合并小任务减少开销
+- 📦 **批量打印优化** - BatchPrintManager 合并小任务减少开销（含自动 flush 和统一切刀）
 - 📜 **打印历史** - PrintHistory 追踪打印记录和统计
 - 🖨️ **状态查询** - PrinterStatus 检测纸张/电量状态
+- 📊 **统计分析** - PrintStatistics 追踪任务全生命周期，支持按日期/驱动分类
+- ⏰ **定时重试** - ScheduledRetryManager 支持指定时间重试、指数退避、重启恢复
+- 🖼️ **多抖动算法** - 6 种抖动算法（ Floyd-Steinberg / Atkinson / Ordered / Halftone / Sierra / Stucki）
+- 🎛️ **图像预处理** - 去噪 / 锐化 / Gamma 校正 / 色阶压缩
+- 🏷️ **质量预设** - draft / normal / high 三档自动配置
+- 🌐 **多编码支持** - GBK / GB2312 / Big5 / UTF-8 / EUC-KR / Shift-JIS / ISO-2022-JP
 
 ## 📦 安装
 
@@ -110,8 +116,9 @@ async function print() {
 | 支付宝小程序 | `AlipayAdapter` | ✅ |
 | 百度小程序 | `BaiduAdapter` | ✅ |
 | 字节跳动小程序 | `ByteDanceAdapter` | ✅ |
+| QQ 小程序 | `QQAdapter` | ✅ |
 | 鸿蒙 HarmonyOS | `HarmonyOSAdapter` | ✅ |
-| React Native | `TaroAdapter` | ✅ |
+| React Native | `ReactNativeAdapter` | ✅ |
 
 ## 🖨️ 支持的驱动
 
@@ -121,6 +128,7 @@ async function print() {
 | `TsplDriver` | TSPL | TSC 标签打印机 |
 | `ZplDriver` | ZPL | Zebra 斑马标签打印机 |
 | `CpclDriver` | CPCL | HP/霍尼韦尔移动打印机 |
+| `StarPrinter` | STAR | STAR TSP/SP700 系列票据打印机 |
 
 ### 标签打印示例 (TSPL)
 

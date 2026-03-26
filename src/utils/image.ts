@@ -2,27 +2,53 @@
  * Image Processing Utilities
  *
  * Provides methods for converting images to printer-compatible formats.
- * Currently supports converting RGBA images to monochrome bitmaps using various dithering algorithms.
+ * Supports multiple dithering algorithms and image preprocessing.
  */
 
 export class ImageProcessing {
+  // Pre-computed Bayer matrices for ordered dithering
+  private static readonly BAYER_MATRIX_2: ReadonlyArray<ReadonlyArray<number>> = [
+    [0, 2],
+    [3, 1],
+  ];
+
+  private static readonly BAYER_MATRIX_4: ReadonlyArray<ReadonlyArray<number>> = [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ];
+
+  // 8x8 Bayer matrix computed from 4x4
+  private static readonly BAYER_MATRIX_8: ReadonlyArray<ReadonlyArray<number>> = (() => {
+    const m4 = ImageProcessing.BAYER_MATRIX_4;
+    const m8: number[][] = [];
+    for (let i = 0; i < 8; i++) {
+      m8[i] = [];
+      for (let j = 0; j < 8; j++) {
+        const v = (m4[i >> 1]?.[j >> 1] ?? 0) + ((i % 2) * 32) + ((j % 2) * 64);
+        m8[i]![j] = v;
+      }
+    }
+    return m8;
+  })();
+
+  // Quality presets
+  private static readonly QUALITY_PRESETS = {
+    draft: { contrast: 0.9, brightness: -0.05, algorithm: 'ordered' as const },
+    normal: { contrast: 1.0, brightness: 0.0, algorithm: 'floyd-steinberg' as const },
+    high: { contrast: 1.15, brightness: 0.08, algorithm: 'halftone' as const },
+  };
+
   /**
    * Convert RGBA data to monochrome bitmap (1 bit per pixel)
    * suitable for ESC/POS GS v 0 command.
-   * Uses Floyd-Steinberg dithering for better quality by default.
-   *
-   * @param data - RGBA pixel data as Uint8Array
-   * @param width - Image width in pixels
-   * @param height - Image height in pixels
-   * @param options - Additional options for image processing
-   * @returns Monochrome bitmap data as Uint8Array
    *
    * @example
    * ```typescript
-   * const imageData = new Uint8Array(width * height * 4); // RGBA
-   * const bitmap = ImageProcessing.toBitmap(imageData, width, height, {
+   * const bitmap = ImageProcessing.toBitmap(rgbaData, width, height, {
    *   targetWidth: 384,
-   *   ditheringAlgorithm: 'atkinson',
+   *   ditheringAlgorithm: 'ordered',
    *   contrast: 1.2,
    *   brightness: 0.1
    * });
@@ -33,33 +59,32 @@ export class ImageProcessing {
     width: number,
     height: number,
     options?: {
-      /** Target width for scaling (optional) */
       targetWidth?: number;
-      /** Target height for scaling (optional) */
       targetHeight?: number;
-      /** Whether to use dithering (default: true) */
       useDithering?: boolean;
-      /** Dithering algorithm to use: 'floyd-steinberg' | 'atkinson' (default: 'floyd-steinberg') */
-      ditheringAlgorithm?: 'floyd-steinberg' | 'atkinson';
-      /** Scaling algorithm to use: 'nearest' for nearest neighbor, 'bilinear' for bilinear interpolation (default: 'nearest') */
+      /** 'floyd-steinberg' | 'atkinson' | 'ordered' | 'halftone' | 'sierra' | 'stucki' (default: 'floyd-steinberg') */
+      ditheringAlgorithm?: 'floyd-steinberg' | 'atkinson' | 'ordered' | 'halftone' | 'sierra' | 'stucki';
       scalingAlgorithm?: 'nearest' | 'bilinear';
-      /** Contrast adjustment factor (1.0 = no adjustment) */
       contrast?: number;
-      /** Brightness adjustment factor (0.0 = no adjustment, negative = darker, positive = brighter) */
       brightness?: number;
-      /** Threshold value for binarization (0-255, default: 128) */
       threshold?: number;
+      orderedMatrixSize?: 2 | 4 | 8;
+      halftoneDotType?: 'round' | 'diamond' | 'square';
+      qualityPreset?: 'draft' | 'normal' | 'high';
     }
   ): Uint8Array {
-    // 参数验证
     if (!data || !(data instanceof Uint8Array) || width <= 0 || height <= 0) {
       return new Uint8Array(0);
     }
 
     if (data.length !== width * height * 4) {
-      throw new Error(
-        `Invalid image data length: expected ${width * height * 4}, got ${data.length}`
-      );
+      throw new Error(`Invalid image data length: expected ${width * height * 4}, got ${data.length}`);
+    }
+
+    let opts = options || {};
+    if (opts.qualityPreset) {
+      const preset = this.QUALITY_PRESETS[opts.qualityPreset];
+      opts = { ...opts, ...preset };
     }
 
     const {
@@ -71,171 +96,364 @@ export class ImageProcessing {
       contrast = 1.0,
       brightness = 0.0,
       threshold = 128,
-    } = options || {};
+      orderedMatrixSize = 4,
+      halftoneDotType = 'round',
+    } = opts;
 
-    // Scale image if target dimensions provided
     let processedData = data;
     let processedWidth = width;
     let processedHeight = height;
 
     if (targetWidth || targetHeight) {
-      const { newData, newWidth, newHeight } = this.scaleImage(
-        data,
-        width,
-        height,
-        targetWidth || width,
-        targetHeight || height,
-        { algorithm: scalingAlgorithm }
-      );
-      processedData = newData;
-      processedWidth = newWidth;
-      processedHeight = newHeight;
+      const scaled = this.scaleImage(data, width, height, targetWidth || width, targetHeight || height, { algorithm: scalingAlgorithm });
+      processedData = scaled.newData;
+      processedWidth = scaled.newWidth;
+      processedHeight = scaled.newHeight;
     }
 
     const bytesPerLine = Math.ceil(processedWidth / 8);
     const bitmap = new Uint8Array(bytesPerLine * processedHeight);
 
-    // 先将图像转换为灰度数组，提高后续计算效率
     let grayscale = this.toGrayscale(processedData, processedWidth, processedHeight);
-
-    // 应用对比度和亮度调整
     grayscale = this.adjustContrastBrightness(grayscale, contrast, brightness);
 
     if (useDithering) {
-      // 使用指定的抖动算法
-      this.applyDithering(
-        grayscale,
-        processedWidth,
-        processedHeight,
-        bitmap,
-        bytesPerLine,
-        ditheringAlgorithm,
-        threshold
-      );
+      this.applyDithering(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, {
+        algorithm: ditheringAlgorithm,
+        threshold,
+        orderedMatrixSize,
+        halftoneDotType,
+      });
     } else {
-      // 直接二值化，不使用抖动
-      this.applyThreshold(
-        grayscale,
-        processedWidth,
-        processedHeight,
-        bitmap,
-        bytesPerLine,
-        threshold
-      );
+      this.applyThreshold(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, threshold);
     }
 
     return bitmap;
   }
 
   /**
-   * Convert RGBA data to grayscale using optimized formula
-   *
-   * @param data - RGBA pixel data as Uint8Array
-   * @param width - Image width in pixels
-   * @param height - Image height in pixels
-   * @returns Grayscale image data as Float32Array
+   * Image preprocessing pipeline
+   * @example
+   * ```typescript
+   * const processed = ImageProcessing.preprocessImage(data, w, h, {
+   *   denoise: true,
+   *   sharpen: true,
+   *   gamma: 1.2,
+   *   posterize: 4
+   * });
+   * ```
    */
+  static preprocessImage(
+    data: Uint8Array,
+    width: number,
+    height: number,
+    options?: {
+      denoise?: boolean;
+      sharpen?: boolean;
+      gamma?: number;
+      posterize?: number;
+    }
+  ): Uint8Array {
+    if (!data || !(data instanceof Uint8Array)) return data;
+    let result = data;
+    if (options?.gamma && options.gamma !== 1.0) {
+      result = this.applyGammaCorrection(result, options.gamma);
+    }
+    if (options?.denoise) {
+      result = this.applyMedianFilter(result, width, height);
+    }
+    if (options?.sharpen) {
+      result = this.applyUnsharpMask(result, width, height);
+    }
+    if (options?.posterize) {
+      result = this.applyPosterization(result, options.posterize);
+    }
+    return result;
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────────
+
   private static toGrayscale(data: Uint8Array, width: number, height: number): Float32Array {
     const grayscale = new Float32Array(width * height);
-
-    // 使用优化的灰度转换公式，提高计算效率
     for (let i = 0; i < data.length; i += 4) {
-      const index = i >> 2; // 等同于 i / 4，使用位运算提高性能
-      const r = data[i] || 0;
-      const g = data[i + 1] || 0;
-      const b = data[i + 2] || 0;
-
-      // 优化的灰度转换公式：使用整数运算近似，提高性能
-      grayscale[index] = (r * 299 + g * 587 + b * 114) / 1000;
+      const idx = i >> 2;
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      grayscale[idx] = (r * 299 + g * 587 + b * 114) / 1000;
     }
-
     return grayscale;
   }
 
-  /**
-   * Adjust contrast and brightness of grayscale image
-   *
-   * @param grayscale - Grayscale image data
-   * @param contrast - Contrast adjustment factor (1.0 = no adjustment)
-   * @param brightness - Brightness adjustment factor (0.0 = no adjustment)
-   * @returns Adjusted grayscale image data
-   */
   private static adjustContrastBrightness(
     grayscale: Float32Array,
     contrast: number,
     brightness: number
   ): Float32Array {
-    // 如果没有调整需求，直接返回原数据
-    if (contrast === 1.0 && brightness === 0.0) {
-      return grayscale;
-    }
-
+    if (contrast === 1.0 && brightness === 0.0) return grayscale;
     const adjusted = new Float32Array(grayscale);
-
-    // 对比度调整公式：output = (input - 128) * contrast + 128 + brightness * 255
     for (let i = 0; i < adjusted.length; i++) {
-      const value = adjusted[i] || 0;
+      const value = adjusted[i] ?? 0;
       adjusted[i] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + brightness * 255));
     }
-
     return adjusted;
   }
 
-  /**
-   * Apply dithering to grayscale image using specified algorithm
-   *
-   * @param grayscale - Grayscale image data
-   * @param width - Image width
-   * @param height - Image height
-   * @param bitmap - Output bitmap buffer
-   * @param bytesPerLine - Number of bytes per line in the bitmap
-   * @param algorithm - Dithering algorithm to use
-   * @param threshold - Threshold value for binarization
-   */
   private static applyDithering(
     grayscale: Float32Array,
     width: number,
     height: number,
     bitmap: Uint8Array,
     bytesPerLine: number,
-    algorithm: 'floyd-steinberg' | 'atkinson',
+    opts: {
+      algorithm: 'floyd-steinberg' | 'atkinson' | 'ordered' | 'halftone' | 'sierra' | 'stucki';
+      threshold: number;
+      orderedMatrixSize: 2 | 4 | 8;
+      halftoneDotType: 'round' | 'diamond' | 'square';
+    }
+  ): void {
+    switch (opts.algorithm) {
+      case 'ordered':
+        this.applyOrderedDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold, opts.orderedMatrixSize);
+        break;
+      case 'halftone':
+        this.applyHalftone(grayscale, width, height, bitmap, bytesPerLine, opts.threshold, opts.halftoneDotType);
+        break;
+      case 'sierra':
+        this.applySierraDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
+        break;
+      case 'stucki':
+        this.applyStuckiDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
+        break;
+      case 'atkinson':
+        this.applyAtkinsonDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
+        break;
+      default:
+        this.applyFloydSteinbergDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
+    }
+  }
+
+  // ─── Floyd-Steinberg ──────────────────────────────────────────────────────────
+
+  private static applyFloydSteinbergDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
     threshold: number
   ): void {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const index = y * width + x;
-        const oldPixel = grayscale[index] || 0;
+        const idx = y * width + x;
+        const oldPixel = grayscale[idx] ?? 0;
         const newPixel = oldPixel < threshold ? 0 : 255;
-
-        // 设置位图像素 (ESC/POS: 1 = 黑色, 0 = 白色)
         if (newPixel === 0) {
-          const byteIndex = y * bytesPerLine + Math.floor(x / 8);
-          const bitIndex = 7 - (x % 8);
-          bitmap[byteIndex] = (bitmap[byteIndex] || 0) | (1 << bitIndex);
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
+        const err = oldPixel - newPixel;
+        this.distributeErr(grayscale, width, height, x + 1, y, err * 7 / 16);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 3 / 16);
+        this.distributeErr(grayscale, width, height, x, y + 1, err * 5 / 16);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 1 / 16);
+      }
+    }
+  }
 
-        const quantError = oldPixel - newPixel;
+  // ─── Atkinson ────────────────────────────────────────────────────────────────
 
-        // 根据算法分发错误
-        if (algorithm === 'floyd-steinberg') {
-          this.distributeErrorFloydSteinberg(grayscale, width, height, x, y, quantError);
-        } else if (algorithm === 'atkinson') {
-          this.distributeErrorAtkinson(grayscale, width, height, x, y, quantError);
+  private static applyAtkinsonDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    threshold: number
+  ): void {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const oldPixel = grayscale[idx] ?? 0;
+        const newPixel = oldPixel < threshold ? 0 : 255;
+        if (newPixel === 0) {
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+        }
+        const err = (oldPixel - newPixel) / 8;
+        this.distributeErr(grayscale, width, height, x + 1, y, err);
+        this.distributeErr(grayscale, width, height, x + 2, y, err);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, err);
+        this.distributeErr(grayscale, width, height, x, y + 1, err);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, err);
+        this.distributeErr(grayscale, width, height, x, y + 2, err);
+      }
+    }
+  }
+
+  // ─── Ordered (Bayer) ─────────────────────────────────────────────────────────
+
+  private static applyOrderedDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    thresholdOffset: number,
+    matrixSize: 2 | 4 | 8
+  ): void {
+    const matrix = matrixSize === 2
+      ? ImageProcessing.BAYER_MATRIX_2
+      : matrixSize === 8
+        ? ImageProcessing.BAYER_MATRIX_8
+        : ImageProcessing.BAYER_MATRIX_4;
+    const matrixMax = matrixSize === 4 ? 16 : matrixSize === 8 ? 64 : 4;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const pixel = grayscale[idx] ?? 0;
+        const bayerRow = matrix[y % matrixSize] ?? [];
+        const bayerVal = bayerRow[x % matrixSize] ?? 0;
+        const adjustedThreshold = thresholdOffset + ((bayerVal / matrixMax) * 48);
+        if (pixel < adjustedThreshold) {
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
       }
     }
   }
 
-  /**
-   * Apply simple thresholding to grayscale image with adjustable threshold
-   *
-   * @param grayscale - Grayscale image data
-   * @param width - Image width
-   * @param height - Image height
-   * @param bitmap - Output bitmap buffer
-   * @param bytesPerLine - Number of bytes per line in the bitmap
-   * @param threshold - Threshold value for binarization (0-255)
-   */
+  // ─── Halftone ────────────────────────────────────────────────────────────────
+
+  private static applyHalftone(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    threshold: number,
+    dotType: 'round' | 'diamond' | 'square'
+  ): void {
+    const cellSize = 4;
+    const thresholds = this.computeHalftoneThresholds(cellSize, dotType);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const pixel = grayscale[idx] ?? 0;
+        const localY = y % cellSize;
+        const localX = x % cellSize;
+        const row = thresholds[localY] ?? [];
+        const t = row[localX] ?? 128;
+        const adjusted = t + (pixel < threshold ? -30 : 30);
+        if (pixel < adjusted) {
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+        }
+      }
+    }
+  }
+
+  private static computeHalftoneThresholds(
+    cellSize: number,
+    dotType: 'round' | 'diamond' | 'square'
+  ): number[][] {
+    const thresholds: number[][] = [];
+    const center = (cellSize - 1) / 2;
+    for (let y = 0; y < cellSize; y++) {
+      thresholds[y] = [];
+      for (let x = 0; x < cellSize; x++) {
+        let dist: number;
+        if (dotType === 'round') {
+          dist = Math.sqrt((x - center) ** 2 + (y - center) ** 2) / center;
+        } else if (dotType === 'diamond') {
+          dist = (Math.abs(x - center) + Math.abs(y - center)) / center;
+        } else {
+          dist = Math.max(Math.abs(x - center), Math.abs(y - center)) / center;
+        }
+        thresholds[y]![x] = Math.min(255, Math.round(dist * 224 + 32));
+      }
+    }
+    return thresholds;
+  }
+
+  // ─── Sierra ──────────────────────────────────────────────────────────────────
+
+  private static applySierraDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    threshold: number
+  ): void {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const oldPixel = grayscale[idx] ?? 0;
+        const newPixel = oldPixel < threshold ? 0 : 255;
+        if (newPixel === 0) {
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+        }
+        const err = oldPixel - newPixel;
+        this.distributeErr(grayscale, width, height, x + 1, y, err * 5 / 32);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 3 / 32);
+        this.distributeErr(grayscale, width, height, x, y + 1, err * 5 / 32);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 2 / 32);
+        this.distributeErr(grayscale, width, height, x - 2, y + 1, err * 2 / 32);
+        this.distributeErr(grayscale, width, height, x - 1, y + 2, err * 2 / 32);
+        this.distributeErr(grayscale, width, height, x, y + 2, err * 3 / 32);
+        this.distributeErr(grayscale, width, height, x + 1, y + 2, err * 2 / 32);
+        this.distributeErr(grayscale, width, height, x + 2, y + 2, err * 1 / 32);
+      }
+    }
+  }
+
+  // ─── Stucki ─────────────────────────────────────────────────────────────────
+
+  private static applyStuckiDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    threshold: number
+  ): void {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const oldPixel = grayscale[idx] ?? 0;
+        const newPixel = oldPixel < threshold ? 0 : 255;
+        if (newPixel === 0) {
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+        }
+        const err = oldPixel - newPixel;
+        this.distributeErr(grayscale, width, height, x + 1, y, err * 8 / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y, err * 4 / 42);
+        this.distributeErr(grayscale, width, height, x - 2, y + 1, err * 2 / 42);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 4 / 42);
+        this.distributeErr(grayscale, width, height, x, y + 1, err * 8 / 42);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 4 / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y + 1, err * 2 / 42);
+        this.distributeErr(grayscale, width, height, x - 2, y + 2, err * 1 / 42);
+        this.distributeErr(grayscale, width, height, x - 1, y + 2, err * 2 / 42);
+        this.distributeErr(grayscale, width, height, x, y + 2, err * 4 / 42);
+        this.distributeErr(grayscale, width, height, x + 1, y + 2, err * 2 / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y + 2, err * 1 / 42);
+      }
+    }
+  }
+
+  // ─── Simple threshold ────────────────────────────────────────────────────────
+
   private static applyThreshold(
     grayscale: Float32Array,
     width: number,
@@ -246,79 +464,61 @@ export class ImageProcessing {
   ): void {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const index = y * width + x;
-        const pixel = grayscale[index] || 0;
-
-        // 设置位图像素 (ESC/POS: 1 = 黑色, 0 = 白色)
+        const idx = y * width + x;
+        const pixel = grayscale[idx] ?? 0;
         if (pixel < threshold) {
-          const byteIndex = y * bytesPerLine + Math.floor(x / 8);
-          const bitIndex = 7 - (x % 8);
-          bitmap[byteIndex] = (bitmap[byteIndex] || 0) | (1 << bitIndex);
+          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
+          const bitIdx = 7 - (x % 8);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
       }
     }
   }
 
-  /**
-   * Scale an image to new dimensions
-   *
-   * @param data - RGBA pixel data as Uint8Array
-   * @param width - Original image width in pixels
-   * @param height - Original image height in pixels
-   * @param targetWidth - Target width in pixels
-   * @param targetHeight - Target height in pixels
-   * @param options - Additional scaling options
-   * @returns Scaled image data and dimensions
-   */
+  // ─── Error distribution ──────────────────────────────────────────────────────
+
+  private static distributeErr(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    nx: number,
+    ny: number,
+    error: number
+  ): void {
+    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+      const idx = ny * width + nx;
+      const current = grayscale[idx] ?? 0;
+      grayscale[idx] = Math.max(0, Math.min(255, current + error));
+    }
+  }
+
+  // ─── Scaling ────────────────────────────────────────────────────────────────
+
   private static scaleImage(
     data: Uint8Array,
     width: number,
     height: number,
     targetWidth: number,
     targetHeight: number,
-    options?: {
-      /** Scaling algorithm to use: 'nearest' for nearest neighbor, 'bilinear' for bilinear interpolation */
-      algorithm?: 'nearest' | 'bilinear';
-    }
+    options?: { algorithm?: 'nearest' | 'bilinear' }
   ): { newData: Uint8Array; newWidth: number; newHeight: number } {
-    // Calculate aspect ratio
     const aspectRatio = width / height;
-
-    // Adjust target dimensions to maintain aspect ratio
     let newWidth = targetWidth;
     let newHeight = targetHeight;
-
     if (newWidth / newHeight > aspectRatio) {
       newWidth = Math.round(newHeight * aspectRatio);
     } else {
       newHeight = Math.round(newWidth / aspectRatio);
     }
-
     const newData = new Uint8Array(newWidth * newHeight * 4);
-
-    const { algorithm = 'nearest' } = options || {};
-
-    if (algorithm === 'bilinear') {
-      // Use bilinear interpolation for better quality
+    if (options?.algorithm === 'bilinear') {
       this.applyBilinearInterpolation(data, width, height, newData, newWidth, newHeight);
     } else {
-      // Use nearest neighbor scaling for faster performance
       this.applyNearestNeighbor(data, width, height, newData, newWidth, newHeight);
     }
-
     return { newData, newWidth, newHeight };
   }
 
-  /**
-   * Apply nearest neighbor scaling to an image
-   *
-   * @param srcData - Source RGBA pixel data
-   * @param srcWidth - Source image width
-   * @param srcHeight - Source image height
-   * @param destData - Destination RGBA pixel data
-   * @param destWidth - Destination image width
-   * @param destHeight - Destination image height
-   */
   private static applyNearestNeighbor(
     srcData: Uint8Array,
     srcWidth: number,
@@ -327,36 +527,22 @@ export class ImageProcessing {
     destWidth: number,
     destHeight: number
   ): void {
-    const scaleX = srcWidth / destWidth;
-    const scaleY = srcHeight / destHeight;
-
+    const sx = srcWidth / destWidth;
+    const sy = srcHeight / destHeight;
     for (let y = 0; y < destHeight; y++) {
       for (let x = 0; x < destWidth; x++) {
-        const srcX = Math.round(x * scaleX);
-        const srcY = Math.round(y * scaleY);
-
-        const srcIndex = (srcY * srcWidth + srcX) * 4;
-        const destIndex = (y * destWidth + x) * 4;
-
-        // Copy RGBA channels, default to 0 if undefined
-        destData[destIndex] = srcData[srcIndex] || 0; // R
-        destData[destIndex + 1] = srcData[srcIndex + 1] || 0; // G
-        destData[destIndex + 2] = srcData[srcIndex + 2] || 0; // B
-        destData[destIndex + 3] = srcData[srcIndex + 3] || 255; // A (default to fully opaque)
+        const sjx = Math.min(srcWidth - 1, Math.round(x * sx));
+        const sjy = Math.min(srcHeight - 1, Math.round(y * sy));
+        const si = (sjy * srcWidth + sjx) * 4;
+        const di = (y * destWidth + x) * 4;
+        destData[di] = srcData[si] ?? 0;
+        destData[di + 1] = srcData[si + 1] ?? 0;
+        destData[di + 2] = srcData[si + 2] ?? 0;
+        destData[di + 3] = srcData[si + 3] ?? 255;
       }
     }
   }
 
-  /**
-   * Apply bilinear interpolation scaling to an image
-   *
-   * @param srcData - Source RGBA pixel data
-   * @param srcWidth - Source image width
-   * @param srcHeight - Source image height
-   * @param destData - Destination RGBA pixel data
-   * @param destWidth - Destination image width
-   * @param destHeight - Destination image height
-   */
   private static applyBilinearInterpolation(
     srcData: Uint8Array,
     srcWidth: number,
@@ -365,170 +551,118 @@ export class ImageProcessing {
     destWidth: number,
     destHeight: number
   ): void {
-    const scaleX = srcWidth / destWidth;
-    const scaleY = srcHeight / destHeight;
-
+    const sx = srcWidth / destWidth;
+    const sy = srcHeight / destHeight;
     for (let y = 0; y < destHeight; y++) {
       for (let x = 0; x < destWidth; x++) {
-        // Calculate source coordinates
-        const srcX = x * scaleX;
-        const srcY = y * scaleY;
-
-        // Get integer and fractional parts
-        const srcXInt = Math.floor(srcX);
-        const srcYInt = Math.floor(srcY);
-        const srcXFrac = srcX - srcXInt;
-        const srcYFrac = srcY - srcYInt;
-
-        // Get the four neighboring pixels
-        const x1 = Math.min(srcXInt, srcWidth - 1);
-        const y1 = Math.min(srcYInt, srcHeight - 1);
+        const fx = Math.min(srcWidth - 1, x * sx);
+        const fy = Math.min(srcHeight - 1, y * sy);
+        const x1 = Math.floor(fx);
+        const y1 = Math.floor(fy);
         const x2 = Math.min(x1 + 1, srcWidth - 1);
         const y2 = Math.min(y1 + 1, srcHeight - 1);
-
-        // Calculate indices for the four pixels
-        const i1 = (y1 * srcWidth + x1) * 4;
-        const i2 = (y1 * srcWidth + x2) * 4;
-        const i3 = (y2 * srcWidth + x1) * 4;
-        const i4 = (y2 * srcWidth + x2) * 4;
-
-        // Calculate weights
-        const w1 = (1 - srcXFrac) * (1 - srcYFrac);
-        const w2 = srcXFrac * (1 - srcYFrac);
-        const w3 = (1 - srcXFrac) * srcYFrac;
-        const w4 = srcXFrac * srcYFrac;
-
-        const destIndex = (y * destWidth + x) * 4;
-
-        // Interpolate each channel
-        destData[destIndex] = Math.round(
-          (srcData[i1] || 0) * w1 +
-            (srcData[i2] || 0) * w2 +
-            (srcData[i3] || 0) * w3 +
-            (srcData[i4] || 0) * w4
-        ); // R
-
-        destData[destIndex + 1] = Math.round(
-          (srcData[i1 + 1] || 0) * w1 +
-            (srcData[i2 + 1] || 0) * w2 +
-            (srcData[i3 + 1] || 0) * w3 +
-            (srcData[i4 + 1] || 0) * w4
-        ); // G
-
-        destData[destIndex + 2] = Math.round(
-          (srcData[i1 + 2] || 0) * w1 +
-            (srcData[i2 + 2] || 0) * w2 +
-            (srcData[i3 + 2] || 0) * w3 +
-            (srcData[i4 + 2] || 0) * w4
-        ); // B
-
-        destData[destIndex + 3] = Math.round(
-          (srcData[i1 + 3] || 255) * w1 +
-            (srcData[i2 + 3] || 255) * w2 +
-            (srcData[i3 + 3] || 255) * w3 +
-            (srcData[i4 + 3] || 255) * w4
-        ); // A
+        const fx2 = fx - x1;
+        const fy2 = fy - y1;
+        const w1 = (1 - fx2) * (1 - fy2);
+        const w2 = fx2 * (1 - fy2);
+        const w3 = (1 - fx2) * fy2;
+        const w4 = fx2 * fy2;
+        for (let c = 0; c < 4; c++) {
+          const ii1 = (y1 * srcWidth + x1) * 4 + c;
+          const ii2 = (y1 * srcWidth + x2) * 4 + c;
+          const ii3 = (y2 * srcWidth + x1) * 4 + c;
+          const ii4 = (y2 * srcWidth + x2) * 4 + c;
+          const v = (srcData[ii1] ?? 0) * w1 + (srcData[ii2] ?? 0) * w2
+                  + (srcData[ii3] ?? 0) * w3 + (srcData[ii4] ?? 0) * w4;
+          destData[(y * destWidth + x) * 4 + c] = Math.round(v);
+        }
       }
     }
   }
 
-  /**
-   * Distribute quantization error to neighboring pixels using Floyd-Steinberg algorithm
-   *
-   * @param grayscale - Grayscale image data
-   * @param width - Image width
-   * @param height - Image height
-   * @param x - Current x position
-   * @param y - Current y position
-   * @param error - Quantization error to distribute
-   */
-  private static distributeErrorFloydSteinberg(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    x: number,
-    y: number,
-    error: number
-  ): void {
-    // Floyd-Steinberg error diffusion matrix:
-    // [  0   7/16 ]
-    // [ 3/16 5/16 1/16 ]
+  // ─── Preprocessing ─────────────────────────────────────────────────────────
 
-    // 预计算分发因子，提高性能
-    const factors = [
-      { dx: 1, dy: 0, factor: 7 / 16 }, // 右侧像素
-      { dx: -1, dy: 1, factor: 3 / 16 }, // 左下像素
-      { dx: 0, dy: 1, factor: 5 / 16 }, // 下方像素
-      { dx: 1, dy: 1, factor: 1 / 16 }, // 右下像素
-    ];
-
-    for (const { dx, dy, factor } of factors) {
-      this.distributeErrorPixel(grayscale, width, height, x + dx, y + dy, error * factor);
+  private static applyGammaCorrection(data: Uint8Array, gamma: number): Uint8Array {
+    const invGamma = 1.0 / gamma;
+    const lut = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+      lut[i] = Math.round(Math.pow(i / 255, invGamma) * 255);
     }
+    const result = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i += 4) {
+      result[i] = lut[data[i] ?? 0] ?? 0;
+      result[i + 1] = lut[data[i + 1] ?? 0] ?? 0;
+      result[i + 2] = lut[data[i + 2] ?? 0] ?? 0;
+      result[i + 3] = data[i + 3] ?? 255;
+    }
+    return result;
   }
 
-  /**
-   * Distribute quantization error to neighboring pixels using Atkinson algorithm
-   *
-   * @param grayscale - Grayscale image data
-   * @param width - Image width
-   * @param height - Image height
-   * @param x - Current x position
-   * @param y - Current y position
-   * @param error - Quantization error to distribute
-   */
-  private static distributeErrorAtkinson(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    x: number,
-    y: number,
-    error: number
-  ): void {
-    // Atkinson error diffusion matrix:
-    // [     1/8 1/8 ]
-    // [ 1/8 1/8 1/8 ]
-    // [     1/8     ]
-
-    // 预计算分发因子，提高性能
-    const factors = [
-      { dx: 1, dy: 0, factor: 1 / 8 }, // 右侧像素
-      { dx: 2, dy: 0, factor: 1 / 8 }, // 右右侧像素
-      { dx: -1, dy: 1, factor: 1 / 8 }, // 左下像素
-      { dx: 0, dy: 1, factor: 1 / 8 }, // 下方像素
-      { dx: 1, dy: 1, factor: 1 / 8 }, // 右下像素
-      { dx: 0, dy: 2, factor: 1 / 8 }, // 下下方像素
-    ];
-
-    for (const { dx, dy, factor } of factors) {
-      this.distributeErrorPixel(grayscale, width, height, x + dx, y + dy, error * factor);
+  private static applyMedianFilter(data: Uint8Array, width: number, height: number): Uint8Array {
+    const result = new Uint8Array(data.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const di = (y * width + x) * 4;
+        const window: number[] = [];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = Math.max(0, Math.min(width - 1, x + dx));
+            const ny2 = Math.max(0, Math.min(height - 1, y + dy));
+            const si = (ny2 * width + nx) * 4;
+            for (let c = 0; c < 4; c++) {
+              window.push(data[si + c] ?? 0);
+            }
+          }
+        }
+        window.sort((a, b) => a - b);
+        for (let c = 0; c < 4; c++) {
+          result[di + c] = window[18 + c * 9] ?? 128;
+        }
+      }
     }
+    return result;
   }
 
-  /**
-   * Distribute error to a single pixel with bounds checking
-   *
-   * @param grayscale - Grayscale image data
-   * @param width - Image width
-   * @param height - Image height
-   * @param nx - New x position
-   * @param ny - New y position
-   * @param error - Error value to distribute
-   */
-  private static distributeErrorPixel(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    nx: number,
-    ny: number,
-    error: number
-  ): void {
-    // 边界检查
-    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-      const index = ny * width + nx;
-      const currentValue = grayscale[index] || 0;
-      // 更新像素值，确保在0-255范围内
-      grayscale[index] = Math.max(0, Math.min(255, currentValue + error));
+  private static applyUnsharpMask(data: Uint8Array, width: number, height: number): Uint8Array {
+    // Center=3, edges=-0.5
+    const kernel: number[][] = [
+      [-0.5, -1.0, -0.5],
+      [-1.0,  3.0, -1.0],
+      [-0.5, -1.0, -0.5],
+    ];
+    const kHalf = 1;
+    const result = new Uint8Array(data.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const di = (y * width + x) * 4;
+        for (let c = 0; c < 4; c++) {
+          let sum = 0;
+          for (let ky = 0; ky < 3; ky++) {
+            for (let kx = 0; kx < 3; kx++) {
+              const nx = Math.max(0, Math.min(width - 1, x + kx - kHalf));
+              const ny2 = Math.max(0, Math.min(height - 1, y + ky - kHalf));
+              const si = (ny2 * width + nx) * 4 + c;
+              const kv = kernel[ky]?.[kx] ?? 0;
+              sum += (data[si] ?? 0) * kv;
+            }
+          }
+          result[di + c] = Math.max(0, Math.min(255, Math.round(sum)));
+        }
+      }
     }
+    return result;
+  }
+
+  private static applyPosterization(data: Uint8Array, levels: number): Uint8Array {
+    const lv = Math.max(1, Math.min(8, levels));
+    const step = 255 / (Math.pow(2, lv) - 1);
+    const result = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i += 4) {
+      result[i]     = Math.round(Math.round((data[i] ?? 0) / step) * step);
+      result[i + 1] = Math.round(Math.round((data[i + 1] ?? 0) / step) * step);
+      result[i + 2] = Math.round(Math.round((data[i + 2] ?? 0) / step) * step);
+      result[i + 3] = data[i + 3] ?? 255;
+    }
+    return result;
   }
 }

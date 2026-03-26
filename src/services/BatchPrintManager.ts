@@ -2,10 +2,11 @@
  * Batch Print Manager
  *
  * Optimizes printing multiple jobs by:
- * - Merging small jobs into larger chunks
- * - Reducing Bluetooth communication overhead
+ * - Merging consecutive small jobs (combining jobs < 50 bytes for efficiency)
+ * - Reducing Bluetooth communication overhead via batching
  * - Prioritizing urgent jobs
- * - Batching similar content for efficiency
+ * - Auto-flush on task interval timeout
+ * - Batch merge with unified cut commands
  *
  * @example
  * ```typescript
@@ -53,6 +54,12 @@ export interface BatchConfig {
   enableMerging: boolean;
   /** Auto-process interval in ms (0 = disabled) */
   autoProcessInterval: number;
+  /** Small job size threshold for merging (bytes, default: 50) */
+  smallJobThreshold: number;
+  /** Interval timeout for auto-flush in ms (0 = disabled) */
+  flushIntervalTimeout: number;
+  /** Unified cut command appended after batch merge (default: ESC d 4) */
+  unifiedCutCommand?: Uint8Array;
 }
 
 /**
@@ -67,8 +74,12 @@ export interface BatchStats {
   batchesProcessed: number;
   /** Average batch size */
   avgBatchSize: number;
-  /** Merged jobs count */
+  /** Merged jobs count (small jobs combined) */
   mergedJobs: number;
+  /** Auto-flush triggered count */
+  autoFlushCount: number;
+  /** Unified cuts applied */
+  unifiedCutsApplied: number;
 }
 
 /**
@@ -79,6 +90,8 @@ export interface BatchEvents {
   'batch-processed': (data: { jobCount: number; bytes: number }) => void;
   'job-added': (data: BatchJob) => void;
   'job-rejected': (data: { reason: string }) => void;
+  'auto-flush': (data: { jobCount: number; bytes: number }) => void;
+  'jobs-merged': (data: { fromCount: number; toCount: number; savedBytes: number }) => void;
 }
 
 /**
@@ -89,6 +102,17 @@ type BatchEventHandlerMap = {
 };
 
 /**
+ * ESC/POS commands for cutting
+ */
+const ESC = 0x1b;
+const GS = 0x1d;
+
+/**
+ * Default cut command: ESC d 4 (full cut, 4 lines feed)
+ */
+const DEFAULT_CUT_COMMAND = new Uint8Array([ESC, 0x64, 0x04, GS, 0x56, 0x00]);
+
+/**
  * Default batch configuration
  */
 const DEFAULT_CONFIG: BatchConfig = {
@@ -97,13 +121,20 @@ const DEFAULT_CONFIG: BatchConfig = {
   minBatchSize: 1, // Process even single jobs
   enableMerging: true, // Enable content merging
   autoProcessInterval: 500, // Check every 500ms
+  smallJobThreshold: 50, // 50 bytes threshold for small job merging
+  flushIntervalTimeout: 2000, // 2s interval timeout for auto-flush
+  unifiedCutCommand: DEFAULT_CUT_COMMAND,
 };
 
 /**
  * Batch Print Manager
  *
  * Collects print jobs and processes them in optimized batches.
- * Reduces Bluetooth communication overhead by combining small jobs.
+ * Features:
+ * - Small job merging: consecutive jobs < smallJobThreshold bytes are combined
+ * - Interval timeout auto-flush: flushes pending jobs if no new jobs arrive within timeout
+ * - Unified cut: optionally appends a single cut command after batch merge
+ * - Priority sorting: higher priority jobs are processed first
  */
 export class BatchPrintManager {
   private readonly logger = Logger.scope('BatchPrintManager');
@@ -113,21 +144,33 @@ export class BatchPrintManager {
     'batch-processed': new Set(),
     'job-added': new Set(),
     'job-rejected': new Set(),
+    'auto-flush': new Set(),
+    'jobs-merged': new Set(),
   };
   private config: BatchConfig;
   private isProcessing = false;
   private waitTimer: ReturnType<typeof setTimeout> | null = null;
   private autoProcessTimer: ReturnType<typeof setInterval> | null = null;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private stats: BatchStats = {
     totalJobs: 0,
     totalBytes: 0,
     batchesProcessed: 0,
     avgBatchSize: 0,
     mergedJobs: 0,
+    autoFlushCount: 0,
+    unifiedCutsApplied: 0,
   };
 
   /**
+   * Last job timestamp for interval timeout tracking
+   */
+  private lastJobAt = 0;
+
+  /**
    * Creates a new BatchPrintManager instance
+   *
+   * @param config - Optional configuration overrides
    */
   constructor(config: Partial<BatchConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -135,6 +178,9 @@ export class BatchPrintManager {
 
   /**
    * Register event listener
+   *
+   * @param event - Event name
+   * @param callback - Event handler
    */
   on<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
     this.listeners[event].add(callback);
@@ -142,6 +188,9 @@ export class BatchPrintManager {
 
   /**
    * Remove event listener
+   *
+   * @param event - Event name
+   * @param callback - Event handler to remove
    */
   off<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
     this.listeners[event].delete(callback);
@@ -172,25 +221,30 @@ export class BatchPrintManager {
    */
   addJob(data: Uint8Array, priority = 1, metadata?: Record<string, unknown>): string {
     const id = this.generateId();
+    const now = Date.now();
     const job: BatchJob = {
       id,
       data,
       priority,
-      addedAt: Date.now(),
+      addedAt: now,
       metadata,
     };
 
     this.jobs.push(job);
     this.stats.totalJobs++;
+    this.lastJobAt = now;
 
     // Sort by priority (descending)
     this.jobs.sort((a, b) => b.priority - a.priority);
 
     this.emit('job-added', job);
-    this.logger.debug(`Job added: ${id} (priority: ${priority}, queue size: ${this.jobs.length})`);
+    this.logger.debug(`Job added: ${id} (priority: ${priority}, queue size: ${this.jobs.length}, bytes: ${data.length})`);
 
     // Start/restart wait timer
     this.startWaitTimer();
+
+    // Restart flush timer (interval timeout auto-flush)
+    this.startFlushTimer();
 
     // Check if we should process immediately
     if (this.shouldProcessImmediately()) {
@@ -205,6 +259,9 @@ export class BatchPrintManager {
 
   /**
    * Add multiple jobs at once
+   *
+   * @param jobs - Array of job data with optional priority and metadata
+   * @returns Array of job IDs
    */
   addJobs(
     jobs: Array<{ data: Uint8Array; priority?: number; metadata?: Record<string, unknown> }>
@@ -214,6 +271,9 @@ export class BatchPrintManager {
 
   /**
    * Cancel a job by ID
+   *
+   * @param id - Job ID to cancel
+   * @returns true if cancelled, false if not found
    */
   cancelJob(id: string): boolean {
     const index = this.jobs.findIndex(j => j.id === id);
@@ -232,6 +292,7 @@ export class BatchPrintManager {
   cancelAll(): void {
     const count = this.jobs.length;
     this.jobs.length = 0;
+    this.lastJobAt = 0;
     this.clearTimers();
     this.logger.info(`Cancelled ${count} jobs`);
   }
@@ -245,6 +306,8 @@ export class BatchPrintManager {
 
   /**
    * Get pending jobs
+   *
+   * @returns Copy of pending jobs array
    */
   getPendingJobs(): BatchJob[] {
     return [...this.jobs];
@@ -252,6 +315,8 @@ export class BatchPrintManager {
 
   /**
    * Get current statistics
+   *
+   * @returns Copy of current stats
    */
   getStats(): BatchStats {
     return { ...this.stats };
@@ -259,6 +324,8 @@ export class BatchPrintManager {
 
   /**
    * Update configuration
+   *
+   * @param updates - Configuration fields to update
    */
   updateConfig(updates: Partial<BatchConfig>): void {
     this.config = { ...this.config, ...updates };
@@ -290,7 +357,15 @@ export class BatchPrintManager {
     try {
       // Get jobs for this batch
       const batchJobs = this.prepareBatch();
-      const mergedData = this.mergeJobs(batchJobs);
+      const { mergedData, fromCount, toCount } = this.mergeJobs(batchJobs);
+
+      // Report merge stats if jobs were merged
+      if (fromCount !== toCount) {
+        const savedBytes = batchJobs.slice(0, fromCount).reduce((sum, j) => sum + j.data.length, 0) -
+          mergedData.length;
+        this.emit('jobs-merged', { fromCount, toCount, savedBytes: Math.abs(savedBytes) });
+        this.stats.mergedJobs += fromCount - toCount;
+      }
 
       this.logger.info(`Processing batch: ${batchJobs.length} jobs, ${mergedData.length} bytes`);
 
@@ -344,29 +419,187 @@ export class BatchPrintManager {
 
   /**
    * Merge multiple jobs into a single buffer
+   *
+   * Features:
+   * - Consecutive small jobs (< smallJobThreshold bytes) are combined into a single job
+   * - Applies unified cut command after all jobs if configured
+   *
+   * @param jobs - Jobs to merge
+   * @returns Merged data with metadata about the merge operation
    */
-  private mergeJobs(jobs: BatchJob[]): Uint8Array {
+  private mergeJobs(
+    jobs: BatchJob[]
+  ): { mergedData: Uint8Array; fromCount: number; toCount: number } {
     if (!this.config.enableMerging || jobs.length === 1) {
-      return jobs[0]?.data ?? new Uint8Array(0);
+      let mergedData: Uint8Array;
+
+      if (jobs.length === 1 && this.config.unifiedCutCommand) {
+        // Single job with unified cut
+        mergedData = this.concatBuffers([jobs[0]!.data, this.config.unifiedCutCommand!]);
+        this.stats.unifiedCutsApplied++;
+      } else {
+        mergedData = jobs[0]?.data ?? new Uint8Array(0);
+      }
+
+      return { mergedData, fromCount: jobs.length, toCount: jobs.length };
     }
 
-    // Calculate total size
+    // Phase 1: Merge consecutive small jobs
+    const mergedAfterSmallJobs = this.mergeConsecutiveSmallJobs(jobs);
+    const fromCount = jobs.length;
+    const toCountAfterSmallMerge = mergedAfterSmallJobs.length;
+
+    if (fromCount !== toCountAfterSmallMerge) {
+      this.logger.debug(
+        `Merged ${fromCount - toCountAfterSmallMerge} consecutive small jobs (threshold: ${this.config.smallJobThreshold} bytes)`
+      );
+    }
+
+    // Phase 2: Calculate total size for final merge
     let totalSize = 0;
-    for (const job of jobs) {
+    for (const job of mergedAfterSmallJobs) {
       totalSize += job.data.length;
     }
 
-    // Merge into single buffer
+    // Add unified cut command size if configured
+    if (this.config.unifiedCutCommand) {
+      totalSize += this.config.unifiedCutCommand.length;
+    }
+
+    // Phase 3: Concatenate all buffers
     const result = new Uint8Array(totalSize);
     let offset = 0;
 
-    for (const job of jobs) {
+    for (const job of mergedAfterSmallJobs) {
       result.set(job.data, offset);
       offset += job.data.length;
-      this.stats.mergedJobs++;
     }
 
-    this.logger.debug(`Merged ${jobs.length} jobs into ${totalSize} bytes`);
+    // Append unified cut command
+    if (this.config.unifiedCutCommand) {
+      result.set(this.config.unifiedCutCommand, offset);
+      this.stats.unifiedCutsApplied++;
+      this.logger.debug(
+        `Applied unified cut command: ${this.config.unifiedCutCommand.length} bytes`
+      );
+    }
+
+    this.logger.debug(
+      `Merged ${fromCount} jobs into ${toCountAfterSmallMerge} after small-job merge, ` +
+      `final size: ${totalSize} bytes`
+    );
+
+    return { mergedData: result, fromCount, toCount: toCountAfterSmallMerge };
+  }
+
+  /**
+   * Merge consecutive small jobs (< smallJobThreshold bytes) into combined buffers
+   *
+   * Small jobs that arrive consecutively are combined to reduce Bluetooth overhead.
+   * The merge preserves job boundaries conceptually but sends as a single chunk.
+   *
+   * @param jobs - Input jobs
+   * @returns Jobs after merging consecutive small ones
+   */
+  private mergeConsecutiveSmallJobs(jobs: BatchJob[]): BatchJob[] {
+    if (jobs.length < 2 || this.config.smallJobThreshold <= 0) {
+      return jobs;
+    }
+
+    const result: BatchJob[] = [];
+    let buffer: Uint8Array[] = [];
+    let bufferPriority = 0;
+    let bufferAddedAt = 0;
+
+    for (const job of jobs) {
+      if (job.data.length < this.config.smallJobThreshold) {
+        // Small job - add to merge buffer
+        buffer.push(job.data);
+        if (buffer.length === 1) {
+          // First small job in potential merge group
+          bufferPriority = job.priority;
+          bufferAddedAt = job.addedAt;
+        }
+        this.logger.debug(
+          `Small job ${job.id} (${job.data.length} bytes) queued for merge buffer`
+        );
+      } else {
+        // Non-small job - flush buffer first if not empty
+        if (buffer.length > 0) {
+          result.push(this.createMergedJob(buffer, bufferPriority, bufferAddedAt));
+          buffer = [];
+        }
+        // Add the non-small job as-is
+        result.push(job);
+      }
+    }
+
+    // Flush remaining buffer
+    if (buffer.length > 0) {
+      result.push(this.createMergedJob(buffer, bufferPriority, bufferAddedAt));
+    }
+
+    return result;
+  }
+
+  /**
+   * Create a merged job from multiple small buffers
+   *
+   * @param buffers - Array of small buffers to combine
+   * @param priority - Priority of the merged job
+   * @param addedAt - Timestamp of the first job in the merge
+   * @returns Merged BatchJob
+   */
+  private createMergedJob(
+    buffers: Uint8Array[],
+    priority: number,
+    addedAt: number
+  ): BatchJob {
+    // Calculate total size
+    let totalSize = 0;
+    for (const buf of buffers) {
+      totalSize += buf.length;
+    }
+
+    // Merge into single buffer
+    const merged = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const buf of buffers) {
+      merged.set(buf, offset);
+      offset += buf.length;
+    }
+
+    return {
+      id: `merged_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      data: merged,
+      priority,
+      addedAt,
+      metadata: {
+        mergedFromCount: buffers.length,
+        merged: true,
+      },
+    };
+  }
+
+  /**
+   * Concatenate multiple Uint8Array buffers into one
+   *
+   * @param buffers - Array of buffers to concatenate
+   * @returns Combined buffer
+   */
+  private concatBuffers(buffers: Uint8Array[]): Uint8Array {
+    let totalSize = 0;
+    for (const buf of buffers) {
+      totalSize += buf.length;
+    }
+
+    const result = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const buf of buffers) {
+      result.set(buf, offset);
+      offset += buf.length;
+    }
+
     return result;
   }
 
@@ -424,6 +657,46 @@ export class BatchPrintManager {
   }
 
   /**
+   * Start the flush timer (interval timeout auto-flush)
+   *
+   * If no new jobs arrive within flushIntervalTimeout ms, the pending
+   * jobs are automatically flushed via the 'auto-flush' event.
+   */
+  private startFlushTimer(): void {
+    this.clearFlushTimer();
+
+    if (this.config.flushIntervalTimeout <= 0 || this.jobs.length === 0) {
+      return;
+    }
+
+    this.flushTimer = setTimeout(() => {
+      const elapsed = Date.now() - this.lastJobAt;
+      if (elapsed >= this.config.flushIntervalTimeout && this.jobs.length > 0) {
+        this.logger.debug(
+          `Flush interval timeout triggered: ${this.jobs.length} jobs pending, ` +
+          `elapsed: ${elapsed}ms`
+        );
+        this.stats.autoFlushCount++;
+        this.emit('auto-flush', {
+          jobCount: this.jobs.length,
+          bytes: this.jobs.reduce((sum, j) => sum + j.data.length, 0),
+        });
+        this.emit('batch-ready', [...this.jobs]);
+      }
+    }, this.config.flushIntervalTimeout);
+  }
+
+  /**
+   * Clear flush timer
+   */
+  private clearFlushTimer(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+  }
+
+  /**
    * Start auto-process timer
    */
   private startAutoProcess(): void {
@@ -455,6 +728,7 @@ export class BatchPrintManager {
   private clearTimers(): void {
     this.clearWaitTimer();
     this.stopAutoProcess();
+    this.clearFlushTimer();
   }
 
   /**
@@ -474,6 +748,8 @@ export class BatchPrintManager {
       batchesProcessed: 0,
       avgBatchSize: 0,
       mergedJobs: 0,
+      autoFlushCount: 0,
+      unifiedCutsApplied: 0,
     };
   }
 

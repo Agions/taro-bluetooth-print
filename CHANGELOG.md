@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-03-26
+
+### 新增
+
+- **StarPrinter 驱动**: 新增 STAR TSP/SP700 系列协议支持，含完整 text/qr/barcode/image/cut/beep/bold/align 方法
+- **韩日文编码支持**: EncodingService 扩展 EUC-KR（韩文）、Shift-JIS / ISO-2022-JP（日文）编码
+- **QQ 小程序适配器**: 新增 QQAdapter，继承 MiniProgramAdapter，支持 QQ 小程序环境
+- **React Native 适配器**: 新增 ReactNativeAdapter，基于 react-native-ble-plx 实现 IPrinterAdapter 接口
+- **PrintStatistics 统计服务**: 追踪打印任务全生命周期，支持按日期/驱动分类统计、导出 JSON
+- **ScheduledRetryManager 定时重试**: 支持指定时间自动重试、指数退避策略、进程重启后恢复调度
+- **BatchPrintManager 批量增强**: 新增小任务合并（<50 bytes）、超时自动 flush、统一切刀指令
+
+### 优化
+
+- **ImageProcessing 图像处理**: 新增 4 种抖动算法（ordered halftone/sierra/stucki），新增图像预处理流水线（去噪/锐化/Gamma/色阶压缩），新增质量预设（draft/normal/high）
+
+### 测试
+
+- 新增 7 个测试文件，覆盖 StarPrinter、韩日文编码、新适配器、PrintStatistics、ScheduledRetryManager、BatchPrintManager 增强、ImageProcessing 增强
+- 测试用例从 84 增至 334 个
+
+---
+
 ## [2.4.1] - 2026-03-24
 
 ### 修复

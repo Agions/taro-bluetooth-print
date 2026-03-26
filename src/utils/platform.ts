@@ -9,6 +9,7 @@ declare const wx: unknown;
 declare const my: unknown;
 declare const swan: unknown;
 declare const tt: unknown;
+declare const qq: unknown;
 declare const window: unknown;
 
 /**
@@ -23,6 +24,8 @@ export enum PlatformType {
   BAIDU = 'baidu',
   /** ByteDance Mini Program (Douyin, Toutiao) */
   BYTEDANCE = 'bytedance',
+  /** QQ Mini Program */
+  QQ = 'qq',
   /** Web platform */
   WEB = 'web',
   /** Unknown platform */
@@ -49,31 +52,24 @@ function isWindowWithNavigator(obj: unknown): obj is { navigator: unknown } {
  * @returns The detected platform type
  */
 export function detectPlatform(): PlatformType {
-  // Check for WeChat Mini Program
   if (typeof wx !== 'undefined' && hasRequestMethod(wx)) {
     return PlatformType.WECHAT;
   }
-
-  // Check for Alipay Mini Program
   if (typeof my !== 'undefined' && hasRequestMethod(my)) {
     return PlatformType.ALIPAY;
   }
-
-  // Check for Baidu Smart Program
   if (typeof swan !== 'undefined' && hasRequestMethod(swan)) {
     return PlatformType.BAIDU;
   }
-
-  // Check for ByteDance Mini Program
   if (typeof tt !== 'undefined' && hasRequestMethod(tt)) {
     return PlatformType.BYTEDANCE;
   }
-
-  // Check for Web platform
+  if (typeof qq !== 'undefined' && hasRequestMethod(qq)) {
+    return PlatformType.QQ;
+  }
   if (typeof window !== 'undefined' && isWindowWithNavigator(window)) {
     return PlatformType.WEB;
   }
-
   return PlatformType.UNKNOWN;
 }
 
@@ -84,18 +80,13 @@ export function detectPlatform(): PlatformType {
  */
 export function getPlatformGlobal(): unknown {
   switch (detectPlatform()) {
-    case PlatformType.WECHAT:
-      return wx;
-    case PlatformType.ALIPAY:
-      return my;
-    case PlatformType.BAIDU:
-      return swan;
-    case PlatformType.BYTEDANCE:
-      return tt;
-    case PlatformType.WEB:
-      return window;
-    default:
-      return null;
+    case PlatformType.WECHAT: return wx;
+    case PlatformType.ALIPAY: return my;
+    case PlatformType.BAIDU: return swan;
+    case PlatformType.BYTEDANCE: return tt;
+    case PlatformType.QQ: return qq;
+    case PlatformType.WEB: return window;
+    default: return null;
   }
 }
 
@@ -116,17 +107,12 @@ export function isPlatformSupported(): boolean {
  */
 export function getPlatformName(): string {
   switch (detectPlatform()) {
-    case PlatformType.WECHAT:
-      return '微信小程序';
-    case PlatformType.ALIPAY:
-      return '支付宝小程序';
-    case PlatformType.BAIDU:
-      return '百度小程序';
-    case PlatformType.BYTEDANCE:
-      return '字节跳动小程序';
-    case PlatformType.WEB:
-      return 'Web平台';
-    default:
-      return '未知平台';
+    case PlatformType.WECHAT: return '微信小程序';
+    case PlatformType.ALIPAY: return '支付宝小程序';
+    case PlatformType.BAIDU: return '百度小程序';
+    case PlatformType.BYTEDANCE: return '字节跳动小程序';
+    case PlatformType.QQ: return 'QQ小程序';
+    case PlatformType.WEB: return 'Web平台';
+    default: return '未知平台';
   }
 }

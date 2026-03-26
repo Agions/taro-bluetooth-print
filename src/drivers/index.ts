@@ -35,3 +35,13 @@ export {
   type CpclLineOptions,
   type CpclBoxOptions,
 } from './CpclDriver';
+
+export {
+  StarPrinter,
+  type StarPrinterOptions,
+  type Alignment,
+  type BarcodeType,
+  type StarBarcodeOptions,
+  type StarQrOptions,
+  type StarImageOptions,
+} from './StarPrinter';
