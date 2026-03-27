@@ -994,22 +994,22 @@ export function validateArray<T>(
  *   .result();
  * ```
  */
-export function check(value: unknown, field: string) {
-  const errors: ValidationError[] = [];
 
-  // Define interface for chainable methods
-  interface ChainableValidator {
-    addError(message: string, code: string): ChainableValidator;
-    required(): ChainableValidator;
-    string(): ChainableValidator;
-    number(): ChainableValidator;
-    integer(): ChainableValidator;
-    range(min: number, max: number): ChainableValidator;
-    length(min: number, max: number): ChainableValidator;
-    pattern(regex: RegExp, message?: string): ChainableValidator;
-    oneOf<T>(values: readonly T[], message?: string): ChainableValidator;
-    result(): ValidationResult;
-  }
+export interface ChainableValidator {
+  addError(message: string, code: string): ChainableValidator;
+  required(): ChainableValidator;
+  string(): ChainableValidator;
+  number(): ChainableValidator;
+  integer(): ChainableValidator;
+  range(min: number, max: number): ChainableValidator;
+  length(min: number, max: number): ChainableValidator;
+  pattern(regex: RegExp, message?: string): ChainableValidator;
+  oneOf<T>(values: readonly T[], message?: string): ChainableValidator;
+  result(): ValidationResult;
+}
+
+export function check(value: unknown, field: string): ChainableValidator {
+  const errors: ValidationError[] = [];
 
   const self: ChainableValidator = {
     /** Add error manually */

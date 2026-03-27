@@ -19,7 +19,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
+    "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": true,
     "moduleResolution": "bundler",
     "baseUrl": ".",

@@ -237,9 +237,13 @@ export class WebBluetoothAdapter extends BaseAdapter {
       });
 
       // Listen for disconnection
-      device.addEventListener('gattserverdisconnected', () => {
-        this.handleDisconnection(deviceId);
-      });
+      device.addEventListener(
+        'gattserverdisconnected',
+        () => {
+          this.handleDisconnection(deviceId);
+        },
+        { once: true }
+      );
 
       this.updateState(PrinterState.CONNECTED);
       this.logger.info('Device connected successfully');
@@ -270,18 +274,15 @@ export class WebBluetoothAdapter extends BaseAdapter {
 
   /**
    * Disconnect from a Bluetooth device
-   * Enhanced to properly clean up all resources and event listeners
    *
    * @param deviceId - Bluetooth device ID
-   * @param force - If true, force disconnection even if device not found in cache
    */
-  disconnect(deviceId: string, force = false): void {
+  async disconnect(deviceId: string): Promise<void> {
+    await Promise.resolve(); // Ensure async semantics
     this.validateDeviceId(deviceId);
 
     const deviceInfo = this.devices.get(deviceId);
-
-    // If device not found and not forcing, just return
-    if (!deviceInfo && !force) {
+    if (!deviceInfo) {
       this.logger.debug('Device not found in cache, nothing to disconnect');
       return;
     }
@@ -300,13 +301,6 @@ export class WebBluetoothAdapter extends BaseAdapter {
       if (deviceInfo?.server?.connected) {
         deviceInfo.server.disconnect();
         this.logger.debug('GATT server disconnected');
-      }
-
-      // Remove thegattserverdisconnected event listener to prevent double-handling
-      if (deviceInfo?.device) {
-        deviceInfo.device.removeEventListener('gattserverdisconnected', () => {
-          this.handleDisconnection(deviceId);
-        });
       }
     } catch (error) {
       this.logger.warn('Disconnect error:', error);
