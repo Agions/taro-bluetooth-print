@@ -668,12 +668,15 @@ export class TemplateEngine implements ITemplateEngine {
       // Create iteration context with item and optionally index
       const context: Record<string, unknown> = {
         ...data,
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         [loop.itemVar]: itemData,
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       };
 
       if (loop.indexVar) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         context[loop.indexVar] = i;
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       }
 
       // Render each element in the loop

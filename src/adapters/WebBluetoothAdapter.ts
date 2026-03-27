@@ -211,8 +211,9 @@ export class WebBluetoothAdapter extends BaseAdapter {
       let rssi: number | undefined;
       try {
         if ('readRemoteRssi' in characteristic.service.device) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
           rssi = await (characteristic.service.device as any).readRemoteRssi();
+          /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
         }
       } catch {
         this.logger.debug('RSSI reading not supported on this device');
