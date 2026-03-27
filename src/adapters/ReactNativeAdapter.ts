@@ -7,12 +7,13 @@
  */
 
 // Platform type - React Native availability is checked at runtime via Platform.OS
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Platform = (globalThis as any).Platform;
+interface PlatformInterface {
+  OS: string;
+  select<T>(options: { ios?: T; android?: T; default?: T }): T;
+}
+const Platform = (globalThis as { Platform?: PlatformInterface }).Platform;
 
-import {
-  BaseAdapter,
-} from './BaseAdapter';
+import { BaseAdapter } from './BaseAdapter';
 import { IPrinterAdapter, IAdapterOptions, PrinterState } from '@/types';
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
@@ -48,17 +49,9 @@ interface BLEManager {
     onDeviceScanned: (error: unknown, device: unknown) => void
   ): void;
   stopDeviceScan(): void;
-  connectToDevice(
-    deviceIdentifier: string,
-    options: Record<string, unknown>
-  ): Promise<unknown>;
-  disconnectFromDevice(
-    deviceIdentifier: string,
-    force?: boolean
-  ): Promise<unknown>;
-  discoverAllServicesAndCharacteristicsForDevice(
-    deviceIdentifier: string
-  ): Promise<unknown>;
+  connectToDevice(deviceIdentifier: string, options: Record<string, unknown>): Promise<unknown>;
+  disconnectFromDevice(deviceIdentifier: string, force?: boolean): Promise<unknown>;
+  discoverAllServicesAndCharacteristicsForDevice(deviceIdentifier: string): Promise<unknown>;
   writeCharacteristicWithResponseForDevice(
     deviceIdentifier: string,
     serviceUUID: string,
@@ -137,14 +130,14 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
     if (!options?.bleManager) {
       throw new Error(
         'ReactNativeAdapter requires a bleManager instance (e.g., react-native-ble-plx). ' +
-        'Please pass { bleManager: yourBleManager } in the constructor.'
+          'Please pass { bleManager: yourBleManager } in the constructor.'
       );
     }
 
     this.bleManager = options.bleManager;
 
     // Validate platform
-    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    if (Platform && Platform.OS !== 'ios' && Platform.OS !== 'android') {
       Logger.scope('ReactNativeAdapter').warn(
         `Running on unsupported platform: ${Platform.OS}. BLE may not work correctly.`
       );
@@ -422,18 +415,15 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
   startDiscovery?(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.bleManager.startDeviceScan(
-          null,
-          { allowDuplicates: false },
-          (error: unknown) => {
-            if (error) {
-              reject(error);
-            }
+        this.bleManager.startDeviceScan(null, { allowDuplicates: false }, (error: unknown) => {
+          if (error) {
+            // eslint-disable-next-line @typescript-eslint/no-base-to-string
+            reject(error instanceof Error ? error : new Error(String(error)));
           }
-        );
+        });
         resolve();
       } catch (error) {
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
@@ -442,7 +432,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
    * Stop discovering nearby Bluetooth devices
    */
   stopDiscovery?(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.bleManager.stopDeviceScan();
       resolve();
     });
@@ -466,8 +456,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
 
       for (const service of services) {
         const writeChar = service.characteristics.find(
-          (c: RNCharacteristic) =>
-            c.isWritableWithResponse || c.isWritableWithoutResponse
+          (c: RNCharacteristic) => c.isWritableWithResponse || c.isWritableWithoutResponse
         );
 
         if (writeChar) {

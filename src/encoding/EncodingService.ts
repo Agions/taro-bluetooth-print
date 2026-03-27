@@ -279,10 +279,19 @@ export class EncodingService {
 
     const normalized = this.normalizeEncoding(encoding);
     return [
-      'GBK', 'GB2312', 'BIG5', 'UTF8', 'UTF-8',
-      'EUCKR', 'EUC-KR',
-      'SHIFTJIS', 'SHIFT-JIS', 'SJIS',
-      'ISO2022JP', 'ISO-2022-JP', 'JIS',
+      'GBK',
+      'GB2312',
+      'BIG5',
+      'UTF8',
+      'UTF-8',
+      'EUCKR',
+      'EUC-KR',
+      'SHIFTJIS',
+      'SHIFT-JIS',
+      'SJIS',
+      'ISO2022JP',
+      'ISO-2022-JP',
+      'JIS',
     ].includes(normalized);
   }
 
@@ -487,8 +496,6 @@ export class EncodingService {
     // Try native TextEncoder first (full coverage)
     try {
       const native = new TextEncoder();
-      // @ts-ignore - TextEncoder supports EUC-KR in some environments
-      const encoded = native.encodeInto ? null : null;
       // Use native EUC-KR encoding if available
       const test = native.encode('가');
       if (test.length > 0) {

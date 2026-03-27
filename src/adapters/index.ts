@@ -3,7 +3,12 @@
  */
 
 export { BaseAdapter, MiniProgramAdapter } from './BaseAdapter';
-export type { MiniProgramBLEApi, ServiceInfo, BLECharacteristic, BLECharacteristicProperties } from './BaseAdapter';
+export type {
+  MiniProgramBLEApi,
+  ServiceInfo,
+  BLECharacteristic,
+  BLECharacteristicProperties,
+} from './BaseAdapter';
 export { TaroAdapter } from './TaroAdapter';
 export { AlipayAdapter } from './AlipayAdapter';
 export { BaiduAdapter } from './BaiduAdapter';

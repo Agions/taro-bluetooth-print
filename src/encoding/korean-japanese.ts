@@ -27,11 +27,10 @@
 
 // Korean Hangul Syllables (U+AC00 - U+D7AF)
 // These are composed syllables that map to EUC-KR precomposed forms
-export const HANGUL_SYLLABLE_OFFSET = 0xAC00;
-export const HANGUL_INITIAL_COUNT = 21;  // 19 initials × 21 vowels
+export const HANGUL_SYLLABLE_OFFSET = 0xac00;
+export const HANGUL_INITIAL_COUNT = 21; // 19 initials × 21 vowels
 export const HANGUL_MEDIAL_COUNT = 21;
 export const HANGUL_FINAL_COUNT = 28;
-
 
 // ============================================================================
 // Shift-JIS (Japanese) Constants
@@ -51,18 +50,18 @@ export const HANGUL_FINAL_COUNT = 28;
  */
 
 // JIS X 0201 Katakana range
-export const SHIFT_JIS_KATAKANA_START = 0xA1;
-export const SHIFT_JIS_KATAKANA_END = 0xDF;
+export const SHIFT_JIS_KATAKANA_START = 0xa1;
+export const SHIFT_JIS_KATAKANA_END = 0xdf;
 
 // JIS X 0208 Kanji regions
 export const SHIFT_JIS_KANJI_LOW_START = 0x81;
-export const SHIFT_JIS_KANJI_LOW_END = 0x9F;
-export const SHIFT_JIS_KANJI_HIGH_START = 0xE0;
-export const SHIFT_JIS_KANJI_HIGH_END = 0xEF;
+export const SHIFT_JIS_KANJI_LOW_END = 0x9f;
+export const SHIFT_JIS_KANJI_HIGH_START = 0xe0;
+export const SHIFT_JIS_KANJI_HIGH_END = 0xef;
 
 // JIS non-pictorial (Kanji) area
 export const SHIFT_JIS_KANJI_SECOND_MIN = 0x40;
-export const SHIFT_JIS_KANJI_SECOND_MAX = 0xFC;
+export const SHIFT_JIS_KANJI_SECOND_MAX = 0xfc;
 
 // ============================================================================
 // Character Classification Helpers
@@ -72,39 +71,43 @@ export const SHIFT_JIS_KANJI_SECOND_MAX = 0xFC;
  * Check if a Unicode code point is a Korean Hangul syllable
  */
 export function isKoreanHangul(code: number): boolean {
-  return code >= 0xAC00 && code <= 0xD7AF;
+  return code >= 0xac00 && code <= 0xd7af;
 }
 
 /**
  * Check if a Unicode code point is a Korean Hanja (Hanja)
  */
 export function isKoreanHanja(code: number): boolean {
-  return (code >= 0x4E00 && code <= 0x9FFF) ||
-         (code >= 0xF900 && code <= 0xFAFF) ||
-         (code >= 0x3400 && code <= 0x4DBF);
+  return (
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0x3400 && code <= 0x4dbf)
+  );
 }
 
 /**
  * Check if a Unicode code point is basic Korean (Hangul Jamo)
  */
 export function isKoreanJamo(code: number): boolean {
-  return (code >= 0x1100 && code <= 0x11FF) ||
-         (code >= 0x3130 && code <= 0x318F) ||
-         (code >= 0xFFA0 && code <= 0xFFDF);
+  return (
+    (code >= 0x1100 && code <= 0x11ff) ||
+    (code >= 0x3130 && code <= 0x318f) ||
+    (code >= 0xffa0 && code <= 0xffdf)
+  );
 }
 
 /**
  * Check if a code point is Japanese Hiragana
  */
 export function isJapaneseHiragana(code: number): boolean {
-  return code >= 0x3040 && code <= 0x309F;
+  return code >= 0x3040 && code <= 0x309f;
 }
 
 /**
  * Check if a code point is Japanese Katakana (full-width)
  */
 export function isJapaneseKatakana(code: number): boolean {
-  return code >= 0x30A0 && code <= 0x30FF;
+  return code >= 0x30a0 && code <= 0x30ff;
 }
 
 /**
@@ -115,9 +118,11 @@ export function isJapaneseKanji(code: number): boolean {
   // Common: U+4E00-U+9FFF (with many gaps)
   // Extended A: U+3400-U+4DBF
   // Extended B: U+20000-U+2A6DF (not supported)
-  return (code >= 0x4E00 && code <= 0x9FFF) ||
-         (code >= 0x3400 && code <= 0x4DBF) ||
-         (code >= 0xF900 && code <= 0xFAFF);
+  return (
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0xf900 && code <= 0xfaff)
+  );
 }
 
 // ============================================================================
@@ -142,18 +147,50 @@ export function encodeHangulSyllable(code: number): [number, number] | null {
 
   // Calculate leading consonant (initial), vowel (medial), trailing consonant (final)
   const leadingConsonant = Math.floor(syllableIndex / (HANGUL_MEDIAL_COUNT * HANGUL_FINAL_COUNT));
-  const vowelIndex = Math.floor((syllableIndex % (HANGUL_MEDIAL_COUNT * HANGUL_FINAL_COUNT)) / HANGUL_FINAL_COUNT);
+  const vowelIndex = Math.floor(
+    (syllableIndex % (HANGUL_MEDIAL_COUNT * HANGUL_FINAL_COUNT)) / HANGUL_FINAL_COUNT
+  );
   const trailingConsonant = syllableIndex % HANGUL_FINAL_COUNT;
 
   // Lead consonants: ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ (14 consonants)
-  const LEAD_CONSONANTS = [0x81, 0x82, 0x84, 0x85, 0x88, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92];
+  const LEAD_CONSONANTS = [
+    0x81, 0x82, 0x84, 0x85, 0x88, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91, 0x92,
+  ];
   // Vowels: ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ (21 vowels)
-  const VOWELS = [0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5];
+  const VOWELS = [
+    0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0,
+    0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
+  ];
   // Trail consonants (finals): ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ (27 finals, 0=none)
   const TRAIL_CONSONANTS: number[] = [
     0x00, // No final
-    0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
-    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B
+    0x81,
+    0x82,
+    0x83,
+    0x84,
+    0x85,
+    0x86,
+    0x87,
+    0x88,
+    0x89,
+    0x8a,
+    0x8b,
+    0x8c,
+    0x8d,
+    0x8e,
+    0x8f,
+    0x90,
+    0x91,
+    0x92,
+    0x93,
+    0x94,
+    0x95,
+    0x96,
+    0x97,
+    0x98,
+    0x99,
+    0x9a,
+    0x9b,
   ];
 
   if (leadingConsonant >= LEAD_CONSONANTS.length) return null;
@@ -179,9 +216,9 @@ export function encodeHangulSyllable(code: number): [number, number] | null {
   if (trail === 0x00) {
     // Map to EUC-KR compatible range
     const row = Math.floor((lead - 0x81) * 21 + vowelIndex);
-    const eucLead = 0xB0 + Math.floor(row / 0x5E);
-    const eucTrail = 0xA1 + (row % 0x5E);
-    return [eucLead & 0xFF, eucTrail & 0xFF];
+    const eucLead = 0xb0 + Math.floor(row / 0x5e);
+    const eucTrail = 0xa1 + (row % 0x5e);
+    return [eucLead & 0xff, eucTrail & 0xff];
   }
 
   return [leadByte, trailByte];
@@ -196,12 +233,12 @@ export function encodeHangulSyllable(code: number): [number, number] | null {
  * U+3040-309F → 0x829F-0x82F1 (simplified mapping)
  */
 export function unicodeToShiftJisHiragana(code: number): [number, number] | null {
-  if (code >= 0x3040 && code <= 0x309F) {
+  if (code >= 0x3040 && code <= 0x309f) {
     const offset = code - 0x3040;
     // JIS X 0201 Hiragana range
     const jisLead = 0x82;
-    const jisTrail = 0x9F + offset;
-    return [jisLead, jisTrail & 0xFF];
+    const jisTrail = 0x9f + offset;
+    return [jisLead, jisTrail & 0xff];
   }
   return null;
 }
@@ -211,11 +248,11 @@ export function unicodeToShiftJisHiragana(code: number): [number, number] | null
  * U+30A0-30FF → 0x8340-0x8396 (full-width Katakana)
  */
 export function unicodeToShiftJisKatakana(code: number): [number, number] | null {
-  if (code >= 0x30A0 && code <= 0x30FF) {
-    const offset = code - 0x30A0;
+  if (code >= 0x30a0 && code <= 0x30ff) {
+    const offset = code - 0x30a0;
     const jisLead = 0x83;
     const jisTrail = 0x40 + offset;
-    return [jisLead, jisTrail & 0xFF];
+    return [jisLead, jisTrail & 0xff];
   }
   return null;
 }
@@ -225,8 +262,8 @@ export function unicodeToShiftJisKatakana(code: number): [number, number] | null
  * U+FF61-U+FF9F → 0xA1-0xDF
  */
 export function unicodeToHalfWidthKatakana(code: number): number | null {
-  if (code >= 0xFF61 && code <= 0xFF9F) {
-    return code - 0xFF61 + 0xA1;
+  if (code >= 0xff61 && code <= 0xff9f) {
+    return code - 0xff61 + 0xa1;
   }
   return null;
 }
@@ -237,8 +274,7 @@ export function unicodeToHalfWidthKatakana(code: number): number | null {
  */
 export function isInJisX0208Range(code: number): boolean {
   // Level 1 and Level 2 Kanji
-  return (code >= 0x4E00 && code <= 0x9FFF) ||
-         (code >= 0x3400 && code <= 0x4DBF);
+  return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf);
 }
 
 // ============================================================================
@@ -258,9 +294,9 @@ export function isInJisX0208Range(code: number): boolean {
 /**
  * ISO-2022-JP escape sequences
  */
-export const ISO2022JP_ESC_ASCII = new Uint8Array([0x1b, 0x28, 0x42]);     // ESC ( B
-export const ISO2022JP_ESC_JIS0201 = new Uint8Array([0x1b, 0x28, 0x4a]);  // ESC ( J
-export const ISO2022JP_ESC_JIS0208 = new Uint8Array([0x1b, 0x24, 0x42]);  // ESC $ B
+export const ISO2022JP_ESC_ASCII = new Uint8Array([0x1b, 0x28, 0x42]); // ESC ( B
+export const ISO2022JP_ESC_JIS0201 = new Uint8Array([0x1b, 0x28, 0x4a]); // ESC ( J
+export const ISO2022JP_ESC_JIS0208 = new Uint8Array([0x1b, 0x24, 0x42]); // ESC $ B
 export const ISO2022JP_ESC_JIS0208_83 = new Uint8Array([0x1b, 0x24, 0x40]); // ESC $ @
 export const ISO2022JP_ESC_JIS0208_90 = new Uint8Array([0x1b, 0x24, 0x44]); // ESC $ D
 
@@ -273,9 +309,7 @@ export type ISO2022JPState = 'ASCII' | 'JIS0208' | 'JIS0201';
  * Check if a code point requires JIS X 0208 escape sequence
  */
 export function requiresJisX0208Escape(code: number): boolean {
-  return isJapaneseHiragana(code) ||
-         isJapaneseKatakana(code) ||
-         isJapaneseKanji(code);
+  return isJapaneseHiragana(code) || isJapaneseKatakana(code) || isJapaneseKanji(code);
 }
 
 /**
@@ -283,7 +317,9 @@ export function requiresJisX0208Escape(code: number): boolean {
  */
 export function isJisX0201Katakana(code: number): boolean {
   // Half-width Katakana range
-  return (code >= 0xFF61 && code <= 0xFF9F) ||
-         // Full-width Katakana (JIS X 0201 range mapped to U+30A0)
-         (code >= 0x30A0 && code <= 0x30FF);
+  return (
+    (code >= 0xff61 && code <= 0xff9f) ||
+    // Full-width Katakana (JIS X 0201 range mapped to U+30A0)
+    (code >= 0x30a0 && code <= 0x30ff)
+  );
 }

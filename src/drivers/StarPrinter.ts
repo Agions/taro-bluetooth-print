@@ -275,14 +275,14 @@ export class StarPrinter implements IPrinterDriver {
       return [];
     }
 
-    const model = (options?.model ?? 2) as 1 | 2;
+    const model = options?.model ?? 2;
     // STAR uses cellSize instead of 'size' - extract safely
     let cellSize = 4;
     if (options) {
       if ('cellSize' in options) {
-        cellSize = (options as StarQrOptions).cellSize ?? 4;
+        cellSize = options.cellSize ?? 4;
       } else if ('size' in options) {
-        cellSize = (options as IQrOptions).size ?? 4;
+        cellSize = options.size ?? 4;
       }
     }
     const ecLevel = options?.errorCorrection ?? 'M';
@@ -310,9 +310,10 @@ export class StarPrinter implements IPrinterDriver {
 
     // Step 4: QR Data - Calculate length and send
     // Get encoded data
-    const encoded = this.useEncodingService && this.encodingService.isSupported('UTF-8')
-      ? this.encodingService.encode(content, 'UTF-8')
-      : new TextEncoder().encode(content);
+    const encoded =
+      this.useEncodingService && this.encodingService.isSupported('UTF-8')
+        ? this.encodingService.encode(content, 'UTF-8')
+        : new TextEncoder().encode(content);
 
     // Send QR data: Length prefix (2 bytes big-endian) + data
     const len = encoded.length;
@@ -360,10 +361,10 @@ export class StarPrinter implements IPrinterDriver {
 
     // HRI position mapping
     const hriMap: Record<string, number> = {
-      'none': 0,
-      'above': 1,
-      'below': 2,
-      'both': 3,
+      none: 0,
+      above: 1,
+      below: 2,
+      both: 3,
     };
     const hriValue = hriMap[hri] ?? 2;
 
@@ -544,9 +545,9 @@ export class StarPrinter implements IPrinterDriver {
     // ESC a n - Select justification
     // n=0: Left, n=1: Center, n=2: Right
     const alignMap: Record<Alignment, number> = {
-      'left': 0x00,
-      'center': 0x01,
-      'right': 0x02,
+      left: 0x00,
+      center: 0x01,
+      right: 0x02,
     };
 
     const alignValue = alignMap[align] ?? 0x00;

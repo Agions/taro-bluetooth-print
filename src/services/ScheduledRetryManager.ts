@@ -141,10 +141,7 @@ export class ScheduledRetryManager {
    * @param config - Optional configuration overrides
    * @param offlineCache - Optional OfflineCache instance (uses singleton if not provided)
    */
-  constructor(
-    config?: Partial<ScheduledRetryManagerConfig>,
-    offlineCache?: OfflineCache
-  ) {
+  constructor(config?: Partial<ScheduledRetryManagerConfig>, offlineCache?: OfflineCache) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.offlineCache = offlineCache ?? new OfflineCache();
 
@@ -197,15 +194,13 @@ export class ScheduledRetryManager {
 
     // Schedule the timeout
     entry.timeout = setTimeout(() => {
-      this.executeRetry(entry);
+      void this.executeRetry(entry);
     }, delay);
 
     this.scheduledRetries.set(jobId, entry);
-    this.persistRetry(entry);
+    void this.persistRetry(entry);
 
-    this.logger.info(
-      `Retry scheduled: ${jobId}, runAt: ${runAt.toISOString()}, delay: ${delay}ms`
-    );
+    this.logger.info(`Retry scheduled: ${jobId}, runAt: ${runAt.toISOString()}, delay: ${delay}ms`);
   }
 
   /**
@@ -289,7 +284,8 @@ export class ScheduledRetryManager {
     const entry = this.scheduledRetries.get(jobId);
     if (!entry) return undefined;
 
-    // Return a copy without the timeout
+    // Return a copy without the timeout (timeout cannot be serialized)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { timeout, ...rest } = entry;
     return rest as ScheduledRetry;
   }
@@ -425,11 +421,11 @@ export class ScheduledRetryManager {
         entry.runAt = nextRunAt;
 
         entry.timeout = setTimeout(() => {
-          this.executeRetry(entry);
+          void this.executeRetry(entry);
         }, nextDelay);
 
         this.scheduledRetries.set(jobId, entry);
-        this.persistRetry(entry);
+        void this.persistRetry(entry);
 
         this.logger.info(
           `Scheduled next retry for ${jobId}: ${nextRunAt.toISOString()}, attempt: ${entry.attemptCount}`
@@ -499,11 +495,8 @@ export class ScheduledRetryManager {
 
       for (const cached of cachedJobs) {
         // Only restore scheduled_retry entries
-        if (
-          cached.metadata &&
-          (cached.metadata as Record<string, unknown>).type === 'scheduled_retry'
-        ) {
-          const meta = cached.metadata as Record<string, unknown>;
+        if (cached.metadata && cached.metadata.type === 'scheduled_retry') {
+          const meta = cached.metadata;
           const runAtStr = meta.runAt as string;
           const runAt = new Date(runAtStr);
 
@@ -526,7 +519,7 @@ export class ScheduledRetryManager {
 
           // Schedule with correct delay
           entry.timeout = setTimeout(() => {
-            this.executeRetry(entry);
+            void this.executeRetry(entry);
           }, runAt.getTime() - now);
 
           this.scheduledRetries.set(entry.jobId, entry);
@@ -546,7 +539,10 @@ export class ScheduledRetryManager {
   /**
    * Emit an event
    */
-  private emit<K extends keyof ScheduledRetryEvents>(event: K, data: ScheduledRetryEvents[K]): void {
+  private emit<K extends keyof ScheduledRetryEvents>(
+    event: K,
+    data: ScheduledRetryEvents[K]
+  ): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
       handlers.forEach(handler => {

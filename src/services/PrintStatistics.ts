@@ -266,8 +266,7 @@ export class PrintStatistics {
     const completedOrFailed = this.completedJobs + this.failedJobs;
     const successRate = completedOrFailed > 0 ? this.completedJobs / completedOrFailed : 0;
 
-    const averagePrintTime =
-      this.completedJobs > 0 ? this.totalPrintTime / this.completedJobs : 0;
+    const averagePrintTime = this.completedJobs > 0 ? this.totalPrintTime / this.completedJobs : 0;
 
     return {
       totalJobs: this.totalJobs,
@@ -352,10 +351,7 @@ export class PrintStatistics {
    * @param endDate - End date (timestamp or Date)
    * @returns Filtered statistics
    */
-  getStatisticsByDateRange(
-    startDate: Date | number,
-    endDate: Date | number
-  ): PrintStatisticsData {
+  getStatisticsByDateRange(startDate: Date | number, endDate: Date | number): PrintStatisticsData {
     const start = typeof startDate === 'number' ? startDate : startDate.getTime();
     const end = typeof endDate === 'number' ? endDate : endDate.getTime();
 
@@ -467,7 +463,9 @@ export class PrintStatistics {
     return String(error);
   }
 
-  private aggregateByDate(jobs: JobRecord[]): Record<string, { completed: number; failed: number }> {
+  private aggregateByDate(
+    jobs: JobRecord[]
+  ): Record<string, { completed: number; failed: number }> {
     const result: Record<string, { completed: number; failed: number }> = {};
     for (const job of jobs) {
       const dateKey = this.formatDateKey(job.startedAt);
@@ -483,7 +481,9 @@ export class PrintStatistics {
     return result;
   }
 
-  private aggregateByDriver(jobs: JobRecord[]): Record<string, { completed: number; failed: number }> {
+  private aggregateByDriver(
+    jobs: JobRecord[]
+  ): Record<string, { completed: number; failed: number }> {
     const result: Record<string, { completed: number; failed: number }> = {};
     for (const job of jobs) {
       if (!job.driver) continue;

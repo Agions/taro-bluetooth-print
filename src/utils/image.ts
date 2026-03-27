@@ -26,7 +26,7 @@ export class ImageProcessing {
     for (let i = 0; i < 8; i++) {
       m8[i] = [];
       for (let j = 0; j < 8; j++) {
-        const v = (m4[i >> 1]?.[j >> 1] ?? 0) + ((i % 2) * 32) + ((j % 2) * 64);
+        const v = (m4[i >> 1]?.[j >> 1] ?? 0) + (i % 2) * 32 + (j % 2) * 64;
         m8[i]![j] = v;
       }
     }
@@ -63,7 +63,13 @@ export class ImageProcessing {
       targetHeight?: number;
       useDithering?: boolean;
       /** 'floyd-steinberg' | 'atkinson' | 'ordered' | 'halftone' | 'sierra' | 'stucki' (default: 'floyd-steinberg') */
-      ditheringAlgorithm?: 'floyd-steinberg' | 'atkinson' | 'ordered' | 'halftone' | 'sierra' | 'stucki';
+      ditheringAlgorithm?:
+        | 'floyd-steinberg'
+        | 'atkinson'
+        | 'ordered'
+        | 'halftone'
+        | 'sierra'
+        | 'stucki';
       scalingAlgorithm?: 'nearest' | 'bilinear';
       contrast?: number;
       brightness?: number;
@@ -78,7 +84,9 @@ export class ImageProcessing {
     }
 
     if (data.length !== width * height * 4) {
-      throw new Error(`Invalid image data length: expected ${width * height * 4}, got ${data.length}`);
+      throw new Error(
+        `Invalid image data length: expected ${width * height * 4}, got ${data.length}`
+      );
     }
 
     let opts = options || {};
@@ -105,7 +113,14 @@ export class ImageProcessing {
     let processedHeight = height;
 
     if (targetWidth || targetHeight) {
-      const scaled = this.scaleImage(data, width, height, targetWidth || width, targetHeight || height, { algorithm: scalingAlgorithm });
+      const scaled = this.scaleImage(
+        data,
+        width,
+        height,
+        targetWidth || width,
+        targetHeight || height,
+        { algorithm: scalingAlgorithm }
+      );
       processedData = scaled.newData;
       processedWidth = scaled.newWidth;
       processedHeight = scaled.newHeight;
@@ -125,7 +140,14 @@ export class ImageProcessing {
         halftoneDotType,
       });
     } else {
-      this.applyThreshold(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, threshold);
+      this.applyThreshold(
+        grayscale,
+        processedWidth,
+        processedHeight,
+        bitmap,
+        bytesPerLine,
+        threshold
+      );
     }
 
     return bitmap;
@@ -214,10 +236,26 @@ export class ImageProcessing {
   ): void {
     switch (opts.algorithm) {
       case 'ordered':
-        this.applyOrderedDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold, opts.orderedMatrixSize);
+        this.applyOrderedDithering(
+          grayscale,
+          width,
+          height,
+          bitmap,
+          bytesPerLine,
+          opts.threshold,
+          opts.orderedMatrixSize
+        );
         break;
       case 'halftone':
-        this.applyHalftone(grayscale, width, height, bitmap, bytesPerLine, opts.threshold, opts.halftoneDotType);
+        this.applyHalftone(
+          grayscale,
+          width,
+          height,
+          bitmap,
+          bytesPerLine,
+          opts.threshold,
+          opts.halftoneDotType
+        );
         break;
       case 'sierra':
         this.applySierraDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
@@ -229,7 +267,14 @@ export class ImageProcessing {
         this.applyAtkinsonDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
         break;
       default:
-        this.applyFloydSteinbergDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
+        this.applyFloydSteinbergDithering(
+          grayscale,
+          width,
+          height,
+          bitmap,
+          bytesPerLine,
+          opts.threshold
+        );
     }
   }
 
@@ -254,10 +299,10 @@ export class ImageProcessing {
           bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, err * 7 / 16);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 3 / 16);
-        this.distributeErr(grayscale, width, height, x, y + 1, err * 5 / 16);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 1 / 16);
+        this.distributeErr(grayscale, width, height, x + 1, y, (err * 7) / 16);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 3) / 16);
+        this.distributeErr(grayscale, width, height, x, y + 1, (err * 5) / 16);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 1) / 16);
       }
     }
   }
@@ -304,11 +349,12 @@ export class ImageProcessing {
     thresholdOffset: number,
     matrixSize: 2 | 4 | 8
   ): void {
-    const matrix = matrixSize === 2
-      ? ImageProcessing.BAYER_MATRIX_2
-      : matrixSize === 8
-        ? ImageProcessing.BAYER_MATRIX_8
-        : ImageProcessing.BAYER_MATRIX_4;
+    const matrix =
+      matrixSize === 2
+        ? ImageProcessing.BAYER_MATRIX_2
+        : matrixSize === 8
+          ? ImageProcessing.BAYER_MATRIX_8
+          : ImageProcessing.BAYER_MATRIX_4;
     const matrixMax = matrixSize === 4 ? 16 : matrixSize === 8 ? 64 : 4;
 
     for (let y = 0; y < height; y++) {
@@ -317,7 +363,7 @@ export class ImageProcessing {
         const pixel = grayscale[idx] ?? 0;
         const bayerRow = matrix[y % matrixSize] ?? [];
         const bayerVal = bayerRow[x % matrixSize] ?? 0;
-        const adjustedThreshold = thresholdOffset + ((bayerVal / matrixMax) * 48);
+        const adjustedThreshold = thresholdOffset + (bayerVal / matrixMax) * 48;
         if (pixel < adjustedThreshold) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
@@ -402,15 +448,15 @@ export class ImageProcessing {
           bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, err * 5 / 32);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 3 / 32);
-        this.distributeErr(grayscale, width, height, x, y + 1, err * 5 / 32);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 2 / 32);
-        this.distributeErr(grayscale, width, height, x - 2, y + 1, err * 2 / 32);
-        this.distributeErr(grayscale, width, height, x - 1, y + 2, err * 2 / 32);
-        this.distributeErr(grayscale, width, height, x, y + 2, err * 3 / 32);
-        this.distributeErr(grayscale, width, height, x + 1, y + 2, err * 2 / 32);
-        this.distributeErr(grayscale, width, height, x + 2, y + 2, err * 1 / 32);
+        this.distributeErr(grayscale, width, height, x + 1, y, (err * 5) / 32);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 3) / 32);
+        this.distributeErr(grayscale, width, height, x, y + 1, (err * 5) / 32);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 2) / 32);
+        this.distributeErr(grayscale, width, height, x - 2, y + 1, (err * 2) / 32);
+        this.distributeErr(grayscale, width, height, x - 1, y + 2, (err * 2) / 32);
+        this.distributeErr(grayscale, width, height, x, y + 2, (err * 3) / 32);
+        this.distributeErr(grayscale, width, height, x + 1, y + 2, (err * 2) / 32);
+        this.distributeErr(grayscale, width, height, x + 2, y + 2, (err * 1) / 32);
       }
     }
   }
@@ -436,18 +482,18 @@ export class ImageProcessing {
           bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, err * 8 / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y, err * 4 / 42);
-        this.distributeErr(grayscale, width, height, x - 2, y + 1, err * 2 / 42);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, err * 4 / 42);
-        this.distributeErr(grayscale, width, height, x, y + 1, err * 8 / 42);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, err * 4 / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y + 1, err * 2 / 42);
-        this.distributeErr(grayscale, width, height, x - 2, y + 2, err * 1 / 42);
-        this.distributeErr(grayscale, width, height, x - 1, y + 2, err * 2 / 42);
-        this.distributeErr(grayscale, width, height, x, y + 2, err * 4 / 42);
-        this.distributeErr(grayscale, width, height, x + 1, y + 2, err * 2 / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y + 2, err * 1 / 42);
+        this.distributeErr(grayscale, width, height, x + 1, y, (err * 8) / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y, (err * 4) / 42);
+        this.distributeErr(grayscale, width, height, x - 2, y + 1, (err * 2) / 42);
+        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 4) / 42);
+        this.distributeErr(grayscale, width, height, x, y + 1, (err * 8) / 42);
+        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 4) / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y + 1, (err * 2) / 42);
+        this.distributeErr(grayscale, width, height, x - 2, y + 2, (err * 1) / 42);
+        this.distributeErr(grayscale, width, height, x - 1, y + 2, (err * 2) / 42);
+        this.distributeErr(grayscale, width, height, x, y + 2, (err * 4) / 42);
+        this.distributeErr(grayscale, width, height, x + 1, y + 2, (err * 2) / 42);
+        this.distributeErr(grayscale, width, height, x + 2, y + 2, (err * 1) / 42);
       }
     }
   }
@@ -572,8 +618,11 @@ export class ImageProcessing {
           const ii2 = (y1 * srcWidth + x2) * 4 + c;
           const ii3 = (y2 * srcWidth + x1) * 4 + c;
           const ii4 = (y2 * srcWidth + x2) * 4 + c;
-          const v = (srcData[ii1] ?? 0) * w1 + (srcData[ii2] ?? 0) * w2
-                  + (srcData[ii3] ?? 0) * w3 + (srcData[ii4] ?? 0) * w4;
+          const v =
+            (srcData[ii1] ?? 0) * w1 +
+            (srcData[ii2] ?? 0) * w2 +
+            (srcData[ii3] ?? 0) * w3 +
+            (srcData[ii4] ?? 0) * w4;
           destData[(y * destWidth + x) * 4 + c] = Math.round(v);
         }
       }
@@ -627,7 +676,7 @@ export class ImageProcessing {
     // Center=3, edges=-0.5
     const kernel: number[][] = [
       [-0.5, -1.0, -0.5],
-      [-1.0,  3.0, -1.0],
+      [-1.0, 3.0, -1.0],
       [-0.5, -1.0, -0.5],
     ];
     const kHalf = 1;
@@ -658,7 +707,7 @@ export class ImageProcessing {
     const step = 255 / (Math.pow(2, lv) - 1);
     const result = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i += 4) {
-      result[i]     = Math.round(Math.round((data[i] ?? 0) / step) * step);
+      result[i] = Math.round(Math.round((data[i] ?? 0) / step) * step);
       result[i + 1] = Math.round(Math.round((data[i + 1] ?? 0) / step) * step);
       result[i + 2] = Math.round(Math.round((data[i + 2] ?? 0) / step) * step);
       result[i + 3] = data[i + 3] ?? 255;
