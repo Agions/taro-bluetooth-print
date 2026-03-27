@@ -2,7 +2,7 @@
  * Template Engine
  *
  * Provides template parsing and rendering for receipts and labels.
- * Supports variable substitution, conditional rendering, and loops.
+ * Supports variable substitution, conditional rendering, loops, and border/table drawing.
  *
  * @example
  * ```typescript
@@ -97,6 +97,134 @@ export interface LabelData {
 }
 
 /**
+ * Loop element for iterating over arrays
+ */
+export interface LoopElement {
+  /** Element type identifier */
+  type: 'loop';
+  /** Variable name to iterate over (array) */
+  items: string;
+  /** Item variable name for each iteration */
+  itemVar: string;
+  /** Index variable name (optional) */
+  indexVar?: string;
+  /** Template elements to render for each item */
+  elements: TemplateElement[];
+  /** Separator between iterations (optional) */
+  separator?: string;
+}
+
+/**
+ * Condition element for conditional rendering
+ */
+export interface ConditionElement {
+  /** Element type identifier */
+  type: 'condition';
+  /** Variable name to evaluate */
+  variable: string;
+  /** Operator for comparison */
+  operator:
+    | 'exists'
+    | 'not_exists'
+    | 'equals'
+    | 'not_equals'
+    | 'gt'
+    | 'gte'
+    | 'lt'
+    | 'lte'
+    | 'truthy'
+    | 'falsy';
+  /** Value to compare against (for binary operators) */
+  value?: unknown;
+  /** Elements to render when condition is true */
+  then: TemplateElement[];
+  /** Elements to render when condition is false (optional) */
+  else?: TemplateElement[];
+}
+
+/**
+ * Border style for box/table drawing
+ */
+export type BorderStyle = 'single' | 'double' | 'thick' | 'rounded' | 'dashed' | 'none';
+
+/**
+ * Border element for drawing boxes/lines
+ */
+export interface BorderElement {
+  /** Element type identifier */
+  type: 'border';
+  /** Border style */
+  style?: BorderStyle;
+  /** Top-left corner character */
+  topLeft?: string;
+  /** Top-right corner character */
+  topRight?: string;
+  /** Bottom-left corner character */
+  bottomLeft?: string;
+  /** Bottom-right corner character */
+  bottomRight?: string;
+  /** Top border character */
+  top?: string;
+  /** Bottom border character */
+  bottom?: string;
+  /** Left border character */
+  left?: string;
+  /** Right border character */
+  right?: string;
+  /** Intersection character */
+  cross?: string;
+  /** Whether to draw top border */
+  drawTop?: boolean;
+  /** Whether to draw bottom border */
+  drawBottom?: boolean;
+  /** Whether to draw left border */
+  drawLeft?: boolean;
+  /** Whether to draw right border */
+  drawRight?: boolean;
+  /** Whether to fill inside with spaces */
+  filled?: boolean;
+  /** Inner padding (default: 0) */
+  padding?: number;
+}
+
+/**
+ * Table column definition
+ */
+export interface TableColumn {
+  /** Column header text */
+  header: string;
+  /** Width of column in characters */
+  width: number;
+  /** Text alignment for header */
+  headerAlign?: TextAlign;
+  /** Text alignment for cells */
+  cellAlign?: TextAlign;
+}
+
+/**
+ * Table row data
+ */
+export type TableRowData = Record<string, string | number>;
+
+/**
+ * Table element for drawing table-like structures
+ */
+export interface TableElement {
+  /** Element type identifier */
+  type: 'table';
+  /** Table columns definition */
+  columns: TableColumn[];
+  /** Variable name of array to render as rows */
+  rowsVar: string;
+  /** Whether to draw header row */
+  showHeader?: boolean;
+  /** Border style for table */
+  borderStyle?: BorderStyle;
+  /** Whether to alternate row shading */
+  alternateRows?: boolean;
+}
+
+/**
  * Template element types
  */
 export type TemplateElement =
@@ -106,7 +234,11 @@ export type TemplateElement =
   | { type: 'qrcode'; content: string; size?: number }
   | { type: 'barcode'; content: string; format: BarcodeFormat; height?: number }
   | { type: 'feed'; lines: number }
-  | { type: 'variable'; name: string; format?: string };
+  | { type: 'variable'; name: string; format?: string }
+  | LoopElement
+  | ConditionElement
+  | BorderElement
+  | TableElement;
 
 /**
  * Template definition
@@ -140,6 +272,91 @@ export interface ITemplateEngine {
   registerTemplate(name: string, template: TemplateDefinition): void;
   validate(template: TemplateDefinition, data: Record<string, unknown>): ValidationResult;
 }
+
+/**
+ * Border style character sets
+ */
+const BORDER_CHARS: Record<
+  BorderStyle,
+  {
+    topLeft: string;
+    topRight: string;
+    bottomLeft: string;
+    bottomRight: string;
+    top: string;
+    bottom: string;
+    left: string;
+    right: string;
+    cross: string;
+  }
+> = {
+  single: {
+    topLeft: '+',
+    topRight: '+',
+    bottomLeft: '+',
+    bottomRight: '+',
+    top: '-',
+    bottom: '-',
+    left: '|',
+    right: '|',
+    cross: '+',
+  },
+  double: {
+    topLeft: '╔',
+    topRight: '╗',
+    bottomLeft: '╚',
+    bottomRight: '╝',
+    top: '═',
+    bottom: '═',
+    left: '║',
+    right: '║',
+    cross: '╬',
+  },
+  thick: {
+    topLeft: '┏',
+    topRight: '┓',
+    bottomLeft: '┗',
+    bottomRight: '┛',
+    top: '━',
+    bottom: '━',
+    left: '┃',
+    right: '┃',
+    cross: '╋',
+  },
+  rounded: {
+    topLeft: '╭',
+    topRight: '╮',
+    bottomLeft: '╰',
+    bottomRight: '╯',
+    top: '─',
+    bottom: '─',
+    left: '│',
+    right: '│',
+    cross: '┼',
+  },
+  dashed: {
+    topLeft: '+',
+    topRight: '+',
+    bottomLeft: '+',
+    bottomRight: '+',
+    top: '-',
+    bottom: '-',
+    left: ':',
+    right: ':',
+    cross: '+',
+  },
+  none: {
+    topLeft: ' ',
+    topRight: ' ',
+    bottomLeft: ' ',
+    bottomRight: ' ',
+    top: ' ',
+    bottom: ' ',
+    left: ' ',
+    right: ' ',
+    cross: ' ',
+  },
+};
 
 /**
  * Template Engine class
@@ -397,6 +614,17 @@ export class TemplateEngine implements ITemplateEngine {
             code: 'MISSING_VARIABLE',
           });
         }
+      } else if (element.type === 'loop') {
+        const items = this.getNestedValue(data, element.items);
+        if (!Array.isArray(items)) {
+          errors.push({
+            field: element.items,
+            message: `Loop variable '${element.items}' must be an array`,
+            code: 'INVALID_LOOP_VARIABLE',
+          });
+        }
+      } else if (element.type === 'condition') {
+        // Condition validation is optional - conditions can reference missing data
       }
     }
 
@@ -407,6 +635,316 @@ export class TemplateEngine implements ITemplateEngine {
    * Render a single template element
    */
   private renderElement(element: TemplateElement, data: Record<string, unknown>): Uint8Array[] {
+    switch (element.type) {
+      case 'loop':
+        return this.renderLoop(element, data);
+      case 'condition':
+        return this.renderCondition(element, data);
+      case 'border':
+        return this.renderBorder(element);
+      case 'table':
+        return this.renderTable(element, data);
+      default:
+        return this.renderStandardElement(element, data);
+    }
+  }
+
+  /**
+   * Render a loop element
+   */
+  private renderLoop(loop: LoopElement, data: Record<string, unknown>): Uint8Array[] {
+    const commands: Uint8Array[] = [];
+    const items = this.getNestedValue(data, loop.items);
+
+    if (!Array || !Array.isArray(items)) {
+      this.logger.warn(`Loop variable '${loop.items}' is not an array`);
+      return commands;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      const itemData: any = items[i];
+
+      // Create iteration context with item and optionally index
+      const context: Record<string, unknown> = {
+        ...data,
+        [loop.itemVar]: itemData,
+      };
+
+      if (loop.indexVar) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        context[loop.indexVar] = i;
+      }
+
+      // Render each element in the loop
+      for (const childElement of loop.elements) {
+        commands.push(...this.renderElement(childElement, context));
+      }
+
+      // Add separator between items (but not after the last)
+      if (loop.separator && i < items.length - 1) {
+        commands.push(...this.driver.text(loop.separator));
+        commands.push(...this.driver.feed(1));
+      }
+    }
+
+    return commands;
+  }
+
+  /**
+   * Render a condition element
+   */
+  private renderCondition(
+    condition: ConditionElement,
+    data: Record<string, unknown>
+  ): Uint8Array[] {
+    const commands: Uint8Array[] = [];
+    const value = this.getNestedValue(data, condition.variable);
+    const result = this.evaluateCondition(value, condition.operator, condition.value);
+
+    const elementsToRender = result ? condition.then : (condition.else ?? []);
+
+    for (const childElement of elementsToRender) {
+      commands.push(...this.renderElement(childElement, data));
+    }
+
+    return commands;
+  }
+
+  /**
+   * Evaluate a condition
+   */
+  private evaluateCondition(
+    value: unknown,
+    operator: ConditionElement['operator'],
+    compareValue?: unknown
+  ): boolean {
+    switch (operator) {
+      case 'exists':
+        return value !== undefined && value !== null;
+      case 'not_exists':
+        return value === undefined || value === null;
+      case 'equals':
+        return value === compareValue;
+      case 'not_equals':
+        return value !== compareValue;
+      case 'gt':
+        return (
+          typeof value === 'number' && typeof compareValue === 'number' && value > compareValue
+        );
+      case 'gte':
+        return (
+          typeof value === 'number' && typeof compareValue === 'number' && value >= compareValue
+        );
+      case 'lt':
+        return (
+          typeof value === 'number' && typeof compareValue === 'number' && value < compareValue
+        );
+      case 'lte':
+        return (
+          typeof value === 'number' && typeof compareValue === 'number' && value <= compareValue
+        );
+      case 'truthy':
+        return Boolean(value);
+      case 'falsy':
+        return !value;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Render a border element
+   */
+  private renderBorder(border: BorderElement): Uint8Array[] {
+    const commands: Uint8Array[] = [];
+    const style = BORDER_CHARS[border.style ?? 'single'];
+    const width = this.paperWidth;
+    const padding = border.padding ?? 0;
+
+    // Build custom or default characters
+    const tl = border.topLeft ?? style.topLeft;
+    const tr = border.topRight ?? style.topRight;
+    const bl = border.bottomLeft ?? style.bottomLeft;
+    const br = border.bottomRight ?? style.bottomRight;
+    const t = border.top ?? style.top;
+    const b = border.bottom ?? style.bottom;
+    const l = border.left ?? style.left;
+    const r = border.right ?? style.right;
+
+    // Top border
+    if (border.drawTop !== false) {
+      const topLine = tl + t.repeat(width - 2) + tr;
+      commands.push(...this.driver.text(topLine));
+      commands.push(...this.driver.feed(1));
+    }
+
+    // Middle lines with optional fill
+    if (border.filled) {
+      const innerWidth = width - 2 - padding * 2;
+      const fillChar = ' ';
+      for (let i = 0; i < padding; i++) {
+        const fillLine = l + fillChar.repeat(width - 2) + r;
+        commands.push(...this.driver.text(fillLine));
+        commands.push(...this.driver.feed(1));
+      }
+      const contentLine =
+        l + fillChar.repeat(padding) + fillChar.repeat(innerWidth) + fillChar.repeat(padding) + r;
+      commands.push(...this.driver.text(contentLine));
+      commands.push(...this.driver.feed(1));
+      for (let i = 0; i < padding; i++) {
+        const fillLine = l + fillChar.repeat(width - 2) + r;
+        commands.push(...this.driver.text(fillLine));
+        commands.push(...this.driver.feed(1));
+      }
+    } else if (border.drawLeft || border.drawRight) {
+      const middleLine =
+        (border.drawLeft !== false ? l : ' ') +
+        ' '.repeat(width - 2) +
+        (border.drawRight !== false ? r : ' ');
+      commands.push(...this.driver.text(middleLine));
+      commands.push(...this.driver.feed(1));
+    }
+
+    // Bottom border
+    if (border.drawBottom !== false) {
+      const bottomLine = bl + b.repeat(width - 2) + br;
+      commands.push(...this.driver.text(bottomLine));
+      commands.push(...this.driver.feed(1));
+    }
+
+    return commands;
+  }
+
+  /**
+   * Render a table element
+   */
+  private renderTable(table: TableElement, data: Record<string, unknown>): Uint8Array[] {
+    const commands: Uint8Array[] = [];
+    const rows = this.getNestedValue(data, table.rowsVar);
+
+    if (!Array.isArray(rows)) {
+      this.logger.warn(`Table rows variable '${table.rowsVar}' is not an array`);
+      return commands;
+    }
+
+    const style = BORDER_CHARS[table.borderStyle ?? 'single'];
+
+    // Draw top border
+    if (table.showHeader) {
+      const topLine =
+        style.topLeft +
+        table.columns
+          .map(col => {
+            const width = col.width + 1;
+            return style.top.repeat(width);
+          })
+          .join('') +
+        style.topRight;
+      commands.push(...this.driver.text(topLine));
+      commands.push(...this.driver.feed(1));
+    }
+
+    // Draw header row
+    if (table.showHeader) {
+      let headerContent = style.left + ' ';
+      table.columns.forEach((col, i) => {
+        const cellText = col.header.substring(0, col.width);
+        const aligned = this.alignText(cellText, col.width, col.headerAlign ?? TextAlign.LEFT);
+        headerContent +=
+          aligned + (i < table.columns.length - 1 ? style.cross + ' ' : ' ' + style.right);
+      });
+      commands.push(...this.driver.text(headerContent));
+      commands.push(...this.driver.feed(1));
+    }
+
+    // Draw separator after header
+    if (table.showHeader) {
+      const sepLine =
+        style.cross +
+        table.columns
+          .map(col => {
+            return style.bottom.repeat(col.width + 1);
+          })
+          .join('') +
+        style.cross;
+      commands.push(...this.driver.text(sepLine));
+      commands.push(...this.driver.feed(1));
+    }
+
+    // Draw data rows
+    rows.forEach((rowData, rowIndex) => {
+      const row = rowData as TableRowData;
+      let rowContent = style.left + ' ';
+
+      table.columns.forEach((col, colIndex) => {
+        const cellValue = row[col.header] ?? '';
+        const cellText = String(cellValue).substring(0, col.width);
+        const aligned = this.alignText(cellText, col.width, col.cellAlign ?? TextAlign.LEFT);
+        rowContent +=
+          aligned + (colIndex < table.columns.length - 1 ? style.cross + ' ' : ' ' + style.right);
+      });
+
+      commands.push(...this.driver.text(rowContent));
+      commands.push(...this.driver.feed(1));
+
+      // Draw row separator
+      if (rowIndex < rows.length - 1) {
+        const sepLine =
+          style.cross +
+          table.columns
+            .map(col => {
+              return style.bottom.repeat(col.width + 1);
+            })
+            .join('') +
+          style.cross;
+        commands.push(...this.driver.text(sepLine));
+        commands.push(...this.driver.feed(1));
+      }
+    });
+
+    // Draw bottom border
+    const bottomLine =
+      style.bottomLeft +
+      table.columns
+        .map(col => {
+          return style.bottom.repeat(col.width + 1);
+        })
+        .join('') +
+      style.bottomRight;
+    commands.push(...this.driver.text(bottomLine));
+    commands.push(...this.driver.feed(1));
+
+    return commands;
+  }
+
+  /**
+   * Align text within a specified width
+   */
+  private alignText(text: string, width: number, align: TextAlign): string {
+    const padded = text.padEnd(width).substring(0, width);
+    switch (align) {
+      case TextAlign.CENTER: {
+        const leftPad = Math.floor((width - text.length) / 2);
+        return text.padStart(leftPad + text.length).padEnd(width);
+      }
+      case TextAlign.RIGHT:
+        return text.padStart(width);
+      default:
+        return padded;
+    }
+  }
+
+  /**
+   * Render standard elements (text, line, image, qrcode, barcode, feed, variable)
+   */
+  private renderStandardElement(
+    element: Exclude<
+      TemplateElement,
+      LoopElement | ConditionElement | BorderElement | TableElement
+    >,
+    data: Record<string, unknown>
+  ): Uint8Array[] {
     const commands: Uint8Array[] = [];
 
     switch (element.type) {
@@ -483,9 +1021,10 @@ export class TemplateEngine implements ITemplateEngine {
   /**
    * Render a separator line
    */
-  private renderLine(char = '-', length?: number): Uint8Array[] {
+  private renderLine(char?: string, length?: number): Uint8Array[] {
+    const lineChar = char ?? '-';
     const lineLength = length ?? this.paperWidth;
-    const line = char.repeat(lineLength);
+    const line = lineChar.repeat(lineLength);
     return [...this.driver.text(line), ...this.driver.feed(1)];
   }
 

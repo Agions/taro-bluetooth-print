@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#10b981" opacity="0.1"/>
+  <circle cx="32" cy="32" r="28" fill="#10b981" opacity="0.2"/>
+  <!-- Printer body -->
+  <rect x="12" y="20" width="40" height="28" rx="4" fill="#10b981"/>
+  <!-- Paper slot -->
+  <rect x="16" y="8" width="32" height="16" rx="2" fill="#ffffff" stroke="#10b981" stroke-width="2"/>
+  <!-- Paper lines -->
+  <line x1="20" y1="14" x2="36" y2="14" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="18" x2="30" y2="18" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+  <!-- Bluetooth symbol -->
+  <path d="M32 26 L36 30 L32 34 L28 30 Z" fill="#ffffff"/>
+  <line x1="32" y1="30" x2="32" y2="38" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Feed button -->
+  <rect x="46" y="36" width="4" height="6" rx="1" fill="#ffffff" opacity="0.6"/>
+</svg>

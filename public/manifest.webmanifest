@@ -1,0 +1,17 @@
+{
+  "name": "taro-bluetooth-print",
+  "short_name": "蓝牙打印",
+  "description": "轻量级、高性能的热敏/标签蓝牙打印库",
+  "start_url": "/taro-bluetooth-print/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["developer tools", "utilities"]
+}

@@ -1,226 +1,319 @@
 # 核心概念
 
-## 架构设计
+理解以下核心概念有助于更好地使用和扩展 `taro-bluetooth-print`。
 
-`taro-bluetooth-print` 采用分层架构设计，主要分为以下几层：
+## 架构总览
 
 ```
-┌─────────────────────────────────────────┐
-│              应用层                      │
-│   (BluetoothPrinter, DeviceManager...)  │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│              驱动层 (Driver)              │
-│   (EscPos, TsplDriver, ZplDriver...)   │
-│   负责生成打印机指令                      │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│              适配层 (Adapter)            │
-│   (TaroAdapter, WebBluetooth...)       │
-│   负责底层蓝牙通信                        │
-└─────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                        应用层                               │
+│               BluetoothPrinter                              │
+│         (主入口，封装打印 API + 事件系统)                      │
+└─────────────────────┬──────────────────────────────────────┘
+                      │
+         ┌─────────────┴──────────────┐
+         │                              │
+┌────────▼──────────┐      ┌───────────▼────────┐
+│      驱动层         │      │       适配器层       │
+│                    │      │                    │
+│  EscPos           │      │  TaroAdapter        │
+│  TsplDriver       │      │  WebBluetoothAdapter│
+│  ZplDriver        │      │  ReactNativeAdapter │
+│  CpclDriver       │      │  AlipayAdapter      │
+│  StarPrinter      │      │  BaiduAdapter       │
+│  GPrinterDriver   │      │  ByteDanceAdapter   │
+│                    │      │  QQAdapter          │
+└────────┬───────────┘      └──────────┬─────────┘
+         │                              │
+         │     ┌───────────────────────┘
+         │     │
+┌────────▼─────▼─────────────────────────────────────────────┐
+│                      核心服务层                               │
+│                                                              │
+│  ConnectionManager  │  PrintJobManager  │  CommandBuilder   │
+│  DeviceManager      │  PrintQueue       │  OfflineCache     │
+│  MultiPrinterManager│  PrintStatistics  │  PrinterStatus    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## 核心组件
+---
 
-### 1. BluetoothPrinter (主类)
+## 插件架构详解
 
-主入口类，负责协调驱动和适配器。
+v2.3+ 引入的插件系统允许在打印流程的关键节点注入自定义逻辑。
+
+### 插件接口
 
 ```typescript
-const printer = new BluetoothPrinter(adapter, driver);
+import { Plugin, PluginHooks } from 'taro-bluetooth-print';
 
-// 连接 → 打印 → 断开
-await printer.connect(deviceId);
-await printer.text('Hello').cut().print();
-await printer.disconnect();
+const myPlugin: Plugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+  hooks: {
+    beforePrint: (buffer, context) => {
+      // 打印前拦截，可修改 buffer
+      console.log('即将打印', buffer.byteLength, '字节');
+      return buffer;
+    },
+    afterPrint: (result, context) => {
+      // 打印完成后处理
+      analytics.track('print_complete', result);
+    },
+    onError: (error, context) => {
+      // 错误处理
+      reportError(error);
+    },
+  },
+  // 可选：初始化和销毁
+  onInit: () => { /* 初始化 */ },
+  onDestroy: () => { /* 清理 */ },
+};
 ```
 
-### 2. Driver (驱动)
+### 内置插件
 
-驱动负责将高级 API 转换为打印机指令。
-
-| 驱动 | 适用打印机 | 协议 |
-|------|-----------|------|
-| EscPos | 热敏票据打印机 | ESC/POS |
-| TsplDriver | TSC 标签打印机 | TSPL |
-| ZplDriver | Zebra 标签打印机 | ZPL |
-| CpclDriver | HP/霍尼韦尔打印机 | CPCL |
-
-### 3. Adapter (适配器)
-
-适配器负责与不同平台的蓝牙 API 对接。
-
-| 适配器 | 平台 |
-|--------|------|
-| TaroAdapter | 微信/支付宝/百度/字节跳动小程序 |
-| WebBluetoothAdapter | H5 (浏览器) |
-
-### 4. DeviceManager (设备管理)
-
-独立的设备扫描和管理工具。
+**日志插件** — 记录所有打印事件：
 
 ```typescript
-const manager = new DeviceManager();
+import { createLoggingPlugin } from 'taro-bluetooth-print';
 
-manager.on('device-found', (device) => {
-  console.log(device.name, device.deviceId);
+plugins.register(createLoggingPlugin({
+  logProgress: true,
+  logErrors: true,
+  logLevel: 'debug',
+}));
+```
+
+**重试插件** — 自动重试失败的打印：
+
+```typescript
+import { createRetryPlugin } from 'taro-bluetooth-print';
+
+plugins.register(createRetryPlugin({
+  maxRetries: 5,
+  initialDelay: 1000,
+  backoff: 'exponential',  // 'linear' | 'exponential'
+  maxDelay: 60000,
+}));
+```
+
+---
+
+## 打印队列机制
+
+`PrintQueue` 提供任务排队、优先级调度和自动重试能力。
+
+### 工作流程
+
+```
+添加任务 → 按优先级排序 → 取出最高优先级 → 执行打印
+    │                                              │
+    │                    ← 失败 → 重新入队（延迟重试）←┘
+    │
+    → 成功 → 发出 job-completed 事件
+```
+
+### 优先级队列
+
+```typescript
+import { PrintQueue } from 'taro-bluetooth-print';
+
+const queue = new PrintQueue({
+  maxSize: 100,
+  retryDelay: 1000,
+  maxRetries: 3,
 });
 
-await manager.startScan({ timeout: 10000 });
-const devices = manager.getDiscoveredDevices();
+// 添加任务（带优先级）
+queue.add(data1, { priority: 'HIGH' });    // 高优先级
+queue.add(data2, { priority: 'NORMAL' }); // 普通
+queue.add(data3, { priority: 'LOW' });    // 低
+
+// 任务按 HIGH → NORMAL → LOW 顺序执行
 ```
 
-### 5. PrintQueue (打印队列)
+### 队列状态
 
-管理多个打印任务，支持优先级和重试。
+| 状态 | 说明 |
+|------|------|
+| `pending` | 等待执行 |
+| `in-progress` | 正在执行 |
+| `completed` | 已完成 |
+| `failed` | 失败（等待重试） |
+| `cancelled` | 已取消 |
+
+---
+
+## 离线缓存策略
+
+`OfflineCache` 在网络不稳定或蓝牙断开时自动缓存打印任务，恢复后自动同步。
+
+### 缓存策略
+
+```
+网络正常 → 直接打印
+    │
+    ↓ 断网
+网络断开 → 写入缓存 (localStorage / AsyncStorage)
+    │
+    ↓ 恢复连接
+自动触发 sync() → 逐一取出任务 → 重新执行
+```
+
+### 使用方式
 
 ```typescript
-const queue = new PrintQueue({ maxSize: 50 });
+import { OfflineCache } from 'taro-bluetooth-print';
 
-// 添加任务
-queue.add(printData, { priority: 'HIGH' });
+const cache = new OfflineCache({
+  storage: 'localStorage',  // 小程序用 'storage'，RN 用 'AsyncStorage'
+  maxSize: 50,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天过期
+  autoSync: true,            // 自动同步（默认 true）
+  syncInterval: 5000,        // 每 5 秒检查一次
+});
 
-// 监听完成
-queue.on('job-completed', (job) => {
-  console.log('任务完成:', job.id);
+// 监听同步事件
+cache.on('sync-start', () => console.log('开始同步'));
+cache.on('sync-complete', ({ successCount, failedCount }) => {
+  console.log(`同步完成: 成功 ${successCount}, 失败 ${failedCount}`);
+});
+cache.on('sync-error', ({ jobId, error }) => {
+  console.error('同步失败:', jobId, error);
 });
 ```
 
-### 6. OfflineCache (离线缓存)
+---
 
-网络断开时自动缓存任务，恢复后自动同步。
+## 多打印机管理
+
+`MultiPrinterManager` 支持同时管理多个打印机，进行广播打印和负载均衡。
+
+### 典型场景
+
+- **多门店场景**：每台设备连接各自打印机
+- **负载均衡**：将打印任务分配给空闲打印机
+- **故障转移**：某台打印机故障时自动切换到备用机
+
+### 使用方式
 
 ```typescript
-const cache = new OfflineCache();
+import { MultiPrinterManager } from 'taro-bluetooth-print';
 
-// 断网时保存
-await cache.save({ id: 'job-1', data: printData });
+const manager = new MultiPrinterManager();
 
-// 重连后同步
-await cache.sync();
+// 连接多台打印机
+await manager.connect('printer-1', 'device-id-1', '前台打印机');
+await manager.connect('printer-2', 'device-id-2', '后厨打印机');
+
+// 获取空闲打印机进行打印
+const idlePrinters = manager.getIdlePrinters();
+if (idlePrinters.length > 0) {
+  const printer = manager.getPrinter(idlePrinters[0].printerId);
+  await printer.text('Hello').print();
+}
+
+// 广播打印（所有打印机同时打印）
+await manager.broadcast(data);
+
+// 断开所有
+await manager.disconnectAll();
 ```
 
-## 数据流
+### 广播打印结果
 
+```typescript
+const result = await manager.broadcast(printData);
+console.log('成功:', result.success.length);
+console.log('失败:', result.failed.length);
 ```
-用户代码
-   │
-   ▼
-BluetoothPrinter.text() / .qr() / .barcode()
-   │
-   ▼ (构建指令)
-Driver (EscPos/Tspl/Zpl/Cpcl)
-   │
-   ▼ (获取 Uint8Array)
-Printer.print()
-   │
-   ▼ (分片写入)
-Adapter.write()
-   │
-   ▼ (BLE 通信)
-打印机
-```
+
+---
 
 ## 事件系统
 
-Printer 使用 EventEmitter 模式：
+`BluetoothPrinter` 基于 `EventEmitter`，支持以下事件：
 
 ```typescript
-// 进度
+// 打印进度
 printer.on('progress', ({ sent, total }) => {
-  const pct = (sent / total * 100).toFixed(1);
-  console.log(`进度: ${pct}%`);
+  const pct = ((sent / total) * 100).toFixed(1);
+  progressBar.value = pct;
 });
 
-// 错误
-printer.on('error', (err) => {
-  console.error(err.code, err.message);
+// 连接状态变化
+printer.on('state-change', (state) => {
+  console.log('状态:', state);
 });
 
-// 完成
+// 已连接
+printer.on('connected', (deviceId) => {
+  console.log('已连接:', deviceId);
+});
+
+// 已断开
+printer.on('disconnected', (deviceId) => {
+  console.log('已断开:', deviceId);
+});
+
+// 打印完成
 printer.on('print-complete', () => {
   console.log('打印完成');
 });
-```
 
-## 编码支持
-
-| 编码 | 说明 | 适用场景 |
-|------|------|----------|
-| GBK | 中文简体 | 中国产热敏打印机 |
-| GB2312 | 简体中文 | 老旧打印机 |
-| Big5 | 中文繁体 | 台湾/香港打印机 |
-| UTF-8 | Unicode | 支持 Unicode 的打印机 |
-
-```typescript
-// 自动检测最佳编码
-const encoding = encodingService.detectEncoding('Hello 你好');
-// => 'UTF-8' (混合内容)
-
-// 手动指定
-driver.text('中文', 'GBK');
-```
-
-## 断点续传原理
-
-```
-┌─────────────────────────────────────┐
-│           打印大数据                │
-│         (10000 字节)                │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│           分片发送                  │
-│  [0-1000] [1000-2000] [2000-3000]  │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│           暂停/恢复                  │
-│  暂停时保存位置，恢复后从断点继续    │
-└─────────────────────────────────────┘
-```
-
-```typescript
-const promise = printer.print();
-
-setTimeout(() => {
-  printer.pause();  // 暂停
-  console.log(printer.remaining()); // 查看剩余
-}, 5000);
-
-setTimeout(() => {
-  printer.resume();  // 恢复
-}, 10000);
-```
-
-## 插件系统
-
-v2.3+ 支持插件扩展：
-
-```typescript
-import { PluginManager, createLoggingPlugin } from 'taro-bluetooth-print';
-
-const plugins = new PluginManager();
-
-// 添加日志插件
-plugins.register(createLoggingPlugin({
-  logProgress: true
-}));
-
-// 自定义插件
-plugins.register({
-  name: 'my-plugin',
-  hooks: {
-    beforePrint: (buffer) => {
-      console.log('即将打印', buffer.length, '字节');
-      return buffer;
-    },
-    afterPrint: (bytesSent) => {
-      console.log('已打印', bytesSent, '字节');
-    }
-  }
+// 错误
+printer.on('error', (error) => {
+  console.error('错误:', error.code, error.message);
 });
+```
+
+### 移除监听器
+
+```typescript
+const handler = (data) => console.log(data);
+printer.on('progress', handler);
+
+// 使用完毕后移除
+printer.off('progress', handler);
+
+// 或使用 once（只监听一次）
+printer.once('print-complete', () => {
+  console.log('只触发一次');
+});
+```
+
+---
+
+## 配置管理
+
+`PrinterConfigManager` 提供配置的持久化存储和动态切换：
+
+```typescript
+import { PrinterConfigManager } from 'taro-bluetooth-print';
+
+const configManager = new PrinterConfigManager();
+
+// 保存打印机配置
+const id = configManager.savePrinter({
+  id: 'printer-001',
+  name: '前台热敏机',
+  deviceId: 'device-xxx',
+  driver: 'EscPos',
+  config: { chunkSize: 20, delay: 20 },
+  isDefault: true,
+});
+
+// 获取默认打印机
+const defaultPrinter = configManager.getDefaultPrinter();
+
+// 更新全局配置
+configManager.updateGlobalConfig({
+  defaultChunkSize: 100,
+  defaultDelay: 10,
+});
+
+// 导出/导入配置
+const exportData = configManager.export();
+configManager.import(jsonData, { merge: true });
 ```

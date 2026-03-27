@@ -1,254 +1,466 @@
-# Taro Bluetooth Print 项目架构文档
+# 项目架构
 
-## 1. 项目概述
+深入了解 `taro-bluetooth-print` 的整体架构设计、核心模块交互和扩展机制。
 
-Taro Bluetooth Print 是一个轻量级、高性能的蓝牙打印库，专为 Taro 框架设计，用于连接和控制蓝牙热敏打印机。该库提供了简洁易用的 API，支持文本、图像、二维码等多种打印内容，并具有良好的扩展性和可维护性。
+## 1. 架构总览
 
-## 2. 系统架构
+`taro-bluetooth-print` 采用**分层 + 插件化**的架构设计，核心原则是：
 
-### 2.1 分层设计
-
-项目采用分层架构设计，主要分为以下几层：
-
-| 层级 | 职责 | 主要模块 |
-|------|------|----------|
-| 应用层 | 提供对外 API，处理用户请求 | `BluetoothPrinter` |
-| 适配器层 | 处理蓝牙设备通信，适配不同平台 | `TaroAdapter` |
-| 驱动层 | 生成设备特定的打印命令 | `EscPos` |
-| 工具层 | 提供通用工具函数 | `Encoding`, `ImageProcessing`, `Logger` |
-| 核心层 | 处理事件、状态管理等核心功能 | `EventEmitter` |
-| 错误处理层 | 统一错误类型和处理机制 | `BluetoothPrintError`, `ErrorCode` |
-
-### 2.2 模块关系
+1. **适配器层** — 屏蔽不同平台的蓝牙 API 差异
+2. **驱动层** — 屏蔽不同打印机指令集的差异
+3. **核心服务层** — 提供打印队列、缓存、统计等高级能力
+4. **插件层** — 通过 Hook 机制扩展核心功能
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                     应用层                                 │
-│                                                           │
-│                   BluetoothPrinter                        │
-│                                                           │
-└───────────┬───────────────────────────────────────────────┘
-            │
-            ├────────────────────────────────┐
-            │                                │
-┌───────────▼───────────┐      ┌────────────▼──────────┐
-│     适配器层           │      │        驱动层          │
-│                       │      │                       │
-│     TaroAdapter       │      │        EscPos          │
-│                       │      │                       │
-└───────────┬───────────┘      └────────────┬──────────┘
-            │                                │
-            └────────────────────────────────┼───────────────────────┐
-                                             │                       │
-┌────────────────────────────────────────────▼─────────┐  ┌──────────▼──────────┐
-│                    核心层                              │  │        工具层        │
-│                                                       │  │                      │
-│                    EventEmitter                       │  │ Encoding, ImageProcessing, Logger │
-│                                                       │  │                      │
-└────────────────────────────────────────────┬─────────┘  └──────────┬──────────┘
-                                             │                       │
-                                             └───────────────────────┼───────────────────────┐
-                                                                     │                       │
-┌────────────────────────────────────────────────────────────────────▼─────────┐  ┌──────────▼──────────┐
-│                                 错误处理层                                     │  │        类型定义       │
-│                                                                               │  │                      │
-│                        BluetoothPrintError, ErrorCode                         │  │        types.ts       │
-│                                                                               │  │                      │
-└───────────────────────────────────────────────────────────────────────────────┘  └──────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         应用层                                    │
+│                  BluetoothPrinter                                │
+│         PrinterEvents / PrinterState                            │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+         ┌──────────────────┴──────────────────┐
+         │                                       │
+┌────────▼────────┐                 ┌────────────▼──────────┐
+│      驱动层       │                 │       适配器层         │
+│                  │                 │                      │
+│  EscPos         │                 │  TaroAdapter         │
+│  TsplDriver     │                 │  WebBluetoothAdapter │
+│  ZplDriver      │                 │  ReactNativeAdapter  │
+│  CpclDriver     │                 │  AlipayAdapter       │
+│  StarPrinter    │                 │  BaiduAdapter        │
+│  GPrinterDriver │                 │  ByteDanceAdapter    │
+└────────┬────────┘                 └──────────┬───────────┘
+         │                                       │
+         └─────────────────┬─────────────────────┘
+                           │
+┌───────────────────────────▼──────────────────────────────────────┐
+│                        核心服务层                                │
+│                                                                  │
+│  ConnectionManager  │  PrintJobManager  │  CommandBuilder       │
+│  DeviceManager      │  PrintQueue       │  OfflineCache         │
+│  MultiPrinterManager│  PrintStatistics  │  PrinterStatus        │
+│  PrintHistory       │  ScheduledRetryManager │ BatchPrintManager │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │
+┌───────────────────────────▼──────────────────────────────────────┐
+│                         工具层                                   │
+│  Encoding  │  ImageProcessing  │  Logger  │  uuid  │  validation │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## 3. 核心模块说明
+## 2. Mermaid 架构图
 
-### 3.1 BluetoothPrinter
+```mermaid
+graph TB
+    subgraph 应用层
+        BP[BluetoothPrinter]
+        DM[DeviceManager]
+        MPM[MultiPrinterManager]
+    end
 
-`BluetoothPrinter` 是库的主要入口类，提供了简洁易用的 API 用于连接设备、发送打印命令和管理打印任务。它负责协调适配器和驱动层，处理打印队列和状态管理。
+    subgraph 驱动层
+        ESC[EscPos]
+        TSPL[TsplDriver]
+        ZPL[ZplDriver]
+        CPCL[CpclDriver]
+        STAR[StarPrinter]
+        GPRINTER[GPrinterDriver]
+    end
 
-主要功能：
-- 设备连接和断开
-- 打印命令构建（文本、图像、二维码等）
-- 打印任务管理（暂停、恢复、取消）
-- 事件发射和处理
+    subgraph 适配器层
+        TA[TaroAdapter]
+        WBA[WebBluetoothAdapter]
+        RNA[ReactNativeAdapter]
+        AA[AlipayAdapter]
+        BDA[BaiduAdapter]
+        BTA[ByteDanceAdapter]
+        QQA[QQAdapter]
+    end
 
-### 3.2 TaroAdapter
+    subgraph 核心服务
+        CM[ConnectionManager]
+        PJM[PrintJobManager]
+        CB[CommandBuilder]
+        PQ[PrintQueue]
+        OC[OfflineCache]
+        PS[PrintStatistics]
+        SRM[ScheduledRetryManager]
+        BPM[BatchPrintManager]
+        PH[PrintHistory]
+        PSt[PrinterStatus]
+        PCM[PrinterConfigManager]
+    end
 
-`TaroAdapter` 实现了 `IPrinterAdapter` 接口，负责处理与 Taro 框架的蓝牙 API 交互，包括设备连接、数据传输和状态监听。
+    subgraph 工具层
+        ENC[EncodingService]
+        IMG[ImageProcessing]
+        LOG[Logger]
+        UUID[uuid utils]
+        VAL[validation utils]
+        BAR[BarcodeGenerator]
+        TEMP[TemplateEngine]
+        PREV[PreviewRenderer]
+        FORM[TextFormatter]
+    end
 
-主要功能：
-- 蓝牙设备连接和断开
-- 服务和特征发现
-- 数据分块传输和重试机制
-- 连接状态监听
+    subgraph 插件层
+        PLM[PluginManager]
+        LOGP[createLoggingPlugin]
+        RTYP[createRetryPlugin]
+    end
 
-### 3.3 EscPos
+    BP --> CM
+    BP --> PJM
+    BP --> CB
+    CM --> TA
+    CM --> WBA
+    CM --> RNA
+    PJM --> CM
+    CB --> ESC
+    CB --> TSPL
+    CB --> ZPL
+    CB --> CPCL
+    CB --> STAR
+    CB --> GPRINTER
+    PLM --> BP
+    ENC --> IMG
+```
 
-`EscPos` 实现了 `IPrinterDriver` 接口，负责将高级打印命令转换为 ESC/POS 指令集，这是大多数热敏打印机支持的标准命令集。
+## 3. 核心数据流
 
-主要功能：
-- 初始化打印机
-- 生成文本打印命令
-- 生成图像打印命令
-- 生成二维码打印命令
-- 生成纸张控制命令
+### 3.1 设备连接流程
 
-### 3.4 EventEmitter
+```mermaid
+sequenceDiagram
+    participant App as 应用层
+    participant CM as ConnectionManager
+    participant Adapter as 适配器
+    participant BLE as 平台 BLE API
+    participant Device as 蓝牙打印机
 
-`EventEmitter` 是一个类型安全的事件发射器，用于在不同模块之间传递事件和状态变化。
+    App->>CM: connect(deviceId)
+    CM->>Adapter: connect(deviceId)
+    Adapter->>BLE: 创建连接
+    BLE->>Device: 建立 BLE 连接
+    Device-->>BLE: 连接成功
+    BLE-->>Adapter: 连接成功
+    Adapter->>BLE: 发现服务 discoverServices
+    BLE->>Device: 获取服务列表
+    Device-->>BLE: 服务列表
+    BLE-->>Adapter: 服务列表
+    Adapter->>BLE: 发现特征 discoverCharacteristics
+    BLE->>Device: 获取特征列表
+    Device-->>BLE: 特征列表
+    BLE-->>Adapter: 特征列表
+    Adapter->>Adapter: 缓存可写特征
+    Adapter-->>CM: 连接成功
+    CM-->>App: 连接完成
+```
 
-主要功能：
-- 事件订阅和发布
-- 事件处理函数管理
-- 类型安全的事件定义
-
-### 3.5 工具模块
-
-- **Encoding**: 处理文本编码转换
-- **ImageProcessing**: 将图像转换为打印机兼容的位图格式
-- **Logger**: 提供日志记录功能，支持不同日志级别
-
-## 4. 核心工作流程
-
-### 4.1 设备连接流程
+### 3.2 打印流程
 
 ```mermaid
 sequenceDiagram
     participant App as 应用
     participant BP as BluetoothPrinter
-    participant TA as TaroAdapter
-    participant BLE as Taro BLE API
-    participant Dev as 蓝牙设备
-    
-    App->>BP: connect(deviceId)
-    BP->>TA: connect(deviceId)
-    TA->>BLE: createBLEConnection(deviceId)
-    BLE->>Dev: 建立连接
-    Dev-->>BLE: 连接成功
-    BLE-->>TA: 连接成功
-    TA->>BLE: discoverServices(deviceId)
-    BLE->>Dev: 发现服务
-    Dev-->>BLE: 返回服务列表
-    BLE-->>TA: 返回服务列表
-    TA->>BLE: discoverCharacteristics(deviceId, serviceId)
-    BLE->>Dev: 发现特征
-    Dev-->>BLE: 返回特征列表
-    BLE-->>TA: 返回特征列表
-    TA->>TA: 缓存可写特征
-    TA-->>BP: 连接成功
-    BP-->>App: 连接成功
-```
+    participant CB as CommandBuilder
+    participant Driver as EscPos/Tspl/...
+    participant CM as ConnectionManager
+    participant Adapter as 适配器
+    participant BLE as 平台 BLE API
+    participant Device as 打印机
 
-### 4.2 打印流程
-
-```mermaid
-sequenceDiagram
-    participant App as 应用
-    participant BP as BluetoothPrinter
-    participant EP as EscPos
-    participant TA as TaroAdapter
-    participant BLE as Taro BLE API
-    participant Dev as 蓝牙设备
-    
-    App->>BP: text("Hello World")
-    BP->>EP: text("Hello World")
-    EP-->>BP: 返回文本命令
-    BP->>BP: 缓存命令
-    
-    App->>BP: image(imageData, width, height)
-    BP->>EP: image(imageData, width, height)
-    EP->>EP: 转换图像为位图
-    EP-->>BP: 返回图像命令
-    BP->>BP: 缓存命令
-    
+    App->>BP: text("Hello")
+    BP->>CB: text("Hello")
+    CB->>Driver: text("Hello")
+    Driver-->>CB: ESC 指令数组
+    CB-->>BP: 缓存指令
+    App->>BP: qr("url")
+    BP->>CB: qr("url")
+    CB->>Driver: qr("url")
+    Driver-->>CB: QR 指令
+    CB-->>BP: 缓存指令
     App->>BP: print()
-    BP->>BP: 合并所有命令
-    BP->>BP: 更新状态为 PRINTING
-    BP->>TA: write(deviceId, buffer)
-    TA->>BLE: writeBLECharacteristicValue(deviceId, serviceId, characteristicId, chunk)
-    BLE->>Dev: 发送数据块
-    Dev-->>BLE: 数据块发送成功
-    BLE-->>TA: 数据块发送成功
-    TA->>TA: 发送下一个数据块
-    TA-->>BP: 所有数据发送完成
-    BP->>BP: 更新状态为 CONNECTED
-    BP-->>App: 打印完成
+    BP->>CB: getBuffer()
+    CB-->>BP: Uint8Array 完整指令
+    BP->>BP: 分片处理
+    loop 每片 chunkSize 字节
+        BP->>CM: write(buffer)
+        CM->>Adapter: write(buffer, options)
+        Adapter->>BLE: writeBLECharacteristicValue
+        BLE->>Device: 发送数据块
+        Device-->>BLE: 发送成功
+        BLE-->>Adapter: 发送成功
+        Adapter-->>CM: 成功
+        CM-->>BP: 发送进度
+        BP->>BP: emit progress
+    end
+    BP-->>App: print 成功
 ```
 
-## 5. 扩展机制
+## 4. 核心模块详解
 
-### 5.1 自定义适配器
+### 4.1 BluetoothPrinter（主入口）
 
-开发者可以通过实现 `IPrinterAdapter` 接口来支持其他平台或蓝牙通信方式：
+协调 `ConnectionManager`、`PrintJobManager` 和 `CommandBuilder`，对外暴露链式打印 API：
 
 ```typescript
-class CustomAdapter implements IPrinterAdapter {
-  async connect(deviceId: string): Promise<void> {
-    // 自定义连接逻辑
-  }
-  
-  async disconnect(deviceId: string): Promise<void> {
-    // 自定义断开逻辑
-  }
-  
-  async write(deviceId: string, buffer: ArrayBuffer, options?: IAdapterOptions): Promise<void> {
-    // 自定义数据传输逻辑
-  }
+// 内部结构
+class BluetoothPrinter {
+  private connectionManager: IConnectionManager;
+  private printJobManager: IPrintJobManager;
+  private commandBuilder: ICommandBuilder;
+
+  // 核心方法
+  async connect(deviceId: string): Promise<this>;
+  async disconnect(): Promise<void>;
+  async print(buffer?: Uint8Array): Promise<void>;
+
+  // 链式 API
+  text(content: string, encoding?: string): this;
+  qr(content: string, options?: IQrOptions): this;
+  feed(lines?: number): this;
+  cut(): this;
+  // ...
+
+  // 打印控制
+  pause(): void;
+  resume(): Promise<void>;
+  cancel(): void;
+  remaining(): number;
 }
 ```
 
-### 5.2 自定义驱动
+### 4.2 CommandBuilder（指令构建器）
 
-开发者可以通过实现 `IPrinterDriver` 接口来支持其他打印机指令集：
+负责将链式 API 调用转换为驱动指令：
 
 ```typescript
-class CustomDriver implements IPrinterDriver {
-  init(): Uint8Array[] {
-    // 自定义初始化命令
-  }
-  
-  text(content: string, encoding?: string): Uint8Array[] {
-    // 自定义文本打印命令
-  }
-  
-  // 其他方法实现
+class CommandBuilder {
+  private commands: Uint8Array[] = [];
+
+  text(content: string, encoding?: string): this;
+  feed(lines?: number): this;
+  image(data: Uint8Array, width: number, height: number): this;
+  // ...
+
+  getBuffer(): Uint8Array;
+  reset(): void;
 }
 ```
 
-## 6. 配置管理
+### 4.3 ConnectionManager（连接管理器）
 
-项目使用集中式配置管理，通过 `PrinterConfig` 类处理配置选项，支持默认配置和自定义配置合并。
+管理蓝牙连接生命周期，提供写入和状态管理：
 
-主要配置项包括：
-- 适配器配置（分块大小、延迟、重试次数）
-- 驱动配置（默认编码等）
-- 日志配置（日志级别等）
+```typescript
+interface IConnectionManager {
+  connect(deviceId: string): Promise<void>;
+  disconnect(): Promise<void>;
+  write(buffer: ArrayBuffer, options?: IAdapterOptions): Promise<void>;
+  getState(): PrinterState;
+  getDeviceId(): string | null;
+}
+```
 
-## 7. 错误处理
+### 4.4 PrintJobManager（打印任务管理器）
 
-项目使用统一的错误处理机制，通过 `BluetoothPrintError` 类封装所有错误，并使用 `ErrorCode` 枚举定义错误类型，便于开发者识别和处理不同类型的错误。
+管理打印任务的执行、暂停、恢复和取消：
 
-## 8. 性能优化
+```typescript
+interface IPrintJobManager {
+  isInProgress(): boolean;
+  isPaused(): boolean;
+  cancel(): void;
+  getProgress(): PrintProgress;
+}
+```
 
-- **数据分块传输**：将大文件分成小块传输，避免蓝牙通信超时
-- **重试机制**：在数据传输失败时自动重试，提高可靠性
-- **事件驱动**：使用事件驱动模式，减少轮询和阻塞
-- **延迟加载**：按需加载模块，减少初始加载时间
-- **高效的图像处理**：使用 Floyd-Steinberg 抖动算法，提高图像打印质量
+## 5. 扩展点说明
 
-## 9. 测试策略
+### 5.1 扩展层次
 
-项目采用单元测试和集成测试相结合的测试策略：
-- 单元测试：测试单个模块的功能，确保模块功能正确
-- 集成测试：测试模块之间的交互，确保整个系统功能正常
-- 性能测试：测试系统在不同负载下的性能表现
+| 扩展方式 | 适用场景 | 复杂度 |
+|---------|---------|--------|
+| **配置参数** | 调整分片大小、重试次数等 | ⭐ 简单 |
+| **插件系统** | 添加日志、重试、分析等横向功能 | ⭐⭐ 中等 |
+| **自定义适配器** | 接入新的蓝牙平台 | ⭐⭐⭐ 较复杂 |
+| **自定义驱动** | 支持新的打印机协议 | ⭐⭐⭐ 较复杂 |
 
-## 10. 部署和发布
+### 5.2 插件 Hook 生命周期
 
-项目使用 Vite 构建，支持多种格式的输出（ES、CJS、UMD），便于在不同环境中使用。部署和发布流程如下：
+```mermaid
+stateDiagram-v2
+    [*] --> beforeInit
+    beforeInit --> afterInit: onInit()
+    afterInit --> beforePrint
+    beforePrint --> printing: 执行打印
+    printing --> afterPrint: 成功
+    printing --> onError: 失败
+    afterPrint --> [*]: 完成
+    onError --> beforePrint: 重试
+    onError --> [*]: 重试耗尽
+```
 
-1. 运行 `npm run build` 构建项目
-2. 运行 `npm run test` 确保所有测试通过
-3. 更新版本号和 CHANGELOG.md
-4. 运行 `npm publish` 发布到 npm
+### 5.3 扩展示例：接入新平台
 
-## 11. 总结
+```mermaid
+graph LR
+    A[新平台 BLE API] -->|实现| B[IPrinterAdapter]
+    B -->|注入| C[BluetoothPrinter]
+    C -->|使用| B
+```
 
-Taro Bluetooth Print 项目采用了分层架构设计，具有良好的扩展性和可维护性。通过适配器模式和驱动模式，该库可以轻松支持不同平台和打印机型号。同时，项目还提供了详细的文档和示例，便于开发者快速上手和使用。
+## 6. 事件流
+
+```
+用户调用 printer.on('progress', handler)
+       │
+       ▼
+EventEmitter.addListener('progress', handler)
+       │
+       ▼
+PrintJobManager 执行打印
+       │
+       ▼
+每次分片发送完成
+       │
+       ▼
+printer.emit('progress', { sent, total })
+       │
+       ▼
+所有 handler 被依次调用
+```
+
+## 7. 配置层级
+
+```
+默认配置 (DEFAULT_CONFIG)
+       │
+       ├── PrinterConfigManager (用户保存的配置)
+       │        │
+       │        └── 优先级: 全局配置 > 打印机配置 > 默认值
+       │
+       └── 运行时 setOptions()（仅影响当前实例）
+```
+
+## 8. 错误处理策略
+
+```
+错误发生
+   │
+   ├── 是插件错误钩子？
+   │    ├── 是 → 插件 onError 处理
+   │    └── 否 → 进入核心错误处理
+   │
+   ├── BluetoothPrintError
+   │    │
+   │    ├── WRITE_FAILED
+   │    │    ├── retries < maxRetries?
+   │    │    │    ├── 是 → 延迟重试
+   │    │    │    └── 否 → 发出 error 事件
+   │    │    │
+   │    │    └── OfflineCache.autoSync 启用?
+   │    │         └── 是 → 缓存任务
+   │    │
+   │    └── 其他错误 → 发出 error 事件
+   │
+   └── 普通 Error → 包装为 BluetoothPrintError → 发出
+```
+
+## 9. 性能关键路径
+
+| 环节 | 优化手段 |
+|------|---------|
+| 蓝牙写入 | 分片传输（chunkSize）+ 可配置延迟 |
+| 图像转换 | Floyd-Steinberg 抖动（Web Worker 可迁移） |
+| 模板渲染 | 预编译模板函数（`engine.compile()`） |
+| 批量打印 | `BatchPrintManager` 自动合并小任务 |
+| 弱网适应 | `ScheduledRetryManager` 指数退避 |
+
+## 10. 目录结构
+
+```
+src/
+├── index.ts                    # 主入口，导出所有公开 API
+├── types.ts                    # 核心类型定义（PrinterState, IPrinterAdapter 等）
+│
+├── core/
+│   ├── BluetoothPrinter.ts     # 主入口类
+│   ├── EventEmitter.ts         # 事件发射器
+│   ├── BatchPrintManager.ts    # 批量打印管理
+│   ├── CommandBuilder.ts       # 指令构建器
+│   ├── ConnectionManager.ts    # 连接管理
+│   ├── PrinterStatus.ts        # 状态查询
+│   ├── PrintHistory.ts         # 打印历史
+│   ├── PrintJobManager.ts      # 打印任务管理
+│   ├── PrintStatistics.ts      # 统计服务
+│   └── ScheduledRetryManager.ts # 定时重试
+│
+├── adapters/                   # 平台适配器
+│   ├── BaseAdapter.ts          # 基础适配器
+│   ├── TaroAdapter.ts          # Taro 框架适配器
+│   ├── WebBluetoothAdapter.ts  # Web Bluetooth
+│   ├── AlipayAdapter.ts        # 支付宝小程序
+│   ├── BaiduAdapter.ts         # 百度小程序
+│   ├── ByteDanceAdapter.ts     # 字节跳动小程序
+│   ├── QQAdapter.ts            # QQ 小程序
+│   ├── ReactNativeAdapter.ts   # React Native
+│   └── AdapterFactory.ts       # 适配器工厂
+│
+├── drivers/                    # 打印机驱动
+│   ├── EscPos.ts               # ESC/POS 热敏票据
+│   ├── TsplDriver.ts           # TSPL 标签机
+│   ├── ZplDriver.ts            # ZPL Zebra 工业机
+│   ├── CpclDriver.ts           # CPCL HP/霍尼韦尔
+│   ├── StarPrinter.ts           # STAR TSP 系列
+│   └── GPrinterDriver.ts       # 佳博 GP 系列
+│
+├── services/
+│   ├── interfaces/             # 服务接口定义
+│   └── *.ts                    # 核心服务实现
+│
+├── plugins/
+│   ├── PluginManager.ts         # 插件管理器
+│   └── types.ts                # 插件类型定义
+│
+├── template/                    # 模板引擎
+│   └── TemplateEngine.ts        # 支持 loop/condition/border/table
+│
+├── barcode/
+│   └── BarcodeGenerator.ts     # 条码生成器（含 QR/PDF417）
+│
+├── cache/
+│   └── OfflineCache.ts         # 离线缓存
+│
+├── queue/
+│   └── PrintQueue.ts           # 打印队列
+│
+├── formatter/
+│   └── TextFormatter.ts        # 文本格式化
+│
+├── preview/
+│   └── PreviewRenderer.ts      # 打印预览
+│
+├── encoding/
+│   └── EncodingService.ts      # 编码服务
+│
+├── device/
+│   ├── DeviceManager.ts        # 设备扫描管理
+│   └── MultiPrinterManager.ts  # 多打印机管理
+│
+├── config/
+│   ├── PrinterConfig.ts        # 配置定义
+│   └── PrinterConfigManager.ts # 配置管理
+│
+├── errors/
+│   └── BluetoothError.ts       # 错误类型
+│
+└── utils/
+    ├── encoding.ts             # 编码工具
+    ├── image.ts                # 图像工具
+    ├── logger.ts               # 日志工具
+    ├── platform.ts             # 平台检测
+    ├── uuid.ts                 # UUID 工具
+    └── validation.ts           # 验证工具
+```

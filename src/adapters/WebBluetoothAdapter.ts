@@ -1,6 +1,9 @@
 /**
  * Web Bluetooth Adapter
  * Implements the IPrinterAdapter interface for Web Bluetooth API (H5 environment)
+ *
+ * Provides enhanced device filtering, RSSI signal strength monitoring,
+ * and improved disconnection handling.
  */
 
 import { IAdapterOptions, PrinterState } from '@/types';
@@ -14,6 +17,12 @@ interface WebBluetoothDeviceInfo {
   device: BluetoothDevice;
   server: BluetoothRemoteGATTServer;
   characteristic: BluetoothRemoteGATTCharacteristic;
+  /** RSSI value at time of connection (if available) */
+  rssiAtConnection?: number;
+  /** Device discovered timestamp */
+  discoveredAt?: number;
+  /** Device name for reference */
+  name?: string;
 }
 
 /**
@@ -28,6 +37,49 @@ export interface WebBluetoothRequestOptions {
   acceptAllDevices?: boolean;
   /** Optional services to access */
   optionalServices?: string[];
+  /** Minimum RSSI signal strength (dBm) to accept device */
+  minRSSI?: number;
+  /** Filter by device name (exact or partial match) */
+  name?: string;
+  /** Filter by manufacturer data patterns */
+  manufacturerDataFilter?: Array<{
+    companyIdentifier: number;
+    dataPrefix?: Uint8Array;
+  }>;
+}
+
+/**
+ * Discovered device information
+ */
+export interface DiscoveredDevice {
+  /** Device instance */
+  device: BluetoothDevice;
+  /** Device name */
+  name: string;
+  /** Device ID */
+  deviceId: string;
+  /** RSSI signal strength (dBm) */
+  rssi?: number;
+  /** Timestamp when device was discovered */
+  discoveredAt: number;
+  /** Manufacturer data if available */
+  manufacturerData?: Map<number, Uint8Array>;
+}
+
+/**
+ * Device filter options for scanning
+ */
+export interface DeviceFilterOptions {
+  /** Minimum RSSI threshold (dBm) */
+  minRSSI?: number;
+  /** Maximum RSSI threshold (dBm) */
+  maxRSSI?: number;
+  /** Name prefix filter */
+  namePrefix?: string;
+  /** Name exact match filter */
+  name?: string;
+  /** Service UUIDs to filter */
+  serviceUUIDs?: string[];
 }
 
 /**
@@ -35,8 +87,8 @@ export interface WebBluetoothRequestOptions {
  */
 const PRINTER_SERVICE_UUIDS = [
   '000018f0-0000-1000-8000-00805f9b34fb', // Common printer service
-  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Nordic UART Service
-  'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Serial Port Profile
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Serial Port Profile
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Nordic UART Service
 ];
 
 /**
@@ -55,6 +107,8 @@ const PRINTER_SERVICE_UUIDS = [
  */
 export class WebBluetoothAdapter extends BaseAdapter {
   private devices: Map<string, WebBluetoothDeviceInfo> = new Map();
+  private discoveredDevices: Map<string, DiscoveredDevice> = new Map();
+  private connectionCleanupTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Check if Web Bluetooth API is supported in the current browser
@@ -125,9 +179,14 @@ export class WebBluetoothAdapter extends BaseAdapter {
 
     // Check if already connected
     if (this.devices.has(deviceId)) {
-      this.logger.warn('Device already connected:', deviceId);
-      this.updateState(PrinterState.CONNECTED);
-      return;
+      const existingInfo = this.devices.get(deviceId);
+      if (existingInfo?.server.connected) {
+        this.logger.warn('Device already connected:', deviceId);
+        this.updateState(PrinterState.CONNECTED);
+        return;
+      }
+      // If not connected but still in map, clean up first
+      this.cleanupDeviceInfo(deviceId);
     }
 
     this.updateState(PrinterState.CONNECTING);
@@ -148,8 +207,29 @@ export class WebBluetoothAdapter extends BaseAdapter {
       // Discover services and find writeable characteristic
       const characteristic = await this.discoverWriteableCharacteristic(server);
 
+      // Get RSSI if available (may not be available on all devices)
+      let rssi: number | undefined;
+      try {
+        if ('readRemoteRssi' in characteristic.service.device) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rssi = await (characteristic.service.device as any).readRemoteRssi();
+        }
+      } catch {
+        this.logger.debug('RSSI reading not supported on this device');
+      }
+
       // Store device info
-      this.devices.set(deviceId, { device, server, characteristic });
+      const deviceInfo: WebBluetoothDeviceInfo = {
+        device,
+        server,
+        characteristic,
+        discoveredAt: Date.now(),
+      };
+      if (rssi !== undefined) {
+        deviceInfo.rssiAtConnection = rssi;
+      }
+      this.devices.set(deviceId, deviceInfo);
+
       this.serviceCache.set(deviceId, {
         serviceId: characteristic.service?.uuid || '',
         characteristicId: characteristic.uuid,
@@ -189,28 +269,52 @@ export class WebBluetoothAdapter extends BaseAdapter {
 
   /**
    * Disconnect from a Bluetooth device
+   * Enhanced to properly clean up all resources and event listeners
    *
    * @param deviceId - Bluetooth device ID
+   * @param force - If true, force disconnection even if device not found in cache
    */
-  disconnect(deviceId: string): Promise<void> {
+  disconnect(deviceId: string, force = false): void {
     this.validateDeviceId(deviceId);
+
+    const deviceInfo = this.devices.get(deviceId);
+
+    // If device not found and not forcing, just return
+    if (!deviceInfo && !force) {
+      this.logger.debug('Device not found in cache, nothing to disconnect');
+      return;
+    }
+
     this.updateState(PrinterState.DISCONNECTING);
     this.logger.debug('Disconnecting from device:', deviceId);
 
     try {
-      const deviceInfo = this.devices.get(deviceId);
+      // Cancel any pending connection cleanup
+      if (this.connectionCleanupTimeout) {
+        clearTimeout(this.connectionCleanupTimeout);
+        this.connectionCleanupTimeout = null;
+      }
+
+      // Disconnect from GATT server
       if (deviceInfo?.server?.connected) {
         deviceInfo.server.disconnect();
+        this.logger.debug('GATT server disconnected');
+      }
+
+      // Remove thegattserverdisconnected event listener to prevent double-handling
+      if (deviceInfo?.device) {
+        deviceInfo.device.removeEventListener('gattserverdisconnected', () => {
+          this.handleDisconnection(deviceId);
+        });
       }
     } catch (error) {
-      this.logger.warn('Disconnect error (ignored):', error);
+      this.logger.warn('Disconnect error:', error);
     } finally {
+      // Always cleanup resources
       this.cleanupDeviceInfo(deviceId);
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.info('Device disconnected successfully');
     }
-
-    return Promise.resolve();
   }
 
   /**
@@ -291,9 +395,125 @@ export class WebBluetoothAdapter extends BaseAdapter {
   }
 
   /**
+   * Get device ID from a BluetoothDevice instance
+   * Handles different browser implementations
+   *
+   * @param device - BluetoothDevice instance
+   * @returns Device ID string
+   */
+  getDeviceId(device: BluetoothDevice): string {
+    if (!device) {
+      throw new BluetoothPrintError(ErrorCode.DEVICE_NOT_FOUND, 'Device is required');
+    }
+
+    // Use device.id if available, otherwise fall back to generated ID
+    const deviceId = device.id || this.generateFallbackDeviceId(device);
+
+    return deviceId;
+  }
+
+  /**
+   * Get device information including RSSI
+   *
+   * @param deviceId - Bluetooth device ID
+   * @returns Device info object with RSSI and metadata
+   */
+  getDeviceInfo(
+    deviceId: string
+  ): { deviceId: string; name: string; rssi?: number; connected: boolean } | null {
+    const deviceInfo = this.devices.get(deviceId);
+
+    if (!deviceInfo) {
+      return null;
+    }
+
+    const result: { deviceId: string; name: string; rssi?: number; connected: boolean } = {
+      deviceId,
+      name: deviceInfo.device.name || 'Unknown Device',
+      connected: deviceInfo.server.connected,
+    };
+    if (deviceInfo.rssiAtConnection !== undefined) {
+      result.rssi = deviceInfo.rssiAtConnection;
+    }
+    return result;
+  }
+
+  /**
+   * Filter discovered devices by criteria
+   *
+   * @param devices - Array of discovered devices
+   * @param filter - Filter criteria
+   * @returns Filtered array of devices
+   */
+  filterDevices(devices: DiscoveredDevice[], filter: DeviceFilterOptions): DiscoveredDevice[] {
+    return devices.filter(device => {
+      // RSSI filtering
+      if (
+        filter.minRSSI !== undefined &&
+        (device.rssi === undefined || device.rssi < filter.minRSSI)
+      ) {
+        return false;
+      }
+      if (
+        filter.maxRSSI !== undefined &&
+        (device.rssi === undefined || device.rssi > filter.maxRSSI)
+      ) {
+        return false;
+      }
+
+      // Name prefix filtering
+      if (
+        filter.namePrefix &&
+        !device.name.toLowerCase().startsWith(filter.namePrefix.toLowerCase())
+      ) {
+        return false;
+      }
+
+      // Name exact/partial matching
+      if (filter.name) {
+        const searchName = filter.name.toLowerCase();
+        if (!device.name.toLowerCase().includes(searchName)) {
+          return false;
+        }
+      }
+
+      // Service UUID filtering
+      if (filter.serviceUUIDs && filter.serviceUUIDs.length > 0) {
+        const deviceWithUuids = device.device as BluetoothDevice & { uuids?: string[] };
+        const deviceServices = Array.from(deviceWithUuids.uuids || []);
+        const hasMatchingService = filter.serviceUUIDs.some(uuid =>
+          deviceServices.some(deviceUuid => deviceUuid.toLowerCase() === uuid.toLowerCase())
+        );
+        if (!hasMatchingService) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Sort devices by signal strength (RSSI)
+   *
+   * @param devices - Array of discovered devices
+   * @param ascending - Sort in ascending order (weakest first), default false (strongest first)
+   * @returns Sorted array
+   */
+  sortByRSSI(devices: DiscoveredDevice[], ascending = false): DiscoveredDevice[] {
+    return [...devices].sort((a, b) => {
+      const rssiA = a.rssi ?? -Infinity;
+      const rssiB = b.rssi ?? -Infinity;
+      return ascending ? rssiA - rssiB : rssiB - rssiA;
+    });
+  }
+
+  /**
    * Build request options for navigator.bluetooth.requestDevice
    */
   private buildRequestOptions(options?: WebBluetoothRequestOptions): RequestDeviceOptions {
+    const filters: BluetoothLEScanFilter[] = [];
+
     if (options?.acceptAllDevices) {
       return {
         acceptAllDevices: true,
@@ -301,8 +521,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
       };
     }
 
-    const filters: BluetoothLEScanFilter[] = [];
-
+    // Build filters
     if (options?.serviceUUIDs?.length) {
       filters.push({ services: options.serviceUUIDs });
     }
@@ -311,11 +530,30 @@ export class WebBluetoothAdapter extends BaseAdapter {
       filters.push({ namePrefix: options.namePrefix });
     }
 
+    if (options?.name) {
+      filters.push({ name: options.name });
+    }
+
+    // Manufacturer data filter (if provided)
+    // Note: This is a newer API, may not be supported in all browsers
+    if (options?.manufacturerDataFilter?.length) {
+      for (const mf of options.manufacturerDataFilter) {
+        const filter: BluetoothLEScanFilter = {
+          manufacturerData: [
+            {
+              companyIdentifier: mf.companyIdentifier,
+            },
+          ],
+        };
+        filters.push(filter);
+      }
+    }
+
     // Default: filter by common printer services
     if (filters.length === 0) {
       return {
         acceptAllDevices: true,
-        optionalServices: PRINTER_SERVICE_UUIDS,
+        optionalServices: options?.optionalServices || PRINTER_SERVICE_UUIDS,
       };
     }
 
@@ -333,6 +571,12 @@ export class WebBluetoothAdapter extends BaseAdapter {
     const existingInfo = this.devices.get(deviceId);
     if (existingInfo?.device) {
       return existingInfo.device;
+    }
+
+    // Try to find device from discovered devices
+    const discoveredDevice = this.discoveredDevices.get(deviceId);
+    if (discoveredDevice?.device) {
+      return discoveredDevice.device;
     }
 
     // Request a new device
@@ -414,6 +658,13 @@ export class WebBluetoothAdapter extends BaseAdapter {
    */
   private handleDisconnection(deviceId: string): void {
     this.logger.warn('Device disconnected unexpectedly:', deviceId);
+
+    // Clear any pending cleanup
+    if (this.connectionCleanupTimeout) {
+      clearTimeout(this.connectionCleanupTimeout);
+      this.connectionCleanupTimeout = null;
+    }
+
     this.cleanupDeviceInfo(deviceId);
     this.updateState(PrinterState.DISCONNECTED);
   }
@@ -424,5 +675,15 @@ export class WebBluetoothAdapter extends BaseAdapter {
   private cleanupDeviceInfo(deviceId: string): void {
     this.devices.delete(deviceId);
     this.cleanupDevice(deviceId);
+  }
+
+  /**
+   * Generate a fallback device ID when device.id is not available
+   * Uses device name + first seen timestamp as identifier
+   */
+  private generateFallbackDeviceId(device: BluetoothDevice): string {
+    const name = device.name || 'unknown';
+    const timestamp = Date.now().toString(36);
+    return `fallback_${name}_${timestamp}`;
   }
 }

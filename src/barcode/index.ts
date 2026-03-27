@@ -1,6 +1,6 @@
 /**
  * Barcode Generator Module
- * 条码生成模块 - 负责一维条码生成
+ * 条码生成模块 - 负责一维条码和二维条码生成
  */
 
 export { BarcodeGenerator, barcodeGenerator, BarcodeFormat } from './BarcodeGenerator';
