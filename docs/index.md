@@ -5,9 +5,6 @@ hero:
   name: "taro-bluetooth-print"
   text: "高性能蓝牙打印库"
   tagline: "热敏票据 · 标签打印 · 多平台适配 · 离线缓存 · 断点续传"
-  image:
-    src: /hero-illustration.svg
-    alt: 蓝牙打印示意
   actions:
     - theme: brand
       text: 快速开始 →
@@ -17,22 +14,22 @@ hero:
       link: /guide/features
 
 features:
-  - icon: /icons/platform.svg
+  - icon: 🔗
     title: 多平台适配
     details: 一套代码，支持微信/支付宝/百度/字节跳动小程序，H5 Web Bluetooth，鸿蒙，React Native 等平台。
-  - icon: /icons/driver.svg
+  - icon: 🖨️
     title: 多协议驱动
     details: 内置 ESC/POS、TSPL、ZPL、CPCL、StarPrinter 等驱动，兼容佳博、芯烨、TSC、Zebra 等主流打印机。
-  - icon: /icons/speed.svg
+  - icon: ⚡
     title: 高性能传输
     details: 智能分片传输 + 断点续传 + 弱网自适应重试机制，确保不稳定网络下也能稳定完成打印。
-  - icon: /icons/template.svg
+  - icon: 📋
     title: 模板引擎
     details: 支持 loop 循环、condition 条件、border 边框、table 表格等高级模板语法，轻松渲染小票和标签。
-  - icon: /icons/offline.svg
+  - icon: 💾
     title: 离线缓存
     details: 网络断开时自动缓存打印任务，恢复连接后自动同步，不丢失任何打印任务。
-  - icon: /icons/batch.svg
+  - icon: 📊
     title: 批量管理
     details: 内置 PrintStatistics 统计、ScheduledRetryManager 定时重试、BatchPrintManager 批量打印管理。
 ---
@@ -42,7 +39,7 @@ features:
 [![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm)](https://www.npmjs.com/package/taro-bluetooth-print)
 [![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
 [![build](https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?branch=main&style=flat-square&logo=github-actions)](https://github.com/agions/taro-bluetooth-print/actions)
-[![minzipped](https://img.badgesize.io/https:/unpkg.com/taro-bluetooth-print/dist/index.umd.js?compression=gzip&label=build%20size&style=flat-square)](https://unpkg.com/taro-bluetooth-print/dist/)
+[![minzipped](https://img.badagesize.io/https:/unpkg.com/taro-bluetooth-print/dist/index.umd.js?compression=gzip&label=build%20size&style=flat-square)](https://unpkg.com/taro-bluetooth-print/dist/)
 [![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&logo=github)](https://github.com/agions/taro-bluetooth-print/stargazers)
 
 </div>
@@ -115,11 +112,6 @@ async function main() {
 /* ============================================
    首页自定义样式
    ============================================ */
-
-/* 隐藏默认 hero image */
-.VPHero .image-container {
-  display: none !important;
-}
 
 /* Hero 区域底部 padding */
 .VPHome {
