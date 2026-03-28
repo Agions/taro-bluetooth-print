@@ -504,7 +504,7 @@ div[class*="language-"] pre {
 .vp-doc table {
   border-radius: var(--tp-radius-md) !important;
   overflow-x: auto !important;
-  display: block !important;
+  display: table !important;
   border: 1px solid var(--vp-c-border) !important;
   box-shadow: var(--tp-shadow-sm) !important;
   width: 100% !important;
