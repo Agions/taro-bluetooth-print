@@ -35,22 +35,22 @@ features:
 
 ---
 
+## 项目信息
+
 <div class="badges-row">
-
-[![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm)](https://www.npmjs.com/package/taro-bluetooth-print)
-[![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
-[![build](https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?branch=main&style=flat-square&logo=github-actions)](https://github.com/agions/taro-bluetooth-print/actions)
-[![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&logo=github)](https://github.com/agions/taro-bluetooth-print/stargazers)
-
+  <a href="https://www.npmjs.com/package/taro-bluetooth-print" target="_blank"><img src="https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm" alt="npm version"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative" alt="license"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/actions" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?branch=main&style=flat-square&logo=github-actions" alt="build"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&logo=github" alt="stars"></a>
 </div>
 
 ::: tip 为什么选择 taro-bluetooth-print？
 
-- 轻量级：gzip 后仅 ~15KB，无任何外部依赖
-- 高性能：智能分片 + 断点续传，弱网也能稳定打印
-- 多平台：一套 API，微信/支付宝/百度/字节/H5/鸿蒙/RN 全覆盖
-- 工业级驱动：ESC/POS、TSPL、ZPL、CPCL、StarPrinter 五大协议
-- 离线容灾：断网自动缓存，来网自动同步，零打印任务丢失
+- **轻量级**：gzip 后仅 ~15KB，无任何外部依赖
+- **高性能**：智能分片 + 断点续传，弱网也能稳定打印
+- **多平台**：一套 API，微信/支付宝/百度/字节/H5/鸿蒙/RN 全覆盖
+- **工业级驱动**：ESC/POS、TSPL、ZPL、CPCL、StarPrinter 五大协议
+- **离线容灾**：断网自动缓存，来网自动同步，零打印任务丢失
 
 :::
 
@@ -116,18 +116,32 @@ async function main() {
   padding-bottom: 0 !important;
 }
 
+/* 项目信息区块 */
+h2:not(.VPHome h2):first-of-type {
+  font-size: 1.4rem !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  margin: 32px 0 16px !important;
+  color: var(--vp-c-text-1) !important;
+}
+
 /* Badges 横向一行 */
 .badges-row {
   display: flex !important;
-  gap: 16px !important;
+  gap: 12px !important;
   justify-content: center !important;
   flex-wrap: wrap !important;
-  margin: 24px 0 !important;
+  margin: 0 0 32px 0 !important;
   align-items: center !important;
+}
+
+.badges-row a {
+  display: inline-flex !important;
 }
 
 .badges-row img {
   height: 20px !important;
+  border-radius: 4px !important;
 }
 
 /* 驱动表格容器 */
