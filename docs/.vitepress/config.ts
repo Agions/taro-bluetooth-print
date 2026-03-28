@@ -8,10 +8,10 @@ export default defineConfig({
 
   head: [
     // Favicon
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
-    
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+
     // Theme color
-    ['meta', { name: 'theme-color', content: '#0891b2' }],
+    ['meta', { name: 'theme-color', content: '#0d9488' }],
     
     // SEO
     ['meta', { name: 'keywords', content: 'taro, bluetooth, printer, escpos, thermal, tspl, zpl, 小程序, 蓝牙打印, 热敏打印, 标签打印' }],
@@ -35,9 +35,11 @@ export default defineConfig({
     ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'taro-bluetooth-print' }],
     
-    // Preconnect to fonts
+    // Preconnect to Google Fonts
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    // Google Fonts: Inter + Noto Sans SC
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap' }],
   ],
 
   themeConfig: {

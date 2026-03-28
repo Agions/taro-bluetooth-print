@@ -17,27 +17,27 @@ hero:
       link: /guide/features
 
 features:
-  - icon: 🖨️
+  - icon: /icons/platform.svg
     title: 多平台适配
     details: 一套代码，支持微信/支付宝/百度/字节跳动小程序，H5 Web Bluetooth，鸿蒙，React Native 等平台。
-  - icon: ⚡
+  - icon: /icons/driver.svg
     title: 多协议驱动
     details: 内置 ESC/POS、TSPL、ZPL、CPCL、StarPrinter 等驱动，兼容佳博、芯烨、TSC、Zebra 等主流打印机。
-  - icon: 🔗
+  - icon: /icons/speed.svg
     title: 高性能传输
     details: 智能分片传输 + 断点续传 + 弱网自适应重试机制，确保不稳定网络下也能稳定完成打印。
-  - icon: 📋
+  - icon: /icons/template.svg
     title: 模板引擎
     details: 支持 loop 循环、condition 条件、border 边框、table 表格等高级模板语法，轻松渲染小票和标签。
-  - icon: 💾
+  - icon: /icons/offline.svg
     title: 离线缓存
     details: 网络断开时自动缓存打印任务，恢复连接后自动同步，不丢失任何打印任务。
-  - icon: 📊
+  - icon: /icons/batch.svg
     title: 批量管理
     details: 内置 PrintStatistics 统计、ScheduledRetryManager 定时重试、BatchPrintManager 批量打印管理。
 ---
 
-<div class="badges">
+<div class="badges-grid">
 
 [![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm)](https://www.npmjs.com/package/taro-bluetooth-print)
 [![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
@@ -46,6 +46,14 @@ features:
 [![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&logo=github)](https://github.com/agions/taro-bluetooth-print/stargazers)
 
 </div>
+
+::: tip 为什么选择 taro-bluetooth-print？
+轻量级：gzip 后仅 ~15KB，无任何外部依赖
+高性能：智能分片 + 断点续传，弱网也能稳定打印
+多平台：一套 API，微信/支付宝/百度/字节/H5/鸿蒙/RN 全覆盖
+工业级驱动：ESC/POS、TSPL、ZPL、CPCL、StarPrinter 五大协议
+离线容灾：断网自动缓存，来网自动同步，零打印任务丢失
+:::
 
 ## 快速开始
 
@@ -87,6 +95,8 @@ async function main() {
 
 ## 支持的打印机驱动
 
+<div class="driver-table">
+
 | 驱动 | 协议 | 适用打印机 | 典型品牌 |
 |------|------|-----------|---------|
 | **EscPos** | ESC/POS | 热敏票据打印机 | 佳博、芯烨、商米、汉印 |
@@ -95,26 +105,66 @@ async function main() {
 | **CpclDriver** | CPCL | HP/霍尼韦尔移动机 | HP IR3222、霍尼韦尔 |
 | **StarPrinter** | STAR | STAR TSP 系列票据机 | STAR TSP100/700/800 |
 
+</div>
+
 ## 赞助与社区
 
 欢迎 Star · 欢迎贡献代码 · 欢迎提交 Issue 和 PR
 
 <style>
-.badges {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin: 24px 0;
+/* ============================================
+   首页自定义样式
+   ============================================ */
+
+/* 隐藏默认 hero image */
+.VPHero .image-container {
+  display: none !important;
 }
 
-/* Hero 区域增强 */
+/* Hero 区域底部 padding */
 .VPHome {
   padding-bottom: 0 !important;
 }
 
-/* 隐藏默认 hero image，改用自定义 */
-.hero.imageTED {
-  display: none;
+/* 驱动表格容器 */
+.driver-table {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid var(--vp-c-border) !important;
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.10) !important;
+  margin: 24px 0 !important;
+}
+
+/* 驱动表头渐变 */
+.driver-table th {
+  background: linear-gradient(135deg, #0d9488, #14b8a6) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+/* 驱动表格行悬浮 */
+.driver-table tr:hover td {
+  background: #f0fdfa !important;
+}
+
+.dark .driver-table tr:hover td {
+  background: rgba(13, 148, 136, 0.08) !important;
+}
+
+/* Badges 网格布局 */
+.badges-grid {
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: center !important;
+  flex-wrap: wrap !important;
+  margin: 24px 0 !important;
+  align-items: center !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .badges-grid {
+    gap: 8px !important;
+  }
 }
 </style>
