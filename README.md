@@ -9,128 +9,148 @@
   <img src="https://img.shields.io/bundlephobia/minzip/taro-bluetooth-print?style=flat-square" alt="bundle size">
 </p>
 
-<p align="center">
-  <strong>轻量级、高性能的 Taro 蓝牙打印库</strong><br>
-  支持热敏打印机、标签打印机，多平台适配
-</p>
+**High-performance Bluetooth printing library for Taro and cross-platform applications.**
+
+Supports thermal receipt printers, label printers, and 8+ platforms.
 
 ---
 
-## ✨ 特性
+## Features
 
-- 🚀 **高性能** - 直接字节缓冲区操作，服务缓存优化
-- 📱 **多平台** - 微信小程序、H5、鸿蒙、支付宝、百度、字节跳动
-- 🎨 **多驱动** - ESC/POS (热敏)、TSPL/ZPL/CPCL (标签)
-- 🖼️ **图片打印** - 内置 Floyd-Steinberg 抖动算法
-- 📲 **二维码/条码** - 原生指令支持，多种格式，格式校验
-- 🔄 **断点续传** - 暂停/恢复/取消打印任务
-- 📶 **弱网适配** - 智能分片与重试机制
-- 📊 **进度追踪** - 实时打印进度事件
-- 💾 **离线缓存** - 断网自动缓存，联网自动同步
-- 📋 **打印队列** - 优先级排序，失败自动重试
-- 📝 **模板引擎** - 内置收据和标签模板
-- 🔍 **打印预览** - ESC/POS 命令渲染为图像
-- 🔌 **插件系统** - 可扩展架构，支持自定义钩子
-- 🛠️ **TypeScript** - 完整的类型定义和 JSDoc
-- 📡 **多打印机管理** - MultiPrinterManager 支持多设备并发
-- 💰 **配置持久化** - PrinterConfigManager 保存打印机配置
-- 📦 **批量打印优化** - BatchPrintManager 合并小任务减少开销（含自动 flush 和统一切刀）
-- 📜 **打印历史** - PrintHistory 追踪打印记录和统计
-- 🖨️ **状态查询** - PrinterStatus 检测纸张/电量状态
-- 📊 **统计分析** - PrintStatistics 追踪任务全生命周期，支持按日期/驱动分类
-- ⏰ **定时重试** - ScheduledRetryManager 支持指定时间重试、指数退避、重启恢复
-- 🖼️ **多抖动算法** - 6 种抖动算法（ Floyd-Steinberg / Atkinson / Ordered / Halftone / Sierra / Stucki）
-- 🎛️ **图像预处理** - 去噪 / 锐化 / Gamma 校正 / 色阶压缩
-- 🏷️ **质量预设** - draft / normal / high 三档自动配置
-- 🌐 **多编码支持** - GBK / GB2312 / Big5 / UTF-8 / EUC-KR / Shift-JIS / ISO-2022-JP
+### Core Capabilities
 
-## 📦 安装
+| Feature | Description |
+|---------|-------------|
+| **Byte Buffer Optimization** | Direct byte buffer operations with service-side caching |
+| **8 Platform Adapters** | WeChat, Alipay, Baidu, ByteDance, QQ, H5, HarmonyOS, React Native |
+| **5 Driver Protocols** | ESC/POS, TSPL, ZPL, CPCL, STAR |
 
-```bash
-# npm
-npm install taro-bluetooth-print
+### Advanced Printing
 
-# yarn
-yarn add taro-bluetooth-print
+| Feature | Description |
+|---------|-------------|
+| **Image Dithering** | 6 algorithms: Floyd-Steinberg, Atkinson, Ordered, Halftone, Sierra, Stucki |
+| **Image Preprocessing** | Denoise, sharpen, gamma correction, color level compression |
+| **QR / Barcode** | Native指令 support, format validation, multiple symbologies |
+| **Print Preview** | Render ESC/POS commands to image preview |
+| **Template Engine** | Built-in receipt and label templates |
 
-# pnpm
-pnpm add taro-bluetooth-print
-```
+### Queue & Reliability
 
-## 📊 性能
+| Feature | Description |
+|---------|-------------|
+| **Pause / Resume / Cancel** | Breakpoint continuation for print jobs |
+| **Offline Cache** | Auto-cache when offline, sync when connected |
+| **Print Queue** | Priority-based ordering with automatic retry |
+| **Scheduled Retry** | Exponential backoff, configurable timing, resume on restart |
+| **Batch Optimization** | Merge small tasks, auto-flush, continuous cut support |
 
-| 指标 | 值 |
-|------|-----|
-| Bundle 大小 | **26 KB** (gzip) |
-| Tree-shaking | ✅ 支持 |
-| 按需加载 | ✅ 编码表懒加载 |
+### Management & Operations
 
-## 🚀 快速开始
+| Feature | Description |
+|---------|-------------|
+| **Multi-Printer Manager** | `MultiPrinterManager` for concurrent device management |
+| **Print History** | `PrintHistory` tracks records and statistics |
+| **Printer Status** | `PrinterStatus` detects paper/ink levels |
+| **Statistics** | `PrintStatistics` full lifecycle tracking by date/driver |
+
+### Developer Experience
+
+| Feature | Description |
+|---------|-------------|
+| **TypeScript** | Full type definitions and JSDoc |
+| **Tree-shaking** | Unused code eliminated at build time |
+| **Lazy Encoding** | Encoding tables loaded on-demand |
+| **Plugin System** | Extensible architecture with custom hooks |
+
+### Encoding Support
+
+GBK / GB2312 / Big5 / UTF-8 / EUC-KR / Shift-JIS / ISO-2022-JP
+
+---
+
+## Performance
+
+| Metric | Value |
+|--------|-------|
+| Bundle Size | **26 KB** (gzip) |
+| Tree-shaking | Supported |
+| Lazy Loading | Encoding tables loaded on-demand |
+
+---
+
+## Quick Start
 
 ```typescript
 import { BluetoothPrinter, DeviceManager } from 'taro-bluetooth-print';
 
 async function print() {
-  // 1. 扫描设备
+  // 1. Scan for devices
   const manager = new DeviceManager();
   await manager.startScan({ timeout: 10000 });
   const devices = manager.getDiscoveredDevices();
-  
+
   if (devices.length === 0) {
-    console.log('未发现设备');
+    console.log('No devices found');
     return;
   }
-  
-  // 2. 连接打印机
+
+  // 2. Connect to printer
   const printer = new BluetoothPrinter();
   await printer.connect(devices[0].deviceId);
-  
-  // 3. 打印
+
+  // 3. Print
   await printer
-    .text('=== 欢迎光临 ===', 'GBK')
+    .text('=== Welcome ===', 'GBK')
     .feed()
-    .text('商品A     x1    ¥10.00', 'GBK')
-    .text('商品B     x2    ¥20.00', 'GBK')
+    .text('Item A     x1    $10.00', 'GBK')
+    .text('Item B     x2    $20.00', 'GBK')
     .feed()
     .text('------------------------')
-    .text('合计：            ¥30.00', 'GBK')
+    .text('Total:            $30.00', 'GBK')
     .feed(2)
     .qr('https://example.com')
     .feed(2)
     .cut()
     .print();
-    
-  // 4. 断开
+
+  // 4. Disconnect
   await printer.disconnect();
-  
-  console.log('打印完成！');
+
+  console.log('Print complete!');
 }
 ```
 
-## 🖥️ 支持的平台
+> For full documentation, visit the [official guide](https://agions.github.io/taro-bluetooth-print/guide/getting-started).
 
-| 平台 | 适配器 | 状态 |
-|------|--------|------|
-| 微信小程序 | `TaroAdapter` | ✅ |
-| H5 (Web Bluetooth) | `WebBluetoothAdapter` | ✅ |
-| 支付宝小程序 | `AlipayAdapter` | ✅ |
-| 百度小程序 | `BaiduAdapter` | ✅ |
-| 字节跳动小程序 | `ByteDanceAdapter` | ✅ |
-| QQ 小程序 | `QQAdapter` | ✅ |
-| 鸿蒙 HarmonyOS | `HarmonyOSAdapter` | ✅ |
-| React Native | `ReactNativeAdapter` | ✅ |
+---
 
-## 🖨️ 支持的驱动
+## Platform Support
 
-| 驱动 | 协议 | 适用打印机 |
-|------|------|-----------|
-| `EscPos` | ESC/POS | 热敏票据打印机 (58/80mm) |
-| `TsplDriver` | TSPL | TSC 标签打印机 |
-| `ZplDriver` | ZPL | Zebra 斑马标签打印机 |
-| `CpclDriver` | CPCL | HP/霍尼韦尔移动打印机 |
-| `StarPrinter` | STAR | STAR TSP/SP700 系列票据打印机 |
+| Platform | Adapter | Status |
+|----------|---------|--------|
+| WeChat Mini Program | `TaroAdapter` | [x] |
+| H5 (Web Bluetooth) | `WebBluetoothAdapter` | [x] |
+| Alipay Mini Program | `AlipayAdapter` | [x] |
+| Baidu Mini Program | `BaiduAdapter` | [x] |
+| ByteDance Mini Program | `ByteDanceAdapter` | [x] |
+| QQ Mini Program | `QQAdapter` | [x] |
+| HarmonyOS | `HarmonyOSAdapter` | [x] |
+| React Native | `ReactNativeAdapter` | [x] |
 
-### 标签打印示例 (TSPL)
+---
+
+## Driver Support
+
+| Driver | Protocol | Use Case |
+|--------|----------|----------|
+| `EscPos` | ESC/POS | Thermal receipt printers (58/80mm) |
+| `TsplDriver` | TSPL | TSC label printers |
+| `ZplDriver` | ZPL | Zebra label printers |
+| `CpclDriver` | CPCL | HP / Honeywell mobile printers |
+| `StarPrinter` | STAR | STAR TSP/SP700 series |
+
+### Label Printing Example (TSPL)
 
 ```typescript
 import { BluetoothPrinter, TsplDriver } from 'taro-bluetooth-print';
@@ -139,11 +159,11 @@ const driver = new TsplDriver();
 const printer = new BluetoothPrinter(undefined, driver);
 
 driver
-  .size(60, 40)           // 60x40mm 标签
-  .gap(3)                 // 间隙 3mm
+  .size(60, 40)           // 60x40mm label
+  .gap(3)                 // 3mm gap
   .clear()
-  .text('商品名称', { x: 20, y: 20, font: 3 })
-  .text('¥99.00', { x: 20, y: 60, font: 4 })
+  .text('Product Name', { x: 20, y: 20, font: 3 })
+  .text('$99.00', { x: 20, y: 60, font: 4 })
   .barcode('6901234567890', { x: 20, y: 100, type: 'EAN13' })
   .qrcode('https://example.com', { x: 250, y: 20 })
   .print(1);
@@ -152,105 +172,107 @@ await printer.connect(deviceId);
 await printer.print();
 ```
 
-## 📚 示例项目
+---
 
-完整的示例项目，帮助快速上手：
-
-- [微信小程序示例](examples/weapp/) - 完整的打印页面
-- [H5 示例](examples/h5/) - Web Bluetooth 网页打印
-- [鸿蒙示例](examples/harmonyos/) - HarmonyOS 原生打印服务
-- [React Native 示例](examples/react-native/) - RN 打印组件
-
-## 📖 文档
-
-- [快速开始](https://agions.github.io/taro-bluetooth-print/guide/getting-started) - 5 分钟入门
-- [功能特性](https://agions.github.io/taro-bluetooth-print/guide/features) - 全部功能介绍
-- [驱动支持](https://agions.github.io/taro-bluetooth-print/guide/drivers) - ESC/POS, TSPL, ZPL, CPCL
-- [核心概念](https://agions.github.io/taro-bluetooth-print/guide/core-concepts) - 架构设计与原理
-- [API 参考](https://agions.github.io/taro-bluetooth-print/api) - 完整的 API 文档
-- [故障排除](https://agions.github.io/taro-bluetooth-print/guide/troubleshooting) - 常见问题解决
-
-## 🔧 配置
+## Configuration
 
 ```typescript
 const printer = new BluetoothPrinter();
 
-// 适配器参数
+// Adapter options
 printer.setOptions({
-  chunkSize: 20,   // 分片大小 (默认 20)
-  delay: 20,       // 分片间隔 ms (默认 20)
-  retries: 3,      // 重试次数 (默认 3)
+  chunkSize: 20,   // Chunk size (default: 20)
+  delay: 20,       // Chunk interval ms (default: 20)
+  retries: 3,      // Retry count (default: 3)
 });
 
-// 事件监听
+// Event listeners
 printer.on('progress', ({ sent, total }) => {
-  console.log(`进度: ${(sent / total * 100).toFixed(1)}%`);
+  console.log(`Progress: ${(sent / total * 100).toFixed(1)}%`);
 });
 
 printer.on('error', (error) => {
-  console.error('错误:', error.code, error.message);
+  console.error('Error:', error.code, error.message);
 });
 
 printer.on('print-complete', () => {
-  console.log('打印完成');
+  console.log('Print complete');
 });
 ```
 
-## 🏗️ 架构
+---
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│            BluetoothPrinter (Core)              │
-│  - 连接管理  - 打印队列  - 事件系统  - 断点续传  │
-└──────────┬──────────────────┬───────────────────┘
-           │                  │
-     ┌─────▼──────┐     ┌────▼──────┐
-     │  Adapter   │     │  Driver   │
-     │    层      │     │    层     │
-     └────────────┘     └───────────┘
-           │                  │
-     ┌─────▼──────┐     ┌────▼──────┐     ┌────────────┐
-     │ Taro       │     │ ESC/POS   │     │  Plugin    │
-     │ Web BT     │     │ TSPL      │     │  System    │
-     │ HarmonyOS │     │ ZPL       │     │  (v2.3+)   │
-     └────────────┘     │ CPCL      │     └────────────┘
-                        └───────────┘
++---------------------------------------------------------------+
+|                     BluetoothPrinter (Core)                   |
+|  - Connection  - Queue  - Events  - Breakpoint Continuation   |
++------------------------+--------------------------------------+
+                         |
+          +--------------+--------------+
+          |                              |
+    +-----v-----+                  +----v-----+
+    |  Adapter  |                  |  Driver  |
+    |    Layer  |                  |   Layer  |
+    +-----------+                  +----------+
+          |                              |
+    +-----+-----+              +----+----+----+
+    |         |              |         |      |
+  Taro    Web BT         ESC/POS    TSPL    ZPL
+  HarmonyOS              CPCL       STAR
+                            |
+                     +-------+-------+
+                     |   Services   |
+                     |  Plugin API  |
+                     +--------------+
 ```
-
-## 🤝 贡献
-
-欢迎贡献！请查看 [贡献指南](./CONTRIBUTING.md)。
-
-```bash
-# 克隆仓库
-git clone https://github.com/agions/taro-bluetooth-print.git
-cd taro-bluetooth-print
-
-# 安装依赖
-npm install
-
-# 运行测试
-npm test
-
-# 构建
-npm run build
-
-# 本地文档
-npm run docs:dev
-```
-
-## 📄 许可证
-
-[MIT](./LICENSE) © Agions
-
-## 🙏 致谢
-
-- [Taro](https://taro.jd.com/) - 跨平台开发框架
-- [ESC/POS](https://www.epson-biz.com/) - 打印机指令集
-- 所有贡献者和测试用户
 
 ---
 
-<p align="center">
-  Made with ❤️ by <a href="https://github.com/agions">Agions</a>
-</p>
+## Documentation
+
+- [Getting Started](https://agions.github.io/taro-bluetooth-print/guide/getting-started) - 5-minute quickstart
+- [Features](https://agions.github.io/taro-bluetooth-print/guide/features) - Complete feature guide
+- [Drivers](https://agions.github.io/taro-bluetooth-print/guide/drivers) - ESC/POS, TSPL, ZPL, CPCL
+- [Core Concepts](https://agions.github.io/taro-bluetooth-print/guide/core-concepts) - Architecture and design
+- [API Reference](https://agions.github.io/taro-bluetooth-print/api) - Full API documentation
+- [Troubleshooting](https://agions.github.io/taro-bluetooth-print/guide/troubleshooting) - Common issues
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+```bash
+# Clone the repository
+git clone https://github.com/agions/taro-bluetooth-print.git
+cd taro-bluetooth-print
+
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Build
+npm run build
+
+# Local docs
+npm run docs:dev
+```
+
+---
+
+## License
+
+[MIT](./LICENSE) - Copyright (c) Agions
+
+---
+
+## Acknowledgments
+
+- [Taro](https://taro.jd.com/) - Cross-platform framework
+- [ESC/POS](https://www.epson-biz.com/) - Printer instruction set
+- All contributors and beta testers
