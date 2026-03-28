@@ -503,7 +503,8 @@ div[class*="language-"] pre {
    ============================================ */
 .vp-doc table {
   border-radius: var(--tp-radius-md) !important;
-  overflow: hidden !important;
+  overflow-x: auto !important;
+  display: block !important;
   border: 1px solid var(--vp-c-border) !important;
   box-shadow: var(--tp-shadow-sm) !important;
   width: 100% !important;
@@ -1093,7 +1094,7 @@ div[class*="language-"] pre {
    ============================================ */
 .driver-table {
   border-radius: var(--tp-radius-lg) !important;
-  overflow: hidden !important;
+  overflow-x: auto !important;
   border: 1px solid var(--vp-c-border) !important;
   box-shadow: var(--tp-shadow-md) !important;
   margin: 24px 0 !important;
