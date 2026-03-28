@@ -22,7 +22,6 @@
 │  CpclDriver       │      │  AlipayAdapter      │
 │  StarPrinter      │      │  BaiduAdapter       │
 │  GPrinterDriver   │      │  ByteDanceAdapter   │
-│                    │      │  QQAdapter          │
 └────────┬───────────┘      └──────────┬─────────┘
          │                              │
          │     ┌───────────────────────┘

@@ -20,7 +20,7 @@
                             │
          ┌──────────────────┴──────────────────┐
          │                                       │
-┌────────▼────────┐                 ┌────────────▼──────────┐
+┌────────▼────────┐                 �────────────▼──────────┐
 │      驱动层       │                 │       适配器层         │
 │                  │                 │                      │
 │  EscPos         │                 │  TaroAdapter         │
@@ -48,170 +48,48 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. Mermaid 架构图
+## 2. 核心数据流
 
-```mermaid
-graph TB
-    subgraph 应用层
-        BP[BluetoothPrinter]
-        DM[DeviceManager]
-        MPM[MultiPrinterManager]
-    end
+### 2.1 设备连接流程
 
-    subgraph 驱动层
-        ESC[EscPos]
-        TSPL[TsplDriver]
-        ZPL[ZplDriver]
-        CPCL[CpclDriver]
-        STAR[StarPrinter]
-        GPRINTER[GPrinterDriver]
-    end
-
-    subgraph 适配器层
-        TA[TaroAdapter]
-        WBA[WebBluetoothAdapter]
-        RNA[ReactNativeAdapter]
-        AA[AlipayAdapter]
-        BDA[BaiduAdapter]
-        BTA[ByteDanceAdapter]
-        QQA[QQAdapter]
-    end
-
-    subgraph 核心服务
-        CM[ConnectionManager]
-        PJM[PrintJobManager]
-        CB[CommandBuilder]
-        PQ[PrintQueue]
-        OC[OfflineCache]
-        PS[PrintStatistics]
-        SRM[ScheduledRetryManager]
-        BPM[BatchPrintManager]
-        PH[PrintHistory]
-        PSt[PrinterStatus]
-        PCM[PrinterConfigManager]
-    end
-
-    subgraph 工具层
-        ENC[EncodingService]
-        IMG[ImageProcessing]
-        LOG[Logger]
-        UUID[uuid utils]
-        VAL[validation utils]
-        BAR[BarcodeGenerator]
-        TEMP[TemplateEngine]
-        PREV[PreviewRenderer]
-        FORM[TextFormatter]
-    end
-
-    subgraph 插件层
-        PLM[PluginManager]
-        LOGP[createLoggingPlugin]
-        RTYP[createRetryPlugin]
-    end
-
-    BP --> CM
-    BP --> PJM
-    BP --> CB
-    CM --> TA
-    CM --> WBA
-    CM --> RNA
-    PJM --> CM
-    CB --> ESC
-    CB --> TSPL
-    CB --> ZPL
-    CB --> CPCL
-    CB --> STAR
-    CB --> GPRINTER
-    PLM --> BP
-    ENC --> IMG
+```
+App → ConnectionManager.connect(deviceId)
+  → Adapter.connect(deviceId)
+  → BLE.createConnection
+  → BLE.discoverServices
+  → BLE.discoverCharacteristics
+  → 缓存可写特征
+  → 连接成功回调
 ```
 
-## 3. 核心数据流
+### 2.2 打印流程
 
-### 3.1 设备连接流程
-
-```mermaid
-sequenceDiagram
-    participant App as 应用层
-    participant CM as ConnectionManager
-    participant Adapter as 适配器
-    participant BLE as 平台 BLE API
-    participant Device as 蓝牙打印机
-
-    App->>CM: connect(deviceId)
-    CM->>Adapter: connect(deviceId)
-    Adapter->>BLE: 创建连接
-    BLE->>Device: 建立 BLE 连接
-    Device-->>BLE: 连接成功
-    BLE-->>Adapter: 连接成功
-    Adapter->>BLE: 发现服务 discoverServices
-    BLE->>Device: 获取服务列表
-    Device-->>BLE: 服务列表
-    BLE-->>Adapter: 服务列表
-    Adapter->>BLE: 发现特征 discoverCharacteristics
-    BLE->>Device: 获取特征列表
-    Device-->>BLE: 特征列表
-    BLE-->>Adapter: 特征列表
-    Adapter->>Adapter: 缓存可写特征
-    Adapter-->>CM: 连接成功
-    CM-->>App: 连接完成
+```
+App.text("Hello") → CommandBuilder → Driver.text → 指令数组缓存
+App.qr("url")     → CommandBuilder → Driver.qr    → 指令数组缓存
+App.print()       → CommandBuilder.getBuffer()
+  → 分片处理 (chunkSize 字节/片)
+  → ConnectionManager.write(buffer)
+  → Adapter.write() → BLE.write
+  → emit('progress', { sent, total })
+  → 重复直到全部发送完成
+  → emit('print-complete')
 ```
 
-### 3.2 打印流程
+---
 
-```mermaid
-sequenceDiagram
-    participant App as 应用
-    participant BP as BluetoothPrinter
-    participant CB as CommandBuilder
-    participant Driver as EscPos/Tspl/...
-    participant CM as ConnectionManager
-    participant Adapter as 适配器
-    participant BLE as 平台 BLE API
-    participant Device as 打印机
+## 3. 核心模块详解
 
-    App->>BP: text("Hello")
-    BP->>CB: text("Hello")
-    CB->>Driver: text("Hello")
-    Driver-->>CB: ESC 指令数组
-    CB-->>BP: 缓存指令
-    App->>BP: qr("url")
-    BP->>CB: qr("url")
-    CB->>Driver: qr("url")
-    Driver-->>CB: QR 指令
-    CB-->>BP: 缓存指令
-    App->>BP: print()
-    BP->>CB: getBuffer()
-    CB-->>BP: Uint8Array 完整指令
-    BP->>BP: 分片处理
-    loop 每片 chunkSize 字节
-        BP->>CM: write(buffer)
-        CM->>Adapter: write(buffer, options)
-        Adapter->>BLE: writeBLECharacteristicValue
-        BLE->>Device: 发送数据块
-        Device-->>BLE: 发送成功
-        BLE-->>Adapter: 发送成功
-        Adapter-->>CM: 成功
-        CM-->>BP: 发送进度
-        BP->>BP: emit progress
-    end
-    BP-->>App: print 成功
-```
-
-## 4. 核心模块详解
-
-### 4.1 BluetoothPrinter（主入口）
+### 3.1 BluetoothPrinter（主入口）
 
 协调 `ConnectionManager`、`PrintJobManager` 和 `CommandBuilder`，对外暴露链式打印 API：
 
 ```typescript
-// 内部结构
 class BluetoothPrinter {
   private connectionManager: IConnectionManager;
   private printJobManager: IPrintJobManager;
   private commandBuilder: ICommandBuilder;
 
-  // 核心方法
   async connect(deviceId: string): Promise<this>;
   async disconnect(): Promise<void>;
   async print(buffer?: Uint8Array): Promise<void>;
@@ -231,7 +109,7 @@ class BluetoothPrinter {
 }
 ```
 
-### 4.2 CommandBuilder（指令构建器）
+### 3.2 CommandBuilder（指令构建器）
 
 负责将链式 API 调用转换为驱动指令：
 
@@ -249,7 +127,7 @@ class CommandBuilder {
 }
 ```
 
-### 4.3 ConnectionManager（连接管理器）
+### 3.3 ConnectionManager（连接管理器）
 
 管理蓝牙连接生命周期，提供写入和状态管理：
 
@@ -263,7 +141,7 @@ interface IConnectionManager {
 }
 ```
 
-### 4.4 PrintJobManager（打印任务管理器）
+### 3.4 PrintJobManager（打印任务管理器）
 
 管理打印任务的执行、暂停、恢复和取消：
 
@@ -276,9 +154,11 @@ interface IPrintJobManager {
 }
 ```
 
-## 5. 扩展点说明
+---
 
-### 5.1 扩展层次
+## 4. 扩展点说明
+
+### 4.1 扩展层次
 
 | 扩展方式 | 适用场景 | 复杂度 |
 |---------|---------|--------|
@@ -287,52 +167,25 @@ interface IPrintJobManager {
 | **自定义适配器** | 接入新的蓝牙平台 | ⭐⭐⭐ 较复杂 |
 | **自定义驱动** | 支持新的打印机协议 | ⭐⭐⭐ 较复杂 |
 
-### 5.2 插件 Hook 生命周期
-
-```mermaid
-stateDiagram-v2
-    [*] --> beforeInit
-    beforeInit --> afterInit: onInit()
-    afterInit --> beforePrint
-    beforePrint --> printing: 执行打印
-    printing --> afterPrint: 成功
-    printing --> onError: 失败
-    afterPrint --> [*]: 完成
-    onError --> beforePrint: 重试
-    onError --> [*]: 重试耗尽
-```
-
-### 5.3 扩展示例：接入新平台
-
-```mermaid
-graph LR
-    A[新平台 BLE API] -->|实现| B[IPrinterAdapter]
-    B -->|注入| C[BluetoothPrinter]
-    C -->|使用| B
-```
-
-## 6. 事件流
+### 4.2 插件 Hook 生命周期
 
 ```
-用户调用 printer.on('progress', handler)
-       │
-       ▼
-EventEmitter.addListener('progress', handler)
-       │
-       ▼
-PrintJobManager 执行打印
-       │
-       ▼
-每次分片发送完成
-       │
-       ▼
-printer.emit('progress', { sent, total })
-       │
-       ▼
-所有 handler 被依次调用
+onInit()
+  ↓
+beforePrint → 执行打印 → afterPrint → 完成
+                    ↓
+              onError → 重试 or 终止
 ```
 
-## 7. 配置层级
+### 4.3 扩展示例：接入新平台
+
+```
+新平台 BLE API → 实现 IPrinterAdapter → 注入 BluetoothPrinter
+```
+
+---
+
+## 5. 配置层级
 
 ```
 默认配置 (DEFAULT_CONFIG)
@@ -344,7 +197,9 @@ printer.emit('progress', { sent, total })
        └── 运行时 setOptions()（仅影响当前实例）
 ```
 
-## 8. 错误处理策略
+---
+
+## 6. 错误处理策略
 
 ```
 错误发生
@@ -356,19 +211,17 @@ printer.emit('progress', { sent, total })
    ├── BluetoothPrintError
    │    │
    │    ├── WRITE_FAILED
-   │    │    ├── retries < maxRetries?
-   │    │    │    ├── 是 → 延迟重试
-   │    │    │    └── 否 → 发出 error 事件
-   │    │    │
-   │    │    └── OfflineCache.autoSync 启用?
-   │    │         └── 是 → 缓存任务
+   │    │    ├── retries < maxRetries? → 延迟重试
+   │    │    └── OfflineCache.autoSync 启用? → 缓存任务
    │    │
    │    └── 其他错误 → 发出 error 事件
    │
    └── 普通 Error → 包装为 BluetoothPrintError → 发出
 ```
 
-## 9. 性能关键路径
+---
+
+## 7. 性能关键路径
 
 | 环节 | 优化手段 |
 |------|---------|
@@ -378,7 +231,9 @@ printer.emit('progress', { sent, total })
 | 批量打印 | `BatchPrintManager` 自动合并小任务 |
 | 弱网适应 | `ScheduledRetryManager` 指数退避 |
 
-## 10. 目录结构
+---
+
+## 8. 目录结构
 
 ```
 src/
@@ -410,22 +265,18 @@ src/
 │
 ├── drivers/                    # 打印机驱动
 │   ├── EscPos.ts               # ESC/POS 热敏票据
-│   ├── TsplDriver.ts           # TSPL 标签机
-│   ├── ZplDriver.ts            # ZPL Zebra 工业机
-│   ├── CpclDriver.ts           # CPCL HP/霍尼韦尔
+│   ├── TsplDriver.ts            # TSPL 标签机
+│   ├── ZplDriver.ts             # ZPL Zebra 工业机
+│   ├── CpclDriver.ts            # CPCL HP/霍尼韦尔
 │   ├── StarPrinter.ts           # STAR TSP 系列
 │   └── GPrinterDriver.ts       # 佳博 GP 系列
-│
-├── services/
-│   ├── interfaces/             # 服务接口定义
-│   └── *.ts                    # 核心服务实现
 │
 ├── plugins/
 │   ├── PluginManager.ts         # 插件管理器
 │   └── types.ts                # 插件类型定义
 │
-├── template/                    # 模板引擎
-│   └── TemplateEngine.ts        # 支持 loop/condition/border/table
+├── template/
+│   └── TemplateEngine.ts        # 模板引擎（支持 loop/condition/border/table）
 │
 ├── barcode/
 │   └── BarcodeGenerator.ts     # 条码生成器（含 QR/PDF417）

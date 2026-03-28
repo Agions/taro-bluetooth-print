@@ -14,7 +14,7 @@
 - **CPCL** — HP/霍尼韦尔移动打印机
 - **STAR** — STAR TSP 系列票据机
 
-> **注意：** 如果打印机使用非标准协议，可以通过实现 `IPrinterDriver` 接口添加支持。
+> 如果打印机使用非标准协议，可以通过实现 `IPrinterDriver` 接口添加支持。
 
 ### 支持哪些 Taro 版本？
 
@@ -160,7 +160,6 @@ printer.qr('url', { size: 8 });  // size 1-16，默认 6
 printer.qr('url', { size: 8, errorCorrection: 'H' });  // H = 30% 纠错
 
 // 3. 缩短二维码内容
-// 二维码内容越短，密度越低，越容易扫描
 ```
 
 ### 打印浓度不均匀
@@ -169,7 +168,6 @@ printer.qr('url', { size: 8, errorCorrection: 'H' });  // H = 30% 纠错
 
 ```typescript
 // 通过 ESC 指令调整浓度（ESC 7 n1 n2 n3）
-// n1 为浓度参数，不同打印机范围不同，通常 0-15
 class ExtendedPrinter extends BluetoothPrinter {
   setDensity(level: number) {
     const cmd = new Uint8Array([0x1B, 0x37, level, 0, 0]);
@@ -204,8 +202,6 @@ await printer.connect(deviceId);
 ```
 
 ### H5 Web Bluetooth 浏览器不支持
-
-**说明：** Safari 和 Firefox 暂不支持 Web Bluetooth API。
 
 **检查方式：**
 
@@ -247,7 +243,7 @@ React Native 需要安装 BLE 库（如 `react-native-ble-plx`），并在原生
 **优化方案：**
 
 ```typescript
-// 1. 调整分片参数（在稳定的蓝牙连接环境下）
+// 1. 调整分片参数
 printer.setOptions({
   chunkSize: 200,    // 从默认 20 提升
   delay: 5,          // 从默认 20 降低
@@ -299,7 +295,6 @@ try {
 某些打印机不支持部分特殊字符（€、®、™ 等）。可以使用替代字符：
 
 ```typescript
-// 替换不支持的字符
 const safeText = text.replace(/[€®™]/g, (c) => ({
   '€': 'E', '®': '(R)', '™': '(TM)',
 })[c] ?? c);

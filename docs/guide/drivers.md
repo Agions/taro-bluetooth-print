@@ -208,12 +208,12 @@ driver
 | `startFormat()` / `endFormat()` | 格式块开始 / 结束 |
 | `labelHome(x, y)` | 标签起始坐标（点） |
 | `text(content, options)` | 添加文本 |
-| `font(name, x, y, height, width)` | 内置字体 |
+| `font(name, x, y, h, w)` | 内置字体 |
 | `barcode(content, options)` | 添加条码 |
 | `qrcode(content, options)` | 添加二维码 |
 | `box(options)` | 矩形边框 |
 | `line(x1, y1, x2, y2, w)` | 线条 |
-| `circle(x, y, diameter, thickness)` | 圆圈 |
+| `circle(x, y, d, t)` | 圆圈 |
 | `setDarkness(value)` | 浓度 (0-30) |
 | `setSpeed(speed)` | 速度 |
 | `quantity(n)` | 打印份数 |

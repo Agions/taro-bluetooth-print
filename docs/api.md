@@ -4,7 +4,7 @@
 
 ---
 
-## BluetoothPrinter
+## BluetoothPrinter {#bluetoothprinter}
 
 主入口类，提供蓝牙连接和打印的完整 API。
 
@@ -84,7 +84,7 @@ console.log(printer.state); // PrinterState.CONNECTED
 
 ---
 
-## DeviceManager
+## DeviceManager {#devicemanager}
 
 独立的设备扫描和管理工具。
 
@@ -126,7 +126,7 @@ interface ScanOptions {
 
 ---
 
-## MultiPrinterManager
+## MultiPrinterManager {#multiprintermanager}
 
 多打印机同时管理。
 
@@ -162,7 +162,7 @@ const manager = new MultiPrinterManager();
 
 ---
 
-## PrintQueue
+## PrintQueue {#printqueue}
 
 打印任务队列，支持优先级调度。
 
@@ -209,7 +209,7 @@ interface QueueConfig {
 
 ---
 
-## OfflineCache
+## OfflineCache {#offlinecache}
 
 离线缓存，网络断开时自动缓存任务。
 
@@ -244,7 +244,7 @@ interface CacheConfig {
 
 ---
 
-## PrintStatistics
+## PrintStatistics {#printstatistics}
 
 打印统计分析服务。
 
@@ -286,7 +286,7 @@ interface PrintStatisticsData {
 
 ---
 
-## ScheduledRetryManager
+## ScheduledRetryManager {#scheduledretrymanager}
 
 定时重试管理器，支持指数退避。
 
@@ -330,7 +330,7 @@ interface RetryOptions {
 
 ---
 
-## BatchPrintManager
+## BatchPrintManager {#batchprintmanager}
 
 批量打印管理器。
 
@@ -368,7 +368,7 @@ interface BatchConfig {
 
 ---
 
-## PrintHistory
+## PrintHistory {#printhistory}
 
 打印历史记录。
 
@@ -394,7 +394,7 @@ const history = new PrintHistory(maxEntries?); // 默认 1000
 
 ---
 
-## PrinterStatus
+## PrinterStatus {#printerstatus}
 
 查询打印机状态。
 
@@ -437,7 +437,7 @@ interface PrinterStatusInfo {
 
 ---
 
-## TemplateEngine
+## TemplateEngine {#templateengine}
 
 模板引擎，支持收据和标签的渲染。
 
@@ -481,7 +481,7 @@ interface LabelData {
 
 ---
 
-## BarcodeGenerator
+## BarcodeGenerator {#barcodegenerator}
 
 条码生成器。
 
@@ -515,7 +515,7 @@ const generator = new BarcodeGenerator();
 
 ---
 
-## PrinterConfigManager
+## PrinterConfigManager {#printerconfigmanager}
 
 配置管理，支持配置的持久化和切换。
 
@@ -545,7 +545,7 @@ const configManager = new PrinterConfigManager();
 
 ---
 
-## uuid 工具
+## uuid 工具 {#uuid-tools}
 
 UUID 生成和解析工具。
 
@@ -578,7 +578,7 @@ enum UUIDVersion {
 
 ---
 
-## validation 工具
+## validation 工具 {#validation-tools}
 
 数据验证工具。
 
@@ -626,7 +626,7 @@ const bufResult = isValidBuffer(data, {
 
 ---
 
-## 驱动 API
+## 驱动 API {#drivers-api}
 
 ### EscPos
 
@@ -748,7 +748,7 @@ const driver = new StarPrinter(options?);
 
 ---
 
-## PrinterState 枚举
+## PrinterState 枚举 {#printerstate-enum}
 
 ```typescript
 enum PrinterState {
@@ -763,7 +763,7 @@ enum PrinterState {
 
 ---
 
-## ErrorCode 枚举
+## ErrorCode 枚举 {#errorcode-enum}
 
 ```typescript
 enum ErrorCode {
@@ -779,3 +779,16 @@ enum ErrorCode {
   UNSUPPORTED_OPERATION = 'UNSUPPORTED_OPERATION',
 }
 ```
+``
+``
+
+`
+
+``
+
+
+`
+
+`
+
+

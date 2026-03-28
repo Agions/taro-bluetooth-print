@@ -4,7 +4,7 @@ import './styles/custom.css'
 
 const theme: Theme = {
   extends: DefaultTheme,
-  enhanceApp({ router }) {
+  enhanceApp({ app }) {
     // Add any app-level enhancements here
   }
 }

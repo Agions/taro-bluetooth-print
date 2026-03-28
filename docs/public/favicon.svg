@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Bluetooth logo simplified -->
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <!-- Bluetooth rune -->
+  <g stroke="white" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="14,10 14,22"/>
+    <polyline points="20,10 12,16 20,22"/>
+    <line x1="10" y1="14" x2="22" y2="18" stroke-width="1.5"/>
+  </g>
+</svg>

@@ -52,9 +52,7 @@ class EplDriver implements IPrinterDriver {
   }
 
   image(data: Uint8Array, width: number, height: number): Uint8Array[] {
-    // 将 RGBA 转换为单色位图
     const monoData = this.toMonoBitmap(data, width, height);
-    // EPL GW 命令: GW x,y,w,h,d
     const gwCmd = `GW 0,0,${width},${height}\n`;
     this.buffer.push(new TextEncoder().encode(gwCmd));
     this.buffer.push(monoData);
@@ -62,12 +60,10 @@ class EplDriver implements IPrinterDriver {
   }
 
   qr(content: string): Uint8Array[] {
-    // 先打印为图片（二维码作为位图处理）
     return this.buffer;
   }
 
   feed(lines = 1): Uint8Array[] {
-    // EPL 换行: n = 行数
     const cmd = `P${lines}\n`;
     this.buffer.push(new TextEncoder().encode(cmd));
     return this.buffer;
@@ -90,7 +86,6 @@ class EplDriver implements IPrinterDriver {
   }
 
   private toMonoBitmap(data: Uint8Array, width: number, height: number): Uint8Array {
-    // 简化: 阈值法转换 RGBA → 单色位图
     const bitPerLine = Math.ceil(width / 8);
     const linePadding = (8 - (bitPerLine % 8)) % 8;
     const bytesPerLine = bitPerLine + linePadding;
@@ -102,9 +97,7 @@ class EplDriver implements IPrinterDriver {
         const r = data[pixelIdx];
         const g = data[pixelIdx + 1];
         const b = data[pixelIdx + 2];
-        // 灰度值
         const gray = (r * 0.299 + g * 0.587 + b * 0.114);
-        // 阈值 128 → 黑白
         const bit = gray < 128 ? 1 : 0;
         const byteIdx = y * bytesPerLine + Math.floor(x / 8);
         const bitIdx = 7 - (x % 8);
@@ -131,7 +124,6 @@ import { EscPos } from 'taro-bluetooth-print';
 class ExtendedEscPos extends EscPos {
   // 添加开钱箱指令
   openCashDrawer(): this {
-    // ESC p m t1 t2
     const cmd = new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA]);
     this.addCommand(cmd);
     return this;
@@ -139,7 +131,6 @@ class ExtendedEscPos extends EscPos {
 
   // 添加自定义浓度设置
   setDensity(level: number): this {
-    // ESC 7 n1 n2 n3 (浓度 0-15)
     const n1 = Math.min(Math.max(level, 0), 15);
     const cmd = new Uint8Array([0x1B, 0x37, n1, 0, 0]);
     this.addCommand(cmd);
@@ -176,17 +167,12 @@ interface IPrinterAdapter {
 
 ### 实现示例：Flutter 蓝牙适配器（伪代码）
 
-在 Flutter 项目中，你可以通过平台通道（Platform Channel）接入 Flutter 的 `flutter_blue_plus` 库：
-
 ```typescript
 class FlutterBleAdapter implements IPrinterAdapter {
   private deviceId: string | null = null;
 
   async connect(deviceId: string): Promise<void> {
-    // 通过 MethodChannel 调用 Flutter 侧蓝牙方法
-    const result = await FlutterChannel.invokeMethod('BLE.connect', {
-      deviceId,
-    });
+    const result = await FlutterChannel.invokeMethod('BLE.connect', { deviceId });
     if (!result.success) {
       throw new Error(`连接失败: ${result.error}`);
     }
@@ -205,10 +191,7 @@ class FlutterBleAdapter implements IPrinterAdapter {
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.slice(i, Math.min(i + chunkSize, bytes.length));
-      await FlutterChannel.invokeMethod('BLE.write', {
-        deviceId,
-        data: Array.from(chunk),
-      });
+      await FlutterChannel.invokeMethod('BLE.write', { deviceId, data: Array.from(chunk) });
       if (i + chunkSize < bytes.length) {
         await sleep(delay);
       }
@@ -276,7 +259,6 @@ export function createAnalyticsPlugin(options: AnalyticsPluginOptions): Plugin {
 
     hooks: {
       beforePrint: (buffer, context) => {
-        // 采样上报
         if (Math.random() > (options.sampleRate ?? 1)) {
           return buffer;
         }
@@ -289,7 +271,6 @@ export function createAnalyticsPlugin(options: AnalyticsPluginOptions): Plugin {
           deviceId: context?.deviceId ?? 'unknown',
         };
 
-        // 异步上报，不阻塞打印
         fetch(options.endpoint, {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -328,8 +309,6 @@ export function createAnalyticsPlugin(options: AnalyticsPluginOptions): Plugin {
 
 ### 1. 调整分片参数
 
-默认配置偏保守，在稳定环境下可以大幅提升：
-
 ```typescript
 // 环境好时推荐配置（蓝牙 5.0+ 设备）
 printer.setOptions({
@@ -347,8 +326,6 @@ printer.setOptions({
 ```
 
 ### 2. 减少不必要的样式切换
-
-每次调用 `.setBold(true)` / `.setBold(false)` 等都会插入额外的控制指令。将相同样式的文本集中打印：
 
 ```typescript
 // ❌ 低效 — 频繁切换样式
@@ -432,17 +409,14 @@ async function robustPrint(printer: BluetoothPrinter, data: Uint8Array) {
     if (error instanceof BluetoothPrintError) {
       switch (error.code) {
         case ErrorCode.CONNECTION_FAILED:
-          // 尝试重新连接
           await printer.connect(deviceId);
           return robustPrint(printer, data);
 
         case ErrorCode.WRITE_FAILED:
-          // 增加重试
           printer.setOptions({ retries: 5 });
           return robustPrint(printer, data);
 
         case ErrorCode.DEVICE_DISCONNECTED:
-          // 重新连接后重试
           await printer.connect(deviceId);
           return robustPrint(printer, data);
 
