@@ -17,13 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-
-      - name: Install pnpm
-        run: npm install -g pnpm@9
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --ignore-scripts
