@@ -5,23 +5,26 @@ hero:
   name: "taro-bluetooth-print"
   text: "高性能蓝牙打印库"
   tagline: "热敏票据 · 标签打印 · 多平台适配 · 离线缓存 · 断点续传"
+  image:
+    src: /hero-illustration.svg
+    alt: 蓝牙打印示意
   actions:
     - theme: brand
       text: 快速开始 →
       link: /guide/getting-started
     - theme: alt
-      text: 功能特性
+      text: 查看功能特性
       link: /guide/features
 
 features:
-  - icon: 🔗
+  - icon: 🖨️
     title: 多平台适配
     details: 一套代码，支持微信/支付宝/百度/字节跳动小程序，H5 Web Bluetooth，鸿蒙，React Native 等平台。
-  - icon: 🖨️
+  - icon: ⚡
     title: 多协议驱动
     details: 内置 ESC/POS、TSPL、ZPL、CPCL、StarPrinter 等驱动，兼容佳博、芯烨、TSC、Zebra 等主流打印机。
-  - icon: ⚡
-    title: 高性能打印
+  - icon: 🔗
+    title: 高性能传输
     details: 智能分片传输 + 断点续传 + 弱网自适应重试机制，确保不稳定网络下也能稳定完成打印。
   - icon: 📋
     title: 模板引擎
@@ -30,8 +33,8 @@ features:
     title: 离线缓存
     details: 网络断开时自动缓存打印任务，恢复连接后自动同步，不丢失任何打印任务。
   - icon: 📊
-    title: 统计与批量
-    details: 内置 PrintStatistics 统计服务、ScheduledRetryManager 定时重试、BatchPrintManager 批量打印管理。
+    title: 批量管理
+    details: 内置 PrintStatistics 统计、ScheduledRetryManager 定时重试、BatchPrintManager 批量打印管理。
 ---
 
 <div class="badges">
@@ -103,5 +106,15 @@ async function main() {
   justify-content: center;
   flex-wrap: wrap;
   margin: 24px 0;
+}
+
+/* Hero 区域增强 */
+.VPHome {
+  padding-bottom: 0 !important;
+}
+
+/* 隐藏默认 hero image，改用自定义 */
+.hero.imageTED {
+  display: none;
 }
 </style>

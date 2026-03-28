@@ -1,0 +1,44 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆 -->
+  <circle cx="200" cy="150" r="120" fill="#ecfeff" opacity="0.5"/>
+  <circle cx="200" cy="150" r="80" fill="#cffafe" opacity="0.5"/>
+  
+  <!-- 手机轮廓 -->
+  <rect x="140" y="60" width="120" height="180" rx="16" fill="#fff" stroke="#0891b2" stroke-width="3"/>
+  <rect x="150" y="80" width="100" height="140" rx="4" fill="#f0fdfa"/>
+  
+  <!-- 屏幕上的打印图标 -->
+  <rect x="165" y="95" width="70" height="50" rx="4" fill="#0891b2" opacity="0.1"/>
+  <text x="200" y="125" font-family="Arial" font-size="24" fill="#0891b2" text-anchor="middle">🖨️</text>
+  
+  <!-- 小票 -->
+  <rect x="170" y="155" width="60" height="45" rx="2" fill="#fff" stroke="#06b6d4" stroke-width="2"/>
+  <line x1="178" y1="165" x2="222" y2="165" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="178" y1="175" x2="215" y2="175" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="178" y1="185" x2="220" y2="185" stroke="#94a3b8" stroke-width="2"/>
+  
+  <!-- 蓝牙符号 -->
+  <path d="M220 120 L235 105 L235 135 L220 150 L235 165 L235 195 L220 180" stroke="#0891b2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- 打印机轮廓 -->
+  <rect x="260" y="170" width="80" height="60" rx="6" fill="#fff" stroke="#06b6d4" stroke-width="3"/>
+  <rect x="270" y="180" width="60" height="20" rx="2" fill="#cffafe"/>
+  <rect x="275" y="205" width="50" height="15" rx="2" fill="#0891b2" opacity="0.2"/>
+  
+  <!-- 出纸 -->
+  <rect x="275" y="235" width="50" height="25" rx="2" fill="#fff" stroke="#06b6d4" stroke-width="2"/>
+  <line x1="283" y1="243" x2="317" y2="243" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="283" y1="250" x2="310" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
+  
+  <!-- 连接线 -->
+  <path d="M250 200 Q280 200 280 200" stroke="#0891b2" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  
+  <!-- 装饰 - 代码符号 -->
+  <text x="80" y="100" font-family="monospace" font-size="14" fill="#0891b2" opacity="0.6">&lt;/&gt;</text>
+  <text x="320" y="90" font-family="monospace" font-size="14" fill="#06b6d4" opacity="0.6">{ }</text>
+  <text x="100" y="220" font-family="monospace" font-size="12" fill="#0891b2" opacity="0.4">print()</text>
+  
+  <!-- 底部装饰 -->
+  <circle cx="60" cy="260" r="20" fill="#cffafe" opacity="0.4"/>
+  <circle cx="340" cy="270" r="25" fill="#ecfeff" opacity="0.4"/>
+</svg>
