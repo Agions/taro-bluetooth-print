@@ -137,18 +137,17 @@ export class MultiPrinterManager {
   /**
    * Emit an event
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
   private emit<K extends keyof MultiPrinterManagerEvents>(event: K, data: any): void {
     this.listeners[event].forEach(handler => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         (handler as (data: any) => void)(data);
       } catch (error) {
         this.logger.error(`Error in event handler for "${event}":`, error);
       }
     });
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
 
   /**
    * Connect to a printer
