@@ -34,7 +34,7 @@ Lint: 大部分通过
 
 ### 2. 测试增强
 
-- [ ] 增加驱动单元测试 (EscPos, TSPL, ZPL, CPCL)
+- [x] 增加驱动单元测试 (EscPos, TSPL, ZPL, CPCL) - v2.6.0
 - [ ] 增加适配器 mock 测试
 - [ ] 集成测试示例
 
