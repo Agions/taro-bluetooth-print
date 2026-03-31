@@ -324,7 +324,7 @@ printer.text(safeText, 'GBK');
 
 1. 搜索 [GitHub Issues](https://github.com/agions/taro-bluetooth-print/issues)
 2. 提交新的 [Issue](https://github.com/agions/taro-bluetooth-print/issues/new)（请包含完整的错误信息、环境信息和复现步骤）
-3. 查看 [API 文档](../api.md)
+3. 查看 [API 文档](../api/)
 
 **提交 Issue 时请包含：**
 - 完整的错误信息和堆栈

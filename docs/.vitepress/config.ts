@@ -12,33 +12,32 @@ export default defineConfig({
 
     // Theme color
     ['meta', { name: 'theme-color', content: '#0d9488' }],
-    
+
     // SEO
     ['meta', { name: 'keywords', content: 'taro, bluetooth, printer, escpos, thermal, tspl, zpl, 小程序, 蓝牙打印, 热敏打印, 标签打印' }],
     ['meta', { name: 'author', content: 'Agions' }],
-    
+
     // Open Graph
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:title', content: 'taro-bluetooth-print - 蓝牙打印库' }],
     ['meta', { name: 'og:description', content: '轻量级、高性能的热敏/标签蓝牙打印库，支持微信小程序、H5、鸿蒙系统等多种平台' }],
     ['meta', { name: 'og:url', content: 'https://agions.github.io/taro-bluetooth-print/' }],
     ['meta', { name: 'og:image', content: 'https://placehold.co/1200x630/0891b2/ffffff?text=taro-bluetooth-print' }],
-    
+
     // Twitter Card
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'taro-bluetooth-print' }],
     ['meta', { name: 'twitter:description', content: '轻量级、高性能的热敏/标签蓝牙打印库' }],
-    
+
     // PWA
     ['link', { rel: 'manifest', href: '/manifest.webmanifest' }],
     ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
     ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'taro-bluetooth-print' }],
-    
-    // Preconnect to Google Fonts
+
+    // Google Fonts
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    // Google Fonts: Inter + Noto Sans SC
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap' }],
   ],
 
@@ -73,7 +72,7 @@ export default defineConfig({
       {
         text: '参考',
         items: [
-          { text: 'API 参考', link: '/api' },
+          { text: 'API 参考', link: '/api/' },
           { text: '常见问题', link: '/guide/faq' },
         ],
       },
@@ -125,25 +124,57 @@ export default defineConfig({
       ],
       '/api/': [
         {
-          text: 'API 参考',
-          collapsed: false,
+          text: '概览',
           items: [
-            { text: 'BluetoothPrinter', link: '/api' },
-            { text: 'DeviceManager', link: '/api' },
-            { text: 'MultiPrinterManager', link: '/api' },
-            { text: 'PrintQueue', link: '/api' },
-            { text: 'OfflineCache', link: '/api' },
-            { text: 'TemplateEngine', link: '/api' },
-            { text: 'BarcodeGenerator', link: '/api' },
-            { text: 'PrintStatistics', link: '/api' },
-            { text: 'ScheduledRetryManager', link: '/api' },
-            { text: 'BatchPrintManager', link: '/api' },
-            { text: 'PrinterStatus', link: '/api' },
-            { text: 'uuid 工具', link: '/api' },
-            { text: 'validation 工具', link: '/api' },
-            { text: '驱动 API', link: '/api' },
+            { text: 'API 参考', link: '/api/' },
           ],
         },
+        {
+          text: '核心类',
+          collapsed: false,
+          items: [
+            { text: 'BluetoothPrinter', link: '/api/bluetooth-printer' },
+            { text: 'DeviceManager', link: '/api/device-manager' },
+            { text: 'MultiPrinterManager', link: '/api/multi-printer-manager' },
+            { text: 'PrintQueue', link: '/api/print-queue' },
+          ],
+        },
+        {
+          text: '数据管理',
+          collapsed: false,
+          items: [
+            { text: 'OfflineCache', link: '/api/offline-cache' },
+            { text: 'PrintHistory', link: '/api/print-history' },
+            { text: 'PrintStatistics', link: '/api/print-statistics' },
+          ],
+        },
+        {
+          text: '高级管理',
+          collapsed: false,
+          items: [
+            { text: 'ScheduledRetryManager', link: '/api/scheduled-retry-manager' },
+            { text: 'BatchPrintManager', link: '/api/batch-print-manager' },
+            { text: 'PrinterStatus', link: '/api/printer-status' },
+          ],
+        },
+        {
+          text: '工具与模板',
+          collapsed: false,
+          items: [
+            { text: 'TemplateEngine', link: '/api/template-engine' },
+            { text: 'BarcodeGenerator', link: '/api/barcode-generator' },
+            { text: 'PrinterConfigManager', link: '/api/printer-config-manager' },
+            { text: '工具函数', link: '/api/utils' },
+          ],
+        },
+        {
+          text: '驱动 API',
+          collapsed: false,
+          items: [
+            { text: '驱动参考', link: '/guide/drivers' },
+          ],
+        },
+
       ],
     },
 
@@ -212,12 +243,6 @@ export default defineConfig({
     // 回到顶部
     returnToTopLabel: '回到顶部',
     sidebarMenuLabel: '菜单',
-
-    // Carbon Ads (可选)
-    // carbonAds: {
-    //   code: 'your-carbon-code',
-    //   placement: 'your-carbon-placement',
-    // },
   },
 
   // Markdown 配置
@@ -249,9 +274,4 @@ export default defineConfig({
       preprocessorOptions: {},
     },
   },
-
-  // Mermaid 图表支持 (可选)
-  // mermaid: {
-  //   theme: 'default',
-  // },
 });

@@ -2,40 +2,9 @@
 
 理解以下核心概念有助于更好地使用和扩展 `taro-bluetooth-print`。
 
-## 架构总览
-
-```
-┌────────────────────────────────────────────────────────────┐
-│                        应用层                               │
-│               BluetoothPrinter                              │
-│         (主入口，封装打印 API + 事件系统)                      │
-└─────────────────────┬──────────────────────────────────────┘
-                      │
-         ┌─────────────┴──────────────┐
-         │                              │
-┌────────▼──────────┐      ┌───────────▼────────┐
-│      驱动层         │      │       适配器层       │
-│                    │      │                    │
-│  EscPos           │      │  TaroAdapter        │
-│  TsplDriver       │      │  WebBluetoothAdapter│
-│  ZplDriver        │      │  ReactNativeAdapter │
-│  CpclDriver       │      │  AlipayAdapter      │
-│  StarPrinter      │      │  BaiduAdapter       │
-│  GPrinterDriver   │      │  ByteDanceAdapter   │
-└────────┬───────────┘      └──────────┬─────────┘
-         │                              │
-         │     ┌───────────────────────┘
-         │     │
-┌────────▼─────▼─────────────────────────────────────────────┐
-│                      核心服务层                               │
-│                                                              │
-│  ConnectionManager  │  PrintJobManager  │  CommandBuilder   │
-│  DeviceManager      │  PrintQueue       │  OfflineCache     │
-│  MultiPrinterManager│  PrintStatistics  │  PrinterStatus    │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
+::: tip 推荐阅读
+如果你想先了解整体架构设计，请先阅读 [架构设计](./architecture.md) 章节。
+:::
 
 ## 插件架构详解
 
