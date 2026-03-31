@@ -259,6 +259,7 @@ export default defineConfig({
       infoLabel: 'ℹ️ 信息',
       detailsLabel: '详情',
     },
+    deadLinks: 'ignore',
   },
 
   // Vite 配置
