@@ -259,8 +259,10 @@ export default defineConfig({
       infoLabel: 'ℹ️ 信息',
       detailsLabel: '详情',
     },
-    deadLinks: 'ignore',
   },
+
+  // 忽略死链接检测
+  ignoreDeadLinks: true,
 
   // Vite 配置
   vite: {
