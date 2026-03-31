@@ -112,6 +112,8 @@ export default defineConfig({
             { text: '核心概念', link: '/guide/core-concepts' },
             { text: '高级用法', link: '/guide/advanced' },
             { text: '架构设计', link: '/guide/architecture' },
+            { text: '定时调度', link: '/guide/scheduler' },
+            { text: '设备发现', link: '/guide/discovery' },
           ],
         },
         {

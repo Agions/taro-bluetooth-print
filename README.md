@@ -49,6 +49,8 @@
 | 定时重试 | ScheduledRetryManager 指数退避，重启恢复 |
 | 状态检测 | PrinterStatus 检测纸张/电量状态 |
 | 批量优化 | BatchPrintManager 合并小任务减少开销 |
+| 定时调度 | PrintScheduler 支持 cron/一次性/重复间隔任务 |
+| 设备发现 | DiscoveryService 增强型过滤排序和设备缓存 |
 
 ### 编码支持
 

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-03-31
+
+### 新增
+
+- **PrintScheduler**: 定时打印调度器，支持 cron 表达式、一次性定时、重复间隔任务
+  - 支持本地存储持久化
+  - 完整的生命周期事件 (will-execute, executed, completed, failed)
+  - 暂停/恢复/取消任务
+- **DiscoveryService**: 增强型蓝牙设备发现服务
+  - 多维度设备过滤 (名称、RSSI、厂商 ID、外观类型)
+  - 多种排序方式 (信号强度、名称、最后发现时间)
+  - 设备缓存和自动过期清理
+  - 等待特定设备发现
+
+### 文档
+
+- 更新 README 功能列表
+- 新增定时调度和设备发现使用指南
+
 ## [2.6.0] - 2026-03-27
 
 ### 新增
