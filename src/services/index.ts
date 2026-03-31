@@ -54,4 +54,16 @@ export {
   type ScheduledRetryManagerConfig,
 } from './ScheduledRetryManager';
 
+// 定时打印调度器
+export {
+  PrintScheduler,
+  printScheduler,
+  type ScheduledPrint,
+  type ScheduleOptions,
+  type ScheduleEvents,
+  parseCronExpression,
+  getNextCronRun,
+  getNextIntervalRun,
+} from './PrintScheduler';
+
 export * from './interfaces';
