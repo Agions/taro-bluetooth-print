@@ -7,6 +7,10 @@ export { EscPos, type EscPosOptions } from './EscPos';
 
 export { GPrinterDriver, type GPrinterOptions } from './GPrinterDriver';
 
+export { XprinterDriver, type XprinterOptions } from './XprinterDriver';
+
+export { SprtDriver, type SprtDriverOptions } from './SprtDriver';
+
 export {
   TsplDriver,
   type LabelSize,

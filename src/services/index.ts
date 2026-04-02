@@ -67,3 +67,32 @@ export {
 } from './PrintScheduler';
 
 export * from './interfaces';
+
+// 云打印服务
+export {
+  CloudPrintManager,
+  type CloudPrintOptions,
+  type PrintJob,
+  type CloudPrinterStatus,
+  type CloudPrintEvents,
+  type CloudPrintEvent,
+} from './CloudPrintManager';
+
+// 二维码打印机配对服务
+export {
+  QRCodeDiscoveryService,
+  type QRCodeDiscoveryOptions,
+  type ParsedDeviceInfo,
+  type DiscoveryResult,
+} from './QRCodeDiscoveryService';
+
+export {
+  parseQRCode,
+  parseMultipleQRCodes,
+  detectQRCodeFormat,
+  addQRCodeFormat,
+  removeQRCodeFormat,
+  getSupportedFormats,
+  QR_CODE_FORMATS,
+  type QRCodeFormat,
+} from './QRCodeParser';
