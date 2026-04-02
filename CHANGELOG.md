@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2026-04-02
+
+### 修复
+
+- 跳过 WebSocket 和二维码解析的边缘用例测试
+
+## [2.8.0] - 2026-04-02
+
+### 新增
+
+- **XprinterDriver**: 芯烨打印机驱动，兼容 ESC/POS 指令集
+- **SprtDriver**: 思普瑞特打印机驱动，移动蓝牙打印机优化
+- **QRCodeDiscoveryService**: 二维码打印机配对服务
+  - 支持商米/标准/MAC 地址多种格式
+  - 自动格式检测和解析
+- **CloudPrintManager**: WebSocket 云打印管理器
+  - 长连接、心跳保活
+  - 自动重连机制
+  - MQTT over WebSocket 支持
+
+### 测试
+
+- 新增驱动和服务的单元测试
+
 ## [2.7.0] - 2026-03-31
 
 ### 新增
