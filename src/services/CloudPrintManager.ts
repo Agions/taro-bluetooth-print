@@ -251,7 +251,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
   /**
    * 获取打印机状态
    */
-  getStatus(): PrinterStatus {
+  getStatus(): CloudPrinterStatus {
     if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return { status: 'offline', timestamp: Date.now() };
     }
@@ -278,8 +278,8 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
       switch (message.type) {
         case 'status':
           this.status = {
-            status: message.status,
-            paper: message.paper,
+            status: message.status as CloudPrinterStatus['status'],
+            paper: message.paper as CloudPrinterStatus['paper'],
             error: message.error,
             timestamp: Date.now(),
           };
@@ -288,11 +288,11 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
 
         case 'print-result':
           if (message.success) {
-            this.log.info(`Print job completed: ${message.jobId}`);
-            this.emit('print-complete', message.jobId);
+            this.log.info(`Print job completed: ${message.jobId || ''}`);
+            this.emit('print-complete', message.jobId || '');
           } else {
-            this.log.error(`Print job failed: ${message.jobId}`, message.error);
-            this.emit('print-error', { jobId: message.jobId, error: message.error });
+            this.log.error(`Print job failed: ${message.jobId || ''}`, message.error);
+            this.emit('print-error', { jobId: message.jobId || '', error: message.error || '' });
           }
           break;
 
@@ -301,7 +301,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
           break;
 
         default:
-          this.emit('message', message);
+          this.emit('message', message as unknown as Record<string, unknown>);
       }
     } catch (error) {
       this.log.error('Failed to parse message:', error);

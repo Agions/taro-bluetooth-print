@@ -195,10 +195,10 @@ export class QRCodeDiscoveryService {
 
         return {
           device: {
-            name,
-            address: this.normalizeMacAddress(address),
-            type: deviceType,
-            serviceUuid: json.serviceUuid || json.uuid,
+            name: name || 'Unknown Device',
+            address: this.normalizeMacAddress(address) || '',
+            type: deviceType || 'printer',
+            serviceUuid: (json.serviceUuid || json.uuid) as string || undefined,
             metadata: this.extractJsonMetadata(content),
           },
           raw: content,
@@ -222,17 +222,17 @@ export class QRCodeDiscoveryService {
     }
 
     const [, name, mac, type] = match;
-    const normalizedMac = this.normalizeMacAddress(mac);
+    const normalizedMac = this.normalizeMacAddress(mac || '');
     if (!normalizedMac) {
       return null;
     }
 
     return {
       device: {
-        name: name.trim(),
+        name: (name || '').trim() || 'Unknown Device',
         address: normalizedMac,
-        type: this.normalizeDeviceType(type.trim()),
-        metadata: { originalType: type },
+        type: this.normalizeDeviceType((type || '').trim()),
+        metadata: { originalType: type || '' },
       },
       raw: content,
       format: 'sunmi-pipe',
