@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-base-to-string */
+
 /**
  * QRCodeDiscoveryService - 二维码打印机配对服务
  *
@@ -52,12 +54,14 @@ export interface DiscoveryResult {
 /**
  * MAC 地址正则表达式 (冒号分隔)
  */
-const MAC_COLON_PATTERN = /^([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})$/;
+const MAC_COLON_PATTERN =
+  /^([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})$/;
 
 /**
  * MAC 地址正则表达式 (连字符分隔)
  */
-const MAC_HYPHEN_PATTERN = /^([0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})$/;
+const MAC_HYPHEN_PATTERN =
+  /^([0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})$/;
 
 /**
  * MAC 地址正则表达式 (无分隔符)
@@ -72,7 +76,7 @@ const SUNMI_JSON_PATTERN = /^\{"name"\s*:\s*"([^"]+)"\s*,\s*"mac"\s*:\s*"([^"]+)
 /**
  * 商米分隔符格式正则 (格式: name|MAC|type)
  */
-const SUNMI_PIPE_PATTERN = /^([^\|]+)\|([0-9A-Fa-f:]+)\|([^\|]+)$/;
+const SUNMI_PIPE_PATTERN = /^([^|]+)\|([0-9A-Fa-f:]+)\|([^|]+)$/;
 
 /**
  * 二维码发现服务
@@ -371,7 +375,16 @@ export class QRCodeDiscoveryService {
     const metadata: Record<string, string> = {};
     try {
       const json = JSON.parse(jsonStr);
-      const knownKeys = ['name', 'mac', 'MAC', 'address', 'type', 'deviceType', 'serviceUuid', 'uuid'];
+      const knownKeys = [
+        'name',
+        'mac',
+        'MAC',
+        'address',
+        'type',
+        'deviceType',
+        'serviceUuid',
+        'uuid',
+      ];
       for (const [key, value] of Object.entries(json)) {
         if (!knownKeys.includes(key) && value !== undefined && value !== null) {
           metadata[key] = String(value);

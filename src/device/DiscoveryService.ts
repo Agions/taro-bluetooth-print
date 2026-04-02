@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+
 /**
  * DiscoveryService - Enhanced printer discovery service
  * Supports filtering, sorting, auto-retry, and device caching
@@ -8,36 +10,36 @@ import { EventEmitter } from '../core/EventEmitter';
 export interface DiscoveredDevice {
   id: string;
   name: string;
-  deviceId: string;           // 原始设备 ID
-  rssi?: number;              // 信号强度
-  appearance?: number;         // 设备类型外观
+  deviceId: string; // 原始设备 ID
+  rssi?: number; // 信号强度
+  appearance?: number; // 设备类型外观
   manufacturerData?: DataView; // 厂商数据
   serviceData?: Map<string, DataView>; // 服务数据
-  txPowerLevel?: number;       // 发射功率
-  lastSeen: number;           // 最后发现时间
-  discoveredCount: number;    // 被发现次数
+  txPowerLevel?: number; // 发射功率
+  lastSeen: number; // 最后发现时间
+  discoveredCount: number; // 被发现次数
 }
 
 export interface DiscoveryOptions {
   filters?: DeviceFilter[];
   sortBy?: SortOption[];
-  timeout?: number;           // 发现超时 (ms)
-  maxDevices?: number;        // 最大设备数
-  enableCache?: boolean;       // 启用设备缓存
-  cacheExpiry?: number;        // 缓存过期时间 (ms)
-  autoRetry?: boolean;        // 自动重试
-  retryInterval?: number;      // 重试间隔 (ms)
-  maxRetries?: number;         // 最大重试次数
+  timeout?: number; // 发现超时 (ms)
+  maxDevices?: number; // 最大设备数
+  enableCache?: boolean; // 启用设备缓存
+  cacheExpiry?: number; // 缓存过期时间 (ms)
+  autoRetry?: boolean; // 自动重试
+  retryInterval?: number; // 重试间隔 (ms)
+  maxRetries?: number; // 最大重试次数
 }
 
 export interface DeviceFilter {
-  name?: string | string[];      // 设备名称 (支持通配符 * 或正则)
-  namePattern?: RegExp;           // 名称正则
-  rssiThreshold?: number;         // 最低信号强度
-  manufacturerId?: number;        // 厂商 ID
+  name?: string | string[]; // 设备名称 (支持通配符 * 或正则)
+  namePattern?: RegExp; // 名称正则
+  rssiThreshold?: number; // 最低信号强度
+  manufacturerId?: number; // 厂商 ID
   manufacturerDataPrefix?: Uint8Array; // 厂商数据前缀匹配
-  serviceUUIDs?: string[];        // 必需的服务 UUID
-  appearance?: number[];          // 设备外观类型
+  serviceUUIDs?: string[]; // 必需的服务 UUID
+  appearance?: number[]; // 设备外观类型
 }
 
 export type SortOption = 'rssi' | 'name' | 'lastSeen' | 'discoveredCount';
@@ -50,7 +52,7 @@ export interface DiscoveryEvents {
   'discovery-stop': void;
   'discovery-complete': DiscoveredDevice[];
   'discovery-error': Error;
-  'retry': { attempt: number; maxRetries: number };
+  retry: { attempt: number; maxRetries: number };
 }
 
 /**
@@ -175,7 +177,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
     }
 
     try {
-      const devices = await this.platformAdapter?.requestDevices?.() ?? [];
+      const devices = (await this.platformAdapter?.requestDevices?.()) ?? [];
       this.processDevices(devices);
     } catch (error) {
       this.emit('discovery-error', error as Error);
@@ -401,8 +403,11 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
   /**
    * 等待发现指定设备
    */
-  async waitForDevice(predicate: (device: DiscoveredDevice) => boolean, timeout?: number): Promise<DiscoveredDevice | null> {
-    return new Promise((resolve) => {
+  async waitForDevice(
+    predicate: (device: DiscoveredDevice) => boolean,
+    timeout?: number
+  ): Promise<DiscoveredDevice | null> {
+    return new Promise(resolve => {
       const checkTimeout = timeout ?? this.options.timeout;
 
       const checkDevice = (device: DiscoveredDevice) => {

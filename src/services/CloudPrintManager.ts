@@ -52,6 +52,18 @@ export interface CloudPrinterStatus {
   timestamp: number;
 }
 
+/** 服务器消息类型 */
+interface ServerMessage {
+  type: string;
+  status?: string;
+  paper?: string;
+  error?: string;
+  success?: boolean;
+  jobId?: string;
+  deviceId?: string;
+  timestamp?: number;
+}
+
 export interface CloudPrintEvents {
   /** 连接成功 */
   connect: void;
@@ -172,7 +184,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
           }
         };
 
-        this.ws.onerror = (event) => {
+        this.ws.onerror = event => {
           clearTimeout(timeout);
           const error = new Error('WebSocket error');
           this.log.error('WebSocket error', event);
@@ -184,8 +196,8 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
           }
         };
 
-        this.ws.onmessage = (event) => {
-          this.handleMessage(event.data);
+        this.ws.onmessage = (event: MessageEvent) => {
+          this.handleMessage(String(event.data));
         };
       } catch (error) {
         clearTimeout(timeout);
@@ -218,7 +230,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
    * 发送打印任务
    * @throws Error 如果未连接
    */
-  async print(job: PrintJob): Promise<void> {
+  print(job: PrintJob): void {
     if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Not connected to server');
     }
@@ -239,7 +251,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
   /**
    * 获取打印机状态
    */
-  async getStatus(): Promise<PrinterStatus> {
+  getStatus(): PrinterStatus {
     if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return { status: 'offline', timestamp: Date.now() };
     }
@@ -259,7 +271,8 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
    */
   private handleMessage(data: string): void {
     try {
-      const message = JSON.parse(data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = JSON.parse(data) as ServerMessage;
       this.log.debug('Received message', message.type);
 
       switch (message.type) {

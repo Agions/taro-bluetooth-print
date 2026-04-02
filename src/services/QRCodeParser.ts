@@ -26,7 +26,7 @@ export const QR_CODE_FORMATS: QRCodeFormat[] = [
   {
     name: 'sunmi-json',
     pattern: /^\{"name"\s*:\s*"([^"]+)"\s*,\s*"mac"\s*:\s*"([^"]+)"[^}]*\}$/,
-    parse: (match) => ({
+    parse: match => ({
       name: match[1] ?? '',
       address: (match[2] ?? '').toUpperCase(),
       type: 'printer',
@@ -35,8 +35,8 @@ export const QR_CODE_FORMATS: QRCodeFormat[] = [
   // 商米分隔符格式
   {
     name: 'sunmi-pipe',
-    pattern: /^([^\|]+)\|([0-9A-Fa-f:]+)\|([^\|]+)$/,
-    parse: (match) => ({
+    pattern: /^([^|]+)\|([0-9A-Fa-f:]+)\|([^|]+)$/,
+    parse: match => ({
       name: (match[1] ?? '').trim(),
       address: (match[2] ?? '').toUpperCase(),
       type: 'printer',
@@ -45,8 +45,9 @@ export const QR_CODE_FORMATS: QRCodeFormat[] = [
   // MAC 地址（冒号分隔）
   {
     name: 'mac-colon',
-    pattern: /^([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})$/,
-    parse: (match) => ({
+    pattern:
+      /^([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})$/,
+    parse: match => ({
       address: (match[1] ?? '').toUpperCase(),
       type: 'other',
     }),
@@ -54,9 +55,10 @@ export const QR_CODE_FORMATS: QRCodeFormat[] = [
   // MAC 地址（连字符分隔）
   {
     name: 'mac-hyphen',
-    pattern: /^([0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})$/,
-    parse: (match) => ({
-      address: ((match[1] ?? '').toUpperCase()).replace(/-/g, ':'),
+    pattern:
+      /^([0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2}-[0-9A-Fa-f]{2})$/,
+    parse: match => ({
+      address: (match[1] ?? '').toUpperCase().replace(/-/g, ':'),
       type: 'other',
     }),
   },
@@ -64,7 +66,7 @@ export const QR_CODE_FORMATS: QRCodeFormat[] = [
   {
     name: 'mac-plain',
     pattern: /^([0-9A-Fa-f]{12})$/,
-    parse: (match) => {
+    parse: match => {
       const mac = (match[1] ?? '').toUpperCase();
       const formatted = `${mac.slice(0, 2)}:${mac.slice(2, 4)}:${mac.slice(4, 6)}:${mac.slice(6, 8)}:${mac.slice(8, 10)}:${mac.slice(10, 12)}`;
       return {
@@ -152,7 +154,7 @@ export function detectQRCodeFormat(content: string): string | null {
  */
 export function addQRCodeFormat(format: QRCodeFormat): void {
   // 检查是否已存在同名格式
-  const existingIndex = QR_CODE_FORMATS.findIndex((f) => f.name === format.name);
+  const existingIndex = QR_CODE_FORMATS.findIndex(f => f.name === format.name);
   if (existingIndex >= 0) {
     QR_CODE_FORMATS[existingIndex] = format;
   } else {
@@ -167,7 +169,7 @@ export function addQRCodeFormat(format: QRCodeFormat): void {
  * @returns 是否成功移除
  */
 export function removeQRCodeFormat(formatName: string): boolean {
-  const index = QR_CODE_FORMATS.findIndex((f) => f.name === formatName);
+  const index = QR_CODE_FORMATS.findIndex(f => f.name === formatName);
   if (index >= 0) {
     QR_CODE_FORMATS.splice(index, 1);
     return true;
@@ -179,5 +181,5 @@ export function removeQRCodeFormat(formatName: string): boolean {
  * 获取所有支持的格式名称列表
  */
 export function getSupportedFormats(): string[] {
-  return QR_CODE_FORMATS.map((f) => f.name);
+  return QR_CODE_FORMATS.map(f => f.name);
 }
