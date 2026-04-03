@@ -93,12 +93,14 @@ async function main() {
 
 ## 项目信息
 
-[![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm)](https://www.npmjs.com/package/taro-bluetooth-print)
-[![npm downloads](https://img.shields.io/npm/dm/taro-bluetooth-print?style=flat-square&logo=npm)](https://www.npmjs.com/package/taro-bluetooth-print)
-[![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
-[![build](https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?branch=main&style=flat-square&logo=github-actions)](https://github.com/agions/taro-bluetooth-print/actions)
-[![stars](https://img.shields.io/github/stars/taro-bluetooth-print?style=flat-square&logo=github)](https://github.com/agions/taro-bluetooth-print/stargazers)
-[![forks](https://img.shields.io/github/forks/taro-bluetooth-print?style=flat-square&logo=github)](https://github.com/agions/taro-bluetooth-print/forks)
+<div class="badges-row">
+  <a href="https://www.npmjs.com/package/taro-bluetooth-print" target="_blank"><img src="https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&logo=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/taro-bluetooth-print" target="_blank"><img src="https://img.shields.io/npm/dm/taro-bluetooth-print?style=flat-square&logo=npm" alt="downloads"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&logo=open-source-initiative" alt="license"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/actions" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?branch=main&style=flat-square&logo=github-actions" alt="build"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/taro-bluetooth-print?style=flat-square&logo=github" alt="stars"></a>
+  <a href="https://github.com/agions/taro-bluetooth-print/forks" target="_blank"><img src="https://img.shields.io/github/forks/taro-bluetooth-print?style=flat-square&logo=github" alt="forks"></a>
+</div>
 
 ::: tip 为什么选择 taro-bluetooth-print？
 
