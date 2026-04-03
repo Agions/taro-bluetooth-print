@@ -928,8 +928,8 @@ export class TemplateEngine implements ITemplateEngine {
     const padded = text.padEnd(width).substring(0, width);
     switch (align) {
       case TextAlign.CENTER: {
-        const leftPad = Math.floor((width - text.length) / 2);
-        return text.padStart(leftPad + text.length).padEnd(width);
+        const leftPad = Math.floor((width - padded.length) / 2);
+        return padded.padStart(leftPad + padded.length).padEnd(width);
       }
       case TextAlign.RIGHT:
         return text.padStart(width);
