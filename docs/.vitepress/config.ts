@@ -7,49 +7,29 @@ export default defineConfig({
   lang: 'zh-CN',
 
   head: [
-    // Favicon
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
-
-    // Theme color
-    ['meta', { name: 'theme-color', content: '#0d9488' }],
-
-    // SEO
+    ['meta', { name: 'theme-color', content: '#4f46e5' }],
     ['meta', { name: 'keywords', content: 'taro, bluetooth, printer, escpos, thermal, tspl, zpl, 小程序, 蓝牙打印, 热敏打印, 标签打印' }],
     ['meta', { name: 'author', content: 'Agions' }],
-
-    // Open Graph
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:title', content: 'taro-bluetooth-print - 蓝牙打印库' }],
     ['meta', { name: 'og:description', content: '轻量级、高性能的热敏/标签蓝牙打印库，支持微信小程序、H5、鸿蒙系统等多种平台' }],
     ['meta', { name: 'og:url', content: 'https://agions.github.io/taro-bluetooth-print/' }],
-    ['meta', { name: 'og:image', content: 'https://placehold.co/1200x630/0891b2/ffffff?text=taro-bluetooth-print' }],
-
-    // Twitter Card
+    ['meta', { name: 'og:image', content: 'https://placehold.co/1200x630/4338ca/ffffff?text=taro-bluetooth-print' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'taro-bluetooth-print' }],
     ['meta', { name: 'twitter:description', content: '轻量级、高性能的热敏/标签蓝牙打印库' }],
-
-    // PWA
     ['link', { rel: 'manifest', href: '/manifest.webmanifest' }],
     ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
     ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'default' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'taro-bluetooth-print' }],
-
-    // Google Fonts
-    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap' }],
   ],
 
   themeConfig: {
-    // Logo
-    logo: '/logo.svg',
-    logoFetch: '/logo.svg',
-
-    // Site title
+    logo: '/favicon.svg',
+    logoFetch: '/favicon.svg',
     siteTitle: 'taro-bluetooth-print',
 
-    // 导航栏
     nav: [
       { text: '首页', link: '/' },
       {
@@ -86,7 +66,6 @@ export default defineConfig({
       },
     ],
 
-    // 侧边栏配置
     sidebar: {
       '/guide/': [
         {
@@ -166,27 +145,16 @@ export default defineConfig({
             { text: 'TemplateEngine', link: '/api/template-engine' },
             { text: 'BarcodeGenerator', link: '/api/barcode-generator' },
             { text: 'PrinterConfigManager', link: '/api/printer-config-manager' },
-            { text: '工具函数', link: '/api/utils' },
           ],
         },
-        {
-          text: '驱动 API',
-          collapsed: false,
-          items: [
-            { text: '驱动参考', link: '/guide/drivers' },
-          ],
-        },
-
       ],
     },
 
-    // 社交链接
     socialLinks: [
       { icon: 'github', link: 'https://github.com/agions/taro-bluetooth-print' },
       { icon: 'npm', link: 'https://www.npmjs.com/package/taro-bluetooth-print' },
     ],
 
-    // 搜索配置
     search: {
       provider: 'local',
       options: {
@@ -209,19 +177,16 @@ export default defineConfig({
       },
     },
 
-    // Footer
     footer: {
       message: '基于 MIT 许可发布',
       copyright: 'Copyright © 2024-present Agions',
     },
 
-    // 编辑链接
     editLink: {
       pattern: 'https://github.com/agions/taro-bluetooth-print/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页',
     },
 
-    // 最后更新
     lastUpdated: {
       text: '最后更新于',
       formatOptions: {
@@ -230,24 +195,20 @@ export default defineConfig({
       },
     },
 
-    // 右侧目录
     outline: {
       level: [2, 3],
       label: '目录',
     },
 
-    // 上一页/下一页
     docFooter: {
       prev: '上一篇',
       next: '下一篇',
     },
 
-    // 回到顶部
     returnToTopLabel: '回到顶部',
     sidebarMenuLabel: '菜单',
   },
 
-  // Markdown 配置
   markdown: {
     theme: {
       light: 'github-light',
@@ -263,10 +224,8 @@ export default defineConfig({
     },
   },
 
-  // 忽略死链接检测
   ignoreDeadLinks: true,
 
-  // Vite 配置
   vite: {
     build: {
       rollupOptions: {
@@ -274,9 +233,6 @@ export default defineConfig({
           manualChunks: undefined,
         },
       },
-    },
-    css: {
-      preprocessorOptions: {},
     },
   },
 });
