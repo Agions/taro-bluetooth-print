@@ -171,5 +171,5 @@ export interface DeviceInfo {
   /** Device RSSI (signal strength) */
   rssi?: number;
   /** Device manufacturer data */
-  advertisData?: ArrayBuffer;
+  advertisementData?: ArrayBuffer;
 }

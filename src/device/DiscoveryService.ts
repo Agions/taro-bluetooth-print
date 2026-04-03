@@ -1,4 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+/**
+ * @fileoverview DiscoveryService uses dynamic adapter loading for platform-specific Bluetooth operations.
+ * The platformAdapter field is typed as `BaseAdapter | undefined` because different adapters
+ * (TaroAdapter, WebBluetoothAdapter, ReactNativeAdapter, etc.) are loaded based on runtime platform detection.
+ */
 
 /**
  * DiscoveryService - Enhanced printer discovery service
@@ -6,6 +11,7 @@
  */
 
 import { EventEmitter } from '../core/EventEmitter';
+import { IPrinterAdapter } from '../types';
 
 export interface DiscoveredDevice {
   id: string;
@@ -136,7 +142,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
   private options: Required<DiscoveryOptions>;
   private isDiscovering: boolean = false;
   private stopTimeout: ReturnType<typeof setTimeout> | null = null;
-  private platformAdapter?: any; // Platform-specific Bluetooth adapter
+  private platformAdapter?: IPrinterAdapter; // Platform-specific Bluetooth adapter
 
   constructor(options: DiscoveryOptions = {}) {
     super();
@@ -156,7 +162,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
   /**
    * 设置平台适配器
    */
-  setPlatformAdapter(adapter: any): void {
+  setPlatformAdapter(adapter: IPrinterAdapter): void {
     this.platformAdapter = adapter;
   }
 
@@ -177,7 +183,8 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
     }
 
     try {
-      const devices = (await this.platformAdapter?.requestDevices?.()) ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const devices = (await (this.platformAdapter as any)?.requestDevices?.()) ?? [];
       this.processDevices(devices);
     } catch (error) {
       this.emit('discovery-error', error as Error);
@@ -200,7 +207,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
       this.stopTimeout = null;
     }
 
-    this.platformAdapter?.stopDiscovery?.();
+    void this.platformAdapter?.stopDiscovery?.();
 
     if (this.isDiscovering) {
       this.isDiscovering = false;
@@ -221,6 +228,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
   /**
    * 处理单个设备
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private processDevice(deviceInfo: any): void {
     const deviceId = deviceInfo.deviceId || deviceInfo.id;
     const now = Date.now();

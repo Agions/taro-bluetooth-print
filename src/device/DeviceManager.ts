@@ -26,7 +26,7 @@ export interface BluetoothDevice {
   /** Signal strength (RSSI) */
   rssi?: number;
   /** Advertisement data */
-  advertisData?: ArrayBuffer;
+  advertisementData?: ArrayBuffer;
   /** Service UUIDs */
   serviceUUIDs?: string[];
   /** Local name from advertisement */
@@ -404,7 +404,7 @@ export class DeviceManager implements IDeviceManager {
         deviceId: device.deviceId,
         name: device.name || device.localName || 'Unknown',
         rssi: device.RSSI,
-        advertisData: device.advertisData,
+        advertisementData: device.advertisData,
         serviceUUIDs: device.advertisServiceUUIDs,
         localName: device.localName,
       };
