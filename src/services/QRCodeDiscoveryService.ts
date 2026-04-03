@@ -198,7 +198,7 @@ export class QRCodeDiscoveryService {
             name: name || 'Unknown Device',
             address: this.normalizeMacAddress(address) || '',
             type: deviceType || 'printer',
-            serviceUuid: (json.serviceUuid || json.uuid) as string || undefined,
+            serviceUuid: ((json.serviceUuid || json.uuid) as string) || undefined,
             metadata: this.extractJsonMetadata(content),
           },
           raw: content,
