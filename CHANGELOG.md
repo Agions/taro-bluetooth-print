@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.4] - 2026-04-05
+
+### 修复
+
+- image.ts: 添加 TypeScript strict mode non-null assertions，解决 noUncheckedIndexedAccess 警告
+
+### 性能优化
+
+- image.ts: 移除 TypedArray 访问上的冗余 `?? 0` / `?? 255` 操作符
+
 ## [2.8.3] - 2026-04-04
 
 ### 性能优化
