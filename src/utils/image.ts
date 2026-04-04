@@ -199,9 +199,9 @@ export class ImageProcessing {
     const grayscale = new Float32Array(width * height);
     for (let i = 0; i < data.length; i += 4) {
       const idx = i >> 2;
-      const r = data[i] ?? 0;
-      const g = data[i + 1] ?? 0;
-      const b = data[i + 2] ?? 0;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
       grayscale[idx] = (r * 299 + g * 587 + b * 114) / 1000;
     }
     return grayscale;
@@ -215,7 +215,7 @@ export class ImageProcessing {
     if (contrast === 1.0 && brightness === 0.0) return grayscale;
     const adjusted = new Float32Array(grayscale);
     for (let i = 0; i < adjusted.length; i++) {
-      const value = adjusted[i] ?? 0;
+      const value = adjusted[i];
       adjusted[i] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + brightness * 255));
     }
     return adjusted;
@@ -291,12 +291,12 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const oldPixel = grayscale[idx] ?? 0;
+        const oldPixel = grayscale[idx];
         const newPixel = oldPixel < threshold ? 0 : 255;
         if (newPixel === 0) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
         this.distributeErr(grayscale, width, height, x + 1, y, (err * 7) / 16);
@@ -320,12 +320,12 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const oldPixel = grayscale[idx] ?? 0;
+        const oldPixel = grayscale[idx];
         const newPixel = oldPixel < threshold ? 0 : 255;
         if (newPixel === 0) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
         const err = (oldPixel - newPixel) / 8;
         this.distributeErr(grayscale, width, height, x + 1, y, err);
@@ -360,14 +360,14 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const pixel = grayscale[idx] ?? 0;
+        const pixel = grayscale[idx];
         const bayerRow = matrix[y % matrixSize] ?? [];
         const bayerVal = bayerRow[x % matrixSize] ?? 0;
         const adjustedThreshold = thresholdOffset + (bayerVal / matrixMax) * 48;
         if (pixel < adjustedThreshold) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
       }
     }
@@ -389,7 +389,7 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const pixel = grayscale[idx] ?? 0;
+        const pixel = grayscale[idx];
         const localY = y % cellSize;
         const localX = x % cellSize;
         const row = thresholds[localY] ?? [];
@@ -398,7 +398,7 @@ export class ImageProcessing {
         if (pixel < adjusted) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
       }
     }
@@ -440,12 +440,12 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const oldPixel = grayscale[idx] ?? 0;
+        const oldPixel = grayscale[idx];
         const newPixel = oldPixel < threshold ? 0 : 255;
         if (newPixel === 0) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
         this.distributeErr(grayscale, width, height, x + 1, y, (err * 5) / 32);
@@ -474,12 +474,12 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const oldPixel = grayscale[idx] ?? 0;
+        const oldPixel = grayscale[idx];
         const newPixel = oldPixel < threshold ? 0 : 255;
         if (newPixel === 0) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
         const err = oldPixel - newPixel;
         this.distributeErr(grayscale, width, height, x + 1, y, (err * 8) / 42);
@@ -511,11 +511,11 @@ export class ImageProcessing {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const pixel = grayscale[idx] ?? 0;
+        const pixel = grayscale[idx];
         if (pixel < threshold) {
           const byteIdx = y * bytesPerLine + Math.floor(x / 8);
           const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (1 << bitIdx);
+          bitmap[byteIdx] = bitmap[byteIdx] | (1 << bitIdx);
         }
       }
     }
@@ -533,7 +533,7 @@ export class ImageProcessing {
   ): void {
     if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
       const idx = ny * width + nx;
-      const current = grayscale[idx] ?? 0;
+      const current = grayscale[idx];
       grayscale[idx] = Math.max(0, Math.min(255, current + error));
     }
   }
@@ -581,10 +581,10 @@ export class ImageProcessing {
         const sjy = Math.min(srcHeight - 1, Math.round(y * sy));
         const si = (sjy * srcWidth + sjx) * 4;
         const di = (y * destWidth + x) * 4;
-        destData[di] = srcData[si] ?? 0;
-        destData[di + 1] = srcData[si + 1] ?? 0;
-        destData[di + 2] = srcData[si + 2] ?? 0;
-        destData[di + 3] = srcData[si + 3] ?? 255;
+        destData[di] = srcData[si];
+        destData[di + 1] = srcData[si + 1];
+        destData[di + 2] = srcData[si + 2];
+        destData[di + 3] = srcData[si + 3];
       }
     }
   }
@@ -618,11 +618,7 @@ export class ImageProcessing {
           const ii2 = (y1 * srcWidth + x2) * 4 + c;
           const ii3 = (y2 * srcWidth + x1) * 4 + c;
           const ii4 = (y2 * srcWidth + x2) * 4 + c;
-          const v =
-            (srcData[ii1] ?? 0) * w1 +
-            (srcData[ii2] ?? 0) * w2 +
-            (srcData[ii3] ?? 0) * w3 +
-            (srcData[ii4] ?? 0) * w4;
+          const v = srcData[ii1] * w1 + srcData[ii2] * w2 + srcData[ii3] * w3 + srcData[ii4] * w4;
           destData[(y * destWidth + x) * 4 + c] = Math.round(v);
         }
       }
@@ -639,10 +635,13 @@ export class ImageProcessing {
     }
     const result = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i += 4) {
-      result[i] = lut[data[i] ?? 0] ?? 0;
-      result[i + 1] = lut[data[i + 1] ?? 0] ?? 0;
-      result[i + 2] = lut[data[i + 2] ?? 0] ?? 0;
-      result[i + 3] = data[i + 3] ?? 255;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- lut has 256 entries, data[i] is 0-255
+      result[i] = lut[data[i]]!;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      result[i + 1] = lut[data[i + 1]]!;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      result[i + 2] = lut[data[i + 2]]!;
+      result[i + 3] = data[i + 3];
     }
     return result;
   }
@@ -659,7 +658,7 @@ export class ImageProcessing {
             const ny2 = Math.max(0, Math.min(height - 1, y + dy));
             const si = (ny2 * width + nx) * 4;
             for (let c = 0; c < 4; c++) {
-              window.push(data[si + c] ?? 0);
+              window.push(data[si + c]);
             }
           }
         }
@@ -692,7 +691,7 @@ export class ImageProcessing {
               const ny2 = Math.max(0, Math.min(height - 1, y + ky - kHalf));
               const si = (ny2 * width + nx) * 4 + c;
               const kv = kernel[ky]?.[kx] ?? 0;
-              sum += (data[si] ?? 0) * kv;
+              sum += data[si] * kv;
             }
           }
           result[di + c] = Math.max(0, Math.min(255, Math.round(sum)));
@@ -707,10 +706,10 @@ export class ImageProcessing {
     const step = 255 / (Math.pow(2, lv) - 1);
     const result = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i += 4) {
-      result[i] = Math.round(Math.round((data[i] ?? 0) / step) * step);
-      result[i + 1] = Math.round(Math.round((data[i + 1] ?? 0) / step) * step);
-      result[i + 2] = Math.round(Math.round((data[i + 2] ?? 0) / step) * step);
-      result[i + 3] = data[i + 3] ?? 255;
+      result[i] = Math.round(Math.round(data[i] / step) * step);
+      result[i + 1] = Math.round(Math.round(data[i + 1] / step) * step);
+      result[i + 2] = Math.round(Math.round(data[i + 2] / step) * step);
+      result[i + 3] = data[i + 3];
     }
     return result;
   }
