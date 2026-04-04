@@ -106,7 +106,7 @@ describe('PrintStatistics Service', () => {
       stats.trackJobComplete('job-1', 100, 100);
 
       const byDate = stats.getByDate();
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
       expect(byDate[today]).toBeDefined();
       expect(byDate[today]?.completed).toBe(1);
     });
@@ -150,7 +150,7 @@ describe('PrintStatistics Service', () => {
       stats.trackJobFail('job-1', 'error');
 
       const byDate = stats.getByDate();
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
       expect(byDate[today]?.failed).toBe(1);
     });
   });
