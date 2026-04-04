@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.3] - 2026-04-04
+
+### 性能优化
+
+- image.ts: 移除 TypedArray 访问上的冗余 `?? 0` / `?? 255` 操作符（Uint8Array/Float32Array 元素访问永不返回 undefined）
+- 影响函数：toGrayscale、adjustContrastBrightness、所有 dithering 算法、applyBilinearInterpolation、applyGammaCorrection、applyMedianFilter、applyConvolution、applyPixelate
+- gzip 体积：225.96 KB → 225.79 KB（-0.17 KB），代码净减 1 行
+
 ## [2.8.1] - 2026-04-02
 
 ### 修复
