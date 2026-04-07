@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.9.0] - 2026-04-07
+## [2.10.0] - 2026-04-07
 
 ### 架构升级
 
@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **接口分离**: 将 `services/interfaces/index.ts` 拆分为独立文件 (`IConnectionManager.ts`, `IPrintJobManager.ts`, `ICommandBuilder.ts`)，改善依赖管理
 - **错误类层次**: 新增 `ConnectionError` / `PrintJobError` / `CommandBuildError` 专用错误类，继承自 `BluetoothPrintError`
 - **BluetoothPrinter 简化**: 移除构造函数向后兼容逻辑，使用清晰的依赖注入模式
+- **validation.ts 拆分**: 1155 行拆分为 `validators/` 目录（types/common/printer/buffer/uuid/number/object/array/chain）
+- **TemplateEngine.ts 拆分**: 1114 行拆分为 `parsers/TemplateParser.ts` + `engines/TemplateRenderer.ts`
+
+### 修复
+
+- **MultiPrinterManager 内存泄漏**: `disconnect()` 时移除 error 事件监听器，防止反复连接/断开时监听器堆积
+
+### 测试
+
+- 补充分类测试覆盖：CommandBuilder (33)、ConnectionManager (37)、PrintJobManager (31)、PrinterFactory (11)、错误类扩充 (+17)
+- 总测试数：648 → **789** (+141)
 
 ### 导出新增
 
@@ -404,3 +415,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 初始版本发布
 - 基础蓝牙打印功能
 - 微信小程序支持
+
+---
+
+_以上内容由 AI 助理自动生成_

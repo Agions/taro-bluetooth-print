@@ -69,7 +69,7 @@ pnpm add taro-bluetooth-print
 ```
 
 ```typescript
-import { BluetoothPrinter, DeviceManager } from 'taro-bluetooth-print';
+import { createBluetoothPrinter, DeviceManager, WebBluetoothAdapter } from 'taro-bluetooth-print';
 
 async function print() {
   // 1. 扫描设备
@@ -82,8 +82,11 @@ async function print() {
     return;
   }
 
-  // 2. 连接打印机
-  const printer = new BluetoothPrinter();
+  // 2. 创建打印机实例（推荐方式）
+  const printer = createBluetoothPrinter({
+    adapter: new WebBluetoothAdapter()
+  });
+
   await printer.connect(devices[0].deviceId);
 
   // 3. 链式调用打印
@@ -140,7 +143,7 @@ async function print() {
 ## 配置与事件
 
 ```typescript
-const printer = new BluetoothPrinter();
+const printer = createBluetoothPrinter();
 
 // 传输参数
 printer.setOptions({
@@ -155,6 +158,7 @@ printer.on('progress', ({ sent, total }) => {
 });
 
 printer.on('error', (error) => {
+  // error 是 BluetoothPrintError 的实例
   console.error('错误:', error.code, error.message);
 });
 
@@ -163,11 +167,56 @@ printer.on('print-complete', () => {
 });
 ```
 
+### 错误类层次
+
+```typescript
+import {
+  BluetoothPrintError,
+  ConnectionError,
+  PrintJobError,
+  CommandBuildError,
+  ErrorCode
+} from 'taro-bluetooth-print';
+
+// 统一错误基类
+try {
+  await printer.print();
+} catch (err) {
+  if (err instanceof BluetoothPrintError) {
+    console.log(err.code, err.message);
+  }
+}
+
+// 专用错误类型（推荐用于精确处理）
+try {
+  await printer.connect(deviceId);
+} catch (err) {
+  if (ConnectionError.isConnectionError(err)) {
+    // 连接失败：重试或提示用户
+    console.log('连接错误:', err.message);
+  }
+}
+
+try {
+  // ... 打印操作
+} catch (err) {
+  if (PrintJobError.isPrintJobError(err)) {
+    // 打印任务失败：重新排队
+    console.log('任务错误:', err.message);
+  }
+}
+```
+
 ---
 
 ## 架构
 
 ```
+  ┌─────────────────────────────────────────┐
+  │         PrinterFactory (createPrinter)      │
+  │  createBluetoothPrinter · createWebBluetooth │
+  └────────────────────┬────────────────────┘
+                       ▼
   ┌─────────────────────────────────────────┐
   │           BluetoothPrinter (Core)        │
   │  text() feed() qr() cut() image() print()│
