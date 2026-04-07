@@ -118,7 +118,8 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       this.commandBuilder = commandBuilder ?? new CommandBuilder();
     } else {
       // Modern DI
-      this.connectionManager = (connectionManagerOrAdapter as IConnectionManager) ?? new ConnectionManager();
+      this.connectionManager =
+        (connectionManagerOrAdapter as IConnectionManager) ?? new ConnectionManager();
       this.printJobManager = printJobManager ?? new PrintJobManager(this.connectionManager);
       this.commandBuilder = commandBuilder ?? new CommandBuilder();
     }

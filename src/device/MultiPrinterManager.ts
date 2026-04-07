@@ -44,6 +44,8 @@ export interface PrinterConnection {
   connectedAt: number;
   /** Last activity timestamp */
   lastActivity?: number;
+  /** Error handler reference (for cleanup) */
+  errorHandler?: (error: Error) => void;
 }
 
 /**
@@ -200,13 +202,14 @@ export class MultiPrinterManager {
     try {
       const printer = new BluetoothPrinter();
 
-      // Set up error handler
-      printer.on('error', error => {
-        this.emit('printer-error', { printerId, error });
-      });
-
-      // Connect
+      // Connect first so we know it works before storing
       await printer.connect(actualDeviceId);
+
+      // Set up error handler and store reference for cleanup
+      const errorHandler = (error: Error) => {
+        this.emit('printer-error', { printerId, error });
+      };
+      printer.on('error', errorHandler);
 
       const connection: PrinterConnection = {
         printerId,
@@ -215,6 +218,7 @@ export class MultiPrinterManager {
         printer,
         connectedAt: Date.now(),
         lastActivity: Date.now(),
+        errorHandler,
       };
 
       this.printers.set(printerId, connection);
@@ -241,6 +245,11 @@ export class MultiPrinterManager {
     }
 
     this.logger.info(`Disconnecting printer "${printerId}"`);
+
+    // Remove error handler to prevent memory leak
+    if (connection.errorHandler) {
+      connection.printer.off('error', connection.errorHandler);
+    }
 
     try {
       await connection.printer.disconnect();
