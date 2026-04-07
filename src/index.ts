@@ -87,6 +87,17 @@ export { PlatformType, detectPlatform, isPlatformSupported } from './utils/platf
 
 // Error handling - 错误处理
 export { BluetoothPrintError, ErrorCode } from './errors/BluetoothError';
+export { ConnectionError, ConnectionErrorCode } from './errors/ConnectionError';
+export { PrintJobError, PrintJobErrorCode } from './errors/PrintJobError';
+export { CommandBuildError, CommandBuildErrorCode } from './errors/CommandBuildError';
+
+// Factory - 工厂模式
+export {
+  createBluetoothPrinter,
+  createWebBluetoothPrinter,
+  PrinterFactory,
+  type PrinterFactoryOptions,
+} from './factory';
 
 // Configuration - 配置
 export { DEFAULT_CONFIG, mergeConfig } from './config/PrinterConfig';

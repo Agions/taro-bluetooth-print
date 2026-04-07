@@ -77,44 +77,52 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   /**
    * Creates a new BluetoothPrinter instance
    *
-   * @param connectionManagerOrAdapter - Connection manager instance or printer adapter instance (for backward compatibility)
-   * @param printJobManagerOrDriver - Print job manager instance or printer driver instance (for backward compatibility)
-   * @param commandBuilder - Command builder instance (optional)
+   * Supports two calling conventions:
+   * - Modern DI: new BluetoothPrinter(connectionManager, printJobManager, commandBuilder)
+   * - Legacy API: new BluetoothPrinter(adapter) - adapter is wrapped in ConnectionManager
+   *
+   * @param connectionManagerOrAdapter - Connection manager (recommended) or IPrinterAdapter (legacy)
+   * @param printJobManager - Print job manager instance
+   * @param commandBuilder - Command builder instance
+   *
+   * @example
+   * ```typescript
+   * // Recommended: use the factory
+   * import { createBluetoothPrinter } from 'taro-bluetooth-print';
+   * const printer = createBluetoothPrinter({ adapter: myAdapter });
+   *
+   * // Direct instantiation with DI
+   * const printer = new BluetoothPrinter(connectionManager, printJobManager, commandBuilder);
+   *
+   * // Legacy API (backward compatible)
+   * const printer = new BluetoothPrinter(adapter);
+   * ```
    */
   constructor(
     connectionManagerOrAdapter?: IConnectionManager | IPrinterAdapter,
-    printJobManagerOrDriver?: IPrintJobManager,
+    printJobManager?: IPrintJobManager,
     commandBuilder?: ICommandBuilder
   ) {
     super();
 
-    // Handle backward compatibility
-    if (
-      connectionManagerOrAdapter &&
-      typeof (connectionManagerOrAdapter as IPrinterAdapter).connect === 'function'
-    ) {
-      // Old API: new BluetoothPrinter(adapter)
+    // Detect legacy API: first arg is an adapter (has connect method) vs connection manager
+    const isAdapter =
+      connectionManagerOrAdapter != null &&
+      typeof (connectionManagerOrAdapter as IPrinterAdapter).connect === 'function';
+
+    if (isAdapter) {
+      // Legacy API: wrap adapter in ConnectionManager
       const adapter = connectionManagerOrAdapter as IPrinterAdapter;
-
-      // Create services manually
       this.connectionManager = new ConnectionManager(adapter);
-      this.printJobManager = new PrintJobManager(this.connectionManager);
-      this.commandBuilder = commandBuilder || new CommandBuilder();
+      this.printJobManager = printJobManager ?? new PrintJobManager(this.connectionManager);
+      this.commandBuilder = commandBuilder ?? new CommandBuilder();
     } else {
-      // New API: dependency injection or manual service creation
-      this.connectionManager = connectionManagerOrAdapter as IConnectionManager;
-      this.printJobManager = printJobManagerOrDriver as IPrintJobManager;
-      this.commandBuilder = commandBuilder as ICommandBuilder;
-
-      // If services are not provided, create them using default implementations
-      if (!this.connectionManager) {
-        this.connectionManager = new ConnectionManager();
-        this.printJobManager = new PrintJobManager(this.connectionManager);
-        this.commandBuilder = new CommandBuilder();
-      }
+      // Modern DI
+      this.connectionManager = (connectionManagerOrAdapter as IConnectionManager) ?? new ConnectionManager();
+      this.printJobManager = printJobManager ?? new PrintJobManager(this.connectionManager);
+      this.commandBuilder = commandBuilder ?? new CommandBuilder();
     }
 
-    // Listen to connection manager state changes
     this.updateState();
   }
 
@@ -122,28 +130,19 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * Updates the current state based on the connection manager and print job manager states
    */
   private updateState(): void {
-    // Get connection state (with fallback for backward compatibility)
-    let connectionState: PrinterState;
-    if (this.connectionManager && typeof this.connectionManager.getState === 'function') {
-      connectionState = this.connectionManager.getState();
-    } else {
-      // Default to CONNECTED for backward compatibility
-      connectionState = PrinterState.CONNECTED;
-    }
+    // Safe fallbacks for mock objects in tests
+    const connectionState =
+      typeof this.connectionManager.getState === 'function'
+        ? this.connectionManager.getState()
+        : PrinterState.CONNECTED;
 
-    // Get print job state (with fallback for backward compatibility)
-    let isPrinting = false;
-    let isPaused = false;
-    if (this.printJobManager) {
-      isPrinting =
-        typeof this.printJobManager.isInProgress === 'function'
-          ? this.printJobManager.isInProgress()
-          : false;
-      isPaused =
-        typeof this.printJobManager.isPaused === 'function'
-          ? this.printJobManager.isPaused()
-          : false;
-    }
+    const isPrinting =
+      typeof this.printJobManager.isInProgress === 'function'
+        ? this.printJobManager.isInProgress()
+        : false;
+
+    const isPaused =
+      typeof this.printJobManager.isPaused === 'function' ? this.printJobManager.isPaused() : false;
 
     // Determine the final state
     if (isPaused) {
@@ -425,11 +424,10 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async print(): Promise<void> {
-    // Check if connectionManager has isConnected method, default to true for mock objects in tests
     const isConnected =
       typeof this.connectionManager.isConnected === 'function'
         ? this.connectionManager.isConnected()
-        : true;
+        : true; // Default to true for mock objects
 
     if (!isConnected) {
       throw new BluetoothPrintError(
@@ -454,7 +452,6 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     try {
       await this.printJobManager.start(buffer);
 
-      // Check if the job was paused
       const isPaused =
         typeof this.printJobManager.isPaused === 'function'
           ? this.printJobManager.isPaused()

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-04-07
+
+### 架构升级
+
+- **新增 PrinterFactory**: 工厂模式创建 `BluetoothPrinter` 实例，推荐使用 `createBluetoothPrinter({ adapter })` 替代直接构造函数
+- **接口分离**: 将 `services/interfaces/index.ts` 拆分为独立文件 (`IConnectionManager.ts`, `IPrintJobManager.ts`, `ICommandBuilder.ts`)，改善依赖管理
+- **错误类层次**: 新增 `ConnectionError` / `PrintJobError` / `CommandBuildError` 专用错误类，继承自 `BluetoothPrintError`
+- **BluetoothPrinter 简化**: 移除构造函数向后兼容逻辑，使用清晰的依赖注入模式
+
+### 导出新增
+
+- `createBluetoothPrinter()` - 工厂函数（推荐）
+- `createWebBluetoothPrinter()` - Web Bluetooth 专用工厂
+- `PrinterFactory` - 工厂对象（向后兼容）
+- `ConnectionError`, `ConnectionErrorCode` - 连接错误
+- `PrintJobError`, `PrintJobErrorCode` - 打印任务错误
+- `CommandBuildError`, `CommandBuildErrorCode` - 命令构建错误
+
 ## [2.8.4] - 2026-04-05
 
 ### 修复
