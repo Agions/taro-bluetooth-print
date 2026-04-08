@@ -51,3 +51,5 @@ docs/.vitepress/dist
 docs/.vitepress/cache
 
 .kiro
+# Internal planning docs
+ROADMAP.md
