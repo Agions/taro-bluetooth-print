@@ -1,6 +1,7 @@
 /**
  * Logging utilities for debugging and monitoring
  */
+import { truncateForLog, generateSummary } from './outputLimiter';
 
 /**
  * Log entry structure
@@ -46,6 +47,10 @@ export interface LoggerConfig {
   prefix: string;
   /** Custom log handler function */
   handler?: LogHandler;
+  /** 单条日志最大长度，防止输出被截断 */
+  maxOutputLength?: number;
+  /** 是否使用数据摘要模式（减少输出量） */
+  useSummaryMode?: boolean;
 }
 
 /**
@@ -74,6 +79,8 @@ export class Logger {
   private static config: LoggerConfig = {
     level: LogLevel.WARN,
     prefix: '[TaroBTPrint]',
+    maxOutputLength: 5000,
+    useSummaryMode: false,
   };
 
   /**
@@ -136,10 +143,16 @@ export class Logger {
 
     const prefix = this.formatPrefix(level, scope);
     const formatted = this.formatMessage(level, message, scope);
+
+    // 处理参数，防止输出过长
+    const processedArgs = this.config.useSummaryMode
+      ? args.map(arg => generateSummary(arg))
+      : args.map(arg => truncateForLog(arg, this.config.maxOutputLength));
+
     const entry: LogEntry = {
       level,
       message,
-      args,
+      args: processedArgs,
       timestamp: new Date(),
       scope,
       formatted,
@@ -154,15 +167,15 @@ export class Logger {
         case LogLevel.DEBUG:
         case LogLevel.INFO:
           // eslint-disable-next-line no-console
-          console.log(prefix, message, ...args);
+          console.log(prefix, message, ...processedArgs);
           break;
         case LogLevel.WARN:
           // eslint-disable-next-line no-console
-          console.warn(prefix, message, ...args);
+          console.warn(prefix, message, ...processedArgs);
           break;
         case LogLevel.ERROR:
           // eslint-disable-next-line no-console
-          console.error(prefix, message, ...args);
+          console.error(prefix, message, ...processedArgs);
           break;
       }
     }

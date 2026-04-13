@@ -308,6 +308,7 @@ printer.text('欢迎光临', 'UTF-8');
 ## 下一步
 
 - 深入了解所有 [功能特性](./features.md)
-- 查看完整的 [API 参考](/api/)
+- 查看完整的 [API 参考](/api/bluetooth-printer)
 - 了解 [驱动支持](./drivers.md) 详情
 - 阅读 [常见问题](./faq.md)
+- 查看 [故障排除指南](./troubleshooting.md)

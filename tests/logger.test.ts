@@ -45,7 +45,7 @@ describe('Logger', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         '[TaroBTPrint] [DEBUG]',
         'Debug message',
-        { data: 123 }
+        '{"data":123}'
       );
     });
 

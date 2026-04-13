@@ -84,6 +84,14 @@ export { Logger, LogLevel } from './utils/logger';
 export { Encoding } from './utils/encoding';
 export { ImageProcessing } from './utils/image';
 export { PlatformType, detectPlatform, isPlatformSupported } from './utils/platform';
+export {
+  truncateString,
+  truncateForLog,
+  batchProcess,
+  createLimitedLogger,
+  generateSummary,
+} from './utils/outputLimiter';
+export type { TruncateOptions } from './utils/outputLimiter';
 
 // Error handling - 错误处理
 export { BluetoothPrintError, ErrorCode } from './errors/BluetoothError';
@@ -99,6 +107,48 @@ export {
   type PrinterFactoryOptions,
 } from './factory';
 
+// DI Factory - 依赖注入工厂
+export {
+  createPrinter,
+  getServiceProvider,
+  createServiceProvider,
+  type CreatePrinterOptions,
+  type ServiceProviderOptions,
+} from './factory/di-factory';
+
+// Core Architecture - 核心架构
+export {
+  Container,
+  rootContainer,
+  injectable,
+  inject,
+  EventBus,
+  globalEventBus,
+  PluginManager,
+} from './core';
+
+export {
+  ADAPTER_TOKEN,
+  DRIVER_TOKEN,
+  DEVICE_MANAGER_TOKEN,
+  CONNECTION_MANAGER_TOKEN,
+  PRINT_JOB_MANAGER_TOKEN,
+  PRINT_QUEUE_TOKEN,
+  OFFLINE_CACHE_TOKEN,
+  CONFIG_MANAGER_TOKEN,
+  LOGGER_TOKEN,
+  EVENT_BUS_TOKEN,
+  PLUGIN_MANAGER_TOKEN,
+  PERFORMANCE_MONITOR_TOKEN,
+  COMMAND_BUILDER_TOKEN,
+  PRINTER_STATUS_TOKEN,
+  PRINT_HISTORY_TOKEN,
+  PRINT_STATISTICS_TOKEN,
+  CLOUD_PRINT_MANAGER_TOKEN,
+  SCHEDULED_RETRY_MANAGER_TOKEN,
+  BATCH_PRINT_MANAGER_TOKEN,
+} from './core';
+
 // Configuration - 配置
 export { DEFAULT_CONFIG, mergeConfig } from './config/PrinterConfig';
 export type {
@@ -112,7 +162,6 @@ export { PrinterConfigManager, printerConfigManager } from './config/PrinterConf
 export type { SavedPrinter, GlobalConfig, IConfigStorage } from './config/PrinterConfigManager';
 
 // Plugin System - 插件系统
-export { PluginManager } from './plugins/PluginManager';
 export { createLoggingPlugin, createRetryPlugin } from './plugins';
 export type { Plugin, PluginHooks, PluginOptions, PluginFactory } from './plugins/types';
 

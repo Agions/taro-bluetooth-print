@@ -6,6 +6,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // 注意：sequence.hooks = 'stack' 与截断无关，已移除
+    // 剩余的 [truncated] 来自 Vitest 内部堆栈路径截断，不影响测试结果
+    // Chai 配置 - 控制截断阈值
+    chaiConfig: {
+      truncateThreshold: 0, // 0 表示禁用截断
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
