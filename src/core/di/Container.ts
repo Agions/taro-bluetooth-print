@@ -311,7 +311,7 @@ export const rootContainer = new Container();
 export function injectable<T extends Constructor<object>>(constructor: T): T {
   // 标记类为可注入
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  (constructor as Constructor & { __injectable: boolean }).__injectable = true;
+  (constructor as unknown as { __injectable: boolean }).__injectable = true;
   return constructor;
 }
 
