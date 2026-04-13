@@ -73,15 +73,17 @@ export class Container {
     const config = provider as ServiceProviderConfig<T>;
 
     // 如果是对象语法（Angular 风格）
-    if (config && typeof config === 'object' && (config.useClass || config.useFactory || config.useValue !== undefined)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let actualProvider: Provider<any>;
+    if (
+      config &&
+      typeof config === 'object' &&
+      (config.useClass || config.useFactory || config.useValue !== undefined)
+    ) {
+      let actualProvider: Provider<T>;
 
       if (config.useClass) {
         // 使用类 - 创建工厂函数来解析依赖
         const Cls = config.useClass;
         actualProvider = (container: Container) => {
-          // 简化：直接实例化（实际应该解析依赖）
           return container.createInstance(Cls);
         };
       } else if (config.useFactory) {
@@ -91,6 +93,7 @@ export class Container {
       }
 
       const registration: Registration<T> = {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         provider: actualProvider,
         options: {
           lifecycle: config.lifecycle || 'transient',
@@ -305,11 +308,10 @@ export class Container {
 export const rootContainer = new Container();
 
 // 装饰器辅助函数
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function injectable<T extends Constructor>(constructor: T): T {
+export function injectable<T extends Constructor<object>>(constructor: T): T {
   // 标记类为可注入
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  (constructor as any).__injectable = true;
+  (constructor as Constructor & { __injectable: boolean }).__injectable = true;
   return constructor;
 }
 
