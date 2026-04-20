@@ -310,7 +310,7 @@ export class ConnectionManager
   /**
    * Attempt to reconnect
    */
-  private attemptReconnect(): void {
+  private async attemptReconnect(): Promise<void> {
     if (!this.deviceId) {
       this.isReconnecting = false;
       return;
@@ -345,27 +345,25 @@ export class ConnectionManager
     this.state = PrinterState.CONNECTING;
     this.emit('state-change', PrinterState.CONNECTING);
 
-    this.adapter
-      .connect(deviceId)
-      .then(() => {
-        this.connLogger.info('Reconnected successfully');
-        this.isReconnecting = false;
-        this.reconnectAttempts = 0;
-        this.state = PrinterState.CONNECTED;
-        this.emit('state-change', PrinterState.CONNECTED);
-        this.emit('reconnected', deviceId);
+    try {
+      await this.adapter.connect(deviceId);
+      this.connLogger.info('Reconnected successfully');
+      this.isReconnecting = false;
+      this.reconnectAttempts = 0;
+      this.state = PrinterState.CONNECTED;
+      this.emit('state-change', PrinterState.CONNECTED);
+      this.emit('reconnected', deviceId);
 
-        if (this.config.heartbeatEnabled) {
-          this.startHeartbeat();
-        }
-      })
-      .catch(error => {
-        this.connLogger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
+      if (this.config.heartbeatEnabled) {
+        this.startHeartbeat();
+      }
+    } catch (error) {
+      this.connLogger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
 
-        this.reconnectTimer = setTimeout(() => {
-          this.attemptReconnect();
-        }, this.config.reconnectInterval);
-      });
+      this.reconnectTimer = setTimeout(() => {
+        this.attemptReconnect();
+      }, this.config.reconnectInterval);
+    }
   }
 
   /**

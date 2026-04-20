@@ -11,6 +11,14 @@ import { BaseAdapter } from './BaseAdapter';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
+ * Extended Bluetooth device interface with RSSI support
+ * This is a vendor-specific extension not part of the standard Web Bluetooth API
+ */
+interface BluetoothDeviceWithRssi extends BluetoothDevice {
+  readRemoteRssi(): Promise<number>;
+}
+
+/**
  * Web Bluetooth device information
  */
 interface WebBluetoothDeviceInfo {
@@ -210,10 +218,9 @@ export class WebBluetoothAdapter extends BaseAdapter {
       // Get RSSI if available (may not be available on all devices)
       let rssi: number | undefined;
       try {
-        if ('readRemoteRssi' in characteristic.service.device) {
-          /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
-          rssi = await (characteristic.service.device as any).readRemoteRssi();
-          /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
+        const deviceWithRssi = characteristic.service.device as BluetoothDeviceWithRssi;
+        if ('readRemoteRssi' in deviceWithRssi && typeof deviceWithRssi.readRemoteRssi === 'function') {
+          rssi = await deviceWithRssi.readRemoteRssi();
         }
       } catch {
         this.logger.debug('RSSI reading not supported on this device');
@@ -680,5 +687,39 @@ export class WebBluetoothAdapter extends BaseAdapter {
     const name = device.name || 'unknown';
     const timestamp = Date.now().toString(36);
     return `fallback_${name}_${timestamp}`;
+  }
+
+  /**
+   * Cleanup resources and destroy the adapter instance
+   * Removes all event listeners and releases resources
+   */
+  destroy(): void {
+    this.logger.debug('Destroying WebBluetoothAdapter');
+
+    // Clear any pending connection cleanup timeout
+    if (this.connectionCleanupTimeout) {
+      clearTimeout(this.connectionCleanupTimeout);
+      this.connectionCleanupTimeout = null;
+    }
+
+    // Disconnect all devices
+    for (const [deviceId, deviceInfo] of this.devices) {
+      try {
+        if (deviceInfo.server.connected) {
+          deviceInfo.server.disconnect();
+        }
+      } catch (error) {
+        this.logger.warn(`Error disconnecting device ${deviceId}:`, error);
+      }
+    }
+
+    // Clear all device caches
+    this.devices.clear();
+    this.discoveredDevices.clear();
+
+    // Call parent destroy
+    super.destroy();
+
+    this.logger.info('WebBluetoothAdapter destroyed');
   }
 }

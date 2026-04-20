@@ -55,4 +55,10 @@ export interface IConnectionManager {
    * @returns IPrinterAdapter - Printer adapter
    */
   getAdapter(): IPrinterAdapter;
+
+  /**
+   * Cleanup resources and destroy the connection manager
+   * Stops heartbeat, clears timers, and removes event listeners
+   */
+  destroy(): void;
 }

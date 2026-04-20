@@ -131,19 +131,12 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * Updates the current state based on the connection manager and print job manager states
    */
   private updateState(): void {
-    // Safe fallbacks for mock objects in tests
-    const connectionState =
-      typeof this.connectionManager.getState === 'function'
-        ? this.connectionManager.getState()
-        : PrinterState.CONNECTED;
+    // All interface methods are guaranteed to exist
+    const connectionState = this.connectionManager.getState();
 
-    const isPrinting =
-      typeof this.printJobManager.isInProgress === 'function'
-        ? this.printJobManager.isInProgress()
-        : false;
+    const isPrinting = this.printJobManager.isInProgress();
 
-    const isPaused =
-      typeof this.printJobManager.isPaused === 'function' ? this.printJobManager.isPaused() : false;
+    const isPaused = this.printJobManager.isPaused();
 
     // Determine the final state
     if (isPaused) {
@@ -425,10 +418,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * ```
    */
   async print(): Promise<void> {
-    const isConnected =
-      typeof this.connectionManager.isConnected === 'function'
-        ? this.connectionManager.isConnected()
-        : true; // Default to true for mock objects
+    const isConnected = this.connectionManager.isConnected();
 
     if (!isConnected) {
       throw new BluetoothPrintError(
@@ -453,10 +443,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     try {
       await this.printJobManager.start(buffer);
 
-      const isPaused =
-        typeof this.printJobManager.isPaused === 'function'
-          ? this.printJobManager.isPaused()
-          : false;
+      const isPaused = this.printJobManager.isPaused();
 
       if (isPaused) {
         // Print job was paused
@@ -606,5 +593,39 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    */
   getCommandBuilder(): ICommandBuilder {
     return this.commandBuilder;
+  }
+
+  /**
+   * Cleanup resources and destroy the printer instance
+   * Removes all event listeners and releases resources
+   *
+   * @example
+   * ```typescript
+   * printer.destroy();
+   * ```
+   */
+  destroy(): void {
+    this.printerLogger.info('Destroying BluetoothPrinter instance');
+
+    // Cancel any pending print job
+    this.printJobManager.cancel();
+
+    // Clear command buffer
+    this.commandBuilder.clear();
+
+    // Disconnect if connected
+    if (this.connectionManager.isConnected()) {
+      this.connectionManager.disconnect().catch(error => {
+        this.printerLogger.warn('Error during disconnect in destroy:', error);
+      });
+    }
+
+    // Cleanup connection manager resources (IConnectionManager now has destroy())
+    this.connectionManager.destroy();
+
+    // Remove all event listeners
+    this.removeAllListeners();
+
+    this.printerLogger.info('BluetoothPrinter instance destroyed');
   }
 }

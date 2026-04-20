@@ -75,6 +75,12 @@ export interface IPrinterAdapter {
    * @param callback - Function to call when the state changes
    */
   onStateChange?(callback: (state: PrinterState) => void): void;
+
+  /**
+   * Cleanup resources and destroy the adapter instance
+   * Removes all event listeners and releases resources
+   */
+  destroy?(): void;
 }
 
 /**

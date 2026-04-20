@@ -185,6 +185,16 @@ export abstract class BaseAdapter implements IPrinterAdapter {
   protected cleanupDevice(deviceId: string): void {
     this.serviceCache.delete(deviceId);
   }
+
+  /**
+   * Cleanup resources and destroy the adapter instance
+   * Removes all event listeners and releases resources
+   */
+  destroy(): void {
+    this.logger.debug('Destroying BaseAdapter');
+    this.serviceCache.clear();
+    this.stateCallback = undefined;
+  }
 }
 
 /**
