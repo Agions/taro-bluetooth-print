@@ -304,7 +304,7 @@ export class ConnectionManager
 
     this.isReconnecting = true;
     this.reconnectAttempts = 0;
-    this.attemptReconnect();
+    void this.attemptReconnect();
   }
 
   /**
@@ -361,7 +361,7 @@ export class ConnectionManager
       this.connLogger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
 
       this.reconnectTimer = setTimeout(() => {
-        this.attemptReconnect();
+        void this.attemptReconnect();
       }, this.config.reconnectInterval);
     }
   }

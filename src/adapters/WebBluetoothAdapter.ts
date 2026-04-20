@@ -219,7 +219,10 @@ export class WebBluetoothAdapter extends BaseAdapter {
       let rssi: number | undefined;
       try {
         const deviceWithRssi = characteristic.service.device as BluetoothDeviceWithRssi;
-        if ('readRemoteRssi' in deviceWithRssi && typeof deviceWithRssi.readRemoteRssi === 'function') {
+        if (
+          'readRemoteRssi' in deviceWithRssi &&
+          typeof deviceWithRssi.readRemoteRssi === 'function'
+        ) {
           rssi = await deviceWithRssi.readRemoteRssi();
         }
       } catch {
