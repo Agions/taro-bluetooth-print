@@ -218,7 +218,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
       // Get RSSI if available (may not be available on all devices)
       let rssi: number | undefined;
       try {
-        const deviceWithRssi = characteristic.service.device as BluetoothDeviceWithRssi;
+        const deviceWithRssi = characteristic.service.device as unknown as BluetoothDeviceWithRssi;
         if (
           'readRemoteRssi' in deviceWithRssi &&
           typeof deviceWithRssi.readRemoteRssi === 'function'
