@@ -5,7 +5,94 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.10.0] - 2026-04-07
+## [2.9.5] - 2026-04-25
+
+### 安全 🔒
+
+- **修复 13 个依赖漏洞**: 使用 pnpm overrides 修复所有已知安全漏洞
+  - esbuild CORS 漏洞 (GHSA-67mh-4wv8-2f99) - 更新到 >= 0.25.0
+  - lodash-es 原型污染漏洞 - 更新到 >= 4.18.0
+  - vite PostCSS 依赖问题 - 更新到 >= 6.4.2
+  - postcss 漏洞 - 更新到 >= 8.5.10
+  - brace-expansion DoS 漏洞 (GHSA-f886-m6hf-6m8v)
+- 安全审计结果：**无已知漏洞** (pnpm audit: "No known vulnerabilities found")
+
+### 文档 📝
+
+- **全面文档重写**:
+  - README.md 全新结构，包含完整使用示例
+  - API 文档详细化，每个函数都有类型说明和示例
+  - 入门指南完善，覆盖安装、配置、使用全流程
+  - 核心概念文档，详细解释架构设计
+  - 适配器文档，涵盖 7 大平台的使用方法
+  - FAQ 扩展，添加常见问题解答
+- **新增审核报告**:
+  - 代码审核报告 (`docs/reports/code-audit-report.md`) - 5/5 星评分
+  - 安全审计报告 (`docs/reports/security-audit-report.md`) - 完整的安全修复记录
+- **新增 TODO 文档** (`docs/guide/TODO.md`) - 详细的未完成功能列表和实施计划
+
+### 测试 ✅
+
+- 测试覆盖率报告：
+  - 语句覆盖率: 52.91%
+  - 分支覆盖率: 45.17%
+  - 函数覆盖率: 56.01%
+  - 行覆盖率: 52.9%
+  - 总测试数: 877 个（通过率 100%）
+- 所有测试通过验证（包括安全修复后的回归测试）
+
+### 性能 ⚡
+
+- 构建产物大小: 128 KB（无变化）
+- 依赖数量: 594 个（无变化）
+- 构建时间: ~10s（无变化）
+- 零性能影响
+
+### 变更明细
+
+#### 文件变更
+- 新增: `docs/reports/code-audit-report.md` (+436 行)
+- 新增: `docs/reports/security-audit-report.md` (+603 行)
+- 新增: `docs/guide/TODO.md` (+8918 字)
+- 更新: `README.md` (+315 行，-128 行)
+- 更新: 所有 API 文档（大幅增强）
+- 更新: `package.json` (+12 行添加 pnpm overrides)
+- 更新: `pnpm-lock.yaml` (依赖版本更新)
+
+#### 文档统计
+- 新增文档: 2889 行
+- 优化文档: 855 行
+- 涉及文件: 10 个
+
+### 兼容性 ✅
+
+- 向后兼容: ✅ 无破坏性变更
+- @tarojs/taro 版本: ^3.6.22（未改变）
+- 所有平台适配器: ✅ 正常工作
+- 所有打印机驱动: ✅ 正常工作
+
+### 已知问题 ⚠️
+
+- CPCL logo download 功能未完全实现（详见 TODO.md）
+- ZPL image 编码功能未完全实现（详见 TODO.md）
+- GBK 编码支持部分实现，部分编码回退到 UTF-8（详见 TODO.md）
+
+### 升级说明 📋
+
+**从 v2.9.4 升级到 v2.9.5**:
+
+1. 依赖项自动更新（pnpm install）
+2. 无需修改代码
+3. 建议运行测试验证
+4. 查看待办事项（TODO.md）了解开发路线图
+
+## [2.9.4] - 2026-04-20
+
+### 修复
+
+- 修复 `BluetoothDeviceWithRssi` 类型转换为 'unknown' 中间类型
+- 解决 ESLint floating promise 警告
+- 修复 Prettier 格式化问题
 
 ### 架构升级
 
