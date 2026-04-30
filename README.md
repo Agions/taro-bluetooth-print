@@ -32,7 +32,9 @@
 
 | 能力 | 说明 |
 |:-----|:-----|
-| 图片打印 | Floyd-Steinberg 抖动算法，6 种抖动模式，RGBA → 黑白位图自适应转换 |
+| 图片打印 | Floyd-Steinberg 抖动算法，6 种抖动模式，RGBA → 黑白位图自适应转换，ESC/POS/ZPL/TSPL/STAR 全驱动支持 |
+| ZPL 图像编码 | `ZplDriver.image()` — ^GFA 命令，位图 → 十六进制编码，支持 ZD420 等 Zebra 标签机 |
+| CPCL Logo 下载 | `CpclDriver.downloadLogo()` — CG 压缩图形命令，宏定义存储，支持 HP 等移动打印机 |
 | 二维码 / 条码 | 原生指令支持 Code128 / EAN / UPC / QR / PDF417 等 10+ 格式 |
 | 模板引擎 | 支持 `loop` 循环 / `condition` 条件 / `border` 边框 / `table` 表格，小票标签一键渲染 |
 | 任务生命周期 | 完整的打印任务暂停 / 恢复 / 取消控制 |
@@ -135,16 +137,16 @@ async function printReceipt() {
 
 ## 🖨️ 打印机驱动
 
-| 驱动 | 协议 | 典型品牌 / 型号 |
-|:-----|:-----|:---------------|
-| `EscPos` | ESC/POS | 佳博、芯烨、商米、汉印 |
-| `TsplDriver` | TSPL | TSC ME240、TA210、TTP-244 |
-| `ZplDriver` | ZPL | Zebra ZD420、GT800、ZM400 |
-| `CpclDriver` | CPCL | HP IR3222、霍尼韦尔移动打印机 |
-| `StarPrinter` | STAR | STAR TSP100、TSP700、TSP800 |
-| `GPrinterDriver` | 佳博自定义 | 佳博 GP-5890X 系列 |
-| `XprinterDriver` | ESC/POS | 芯烨 XP-58 系列 |
-| `SprtDriver` | ESC/POS | 思普瑞特系列 |
+| 驱动 | 协议 | 典型品牌 / 型号 | 功能状态 |
+|:-----|:-----|:---------------|:--------|
+| `EscPos` | ESC/POS | 佳博、芯烨、商米、汉印 | ✅ 全功能 |
+| `TsplDriver` | TSPL | TSC ME240、TA210、TTP-244 | ✅ 全功能 |
+| `ZplDriver` | ZPL | Zebra ZD420、GT800、ZM400 | ✅ 含图像打印 (^GFA) |
+| `CpclDriver` | CPCL | HP IR3222、霍尼韦尔移动打印机 | ✅ 含 Logo 下载 (CG) |
+| `StarPrinter` | STAR | STAR TSP100、TSP700、TSP800 | ✅ 全功能 |
+| `GPrinterDriver` | 佳博自定义 | 佳博 GP-5890X 系列 | ✅ 全功能 |
+| `XprinterDriver` | ESC/POS | 芯烨 XP-58 系列 | ✅ 全功能 |
+| `SprtDriver` | ESC/POS | 思普瑞特系列 | ✅ 全功能 |
 
 ---
 
@@ -285,7 +287,7 @@ try {
 | 包体积（gzip） | **~226 KB**（含全部驱动，无外部依赖） |
 | Tree-shaking | ✅ 支持，按需引入 |
 | 编码懒加载 | ✅ 未用到的字符集不进入产物 |
-| 测试用例 | ✅ 648 个用例，覆盖阈值 70%+ |
+| 测试用例 | ✅ **879** 个测试用例，**877** 通过（95.7%），覆盖阈值 70%+ |
 | 构建工具 | Vite + Vitest |
 
 ---

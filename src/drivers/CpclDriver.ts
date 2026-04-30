@@ -478,16 +478,43 @@ export class CpclDriver {
   }
 
   /**
-   * Download logo to printer (store in memory)
-   * Note: This is a placeholder for future implementation
+   * Download logo to printer memory (macro/form storage).
+   * Encodes bitmap using CPCL CG (Compressed Graphic) command.
+   * The bitmap should be 1-bit monochrome data.
    * @param logoName - Name to store logo as
-   * @param _bitmap - Logo bitmap data (placeholder)
+   * @param bitmap - 1-bit monochrome bitmap data (MSB first, row-major)
+   * @param options - Optional width and height (will be inferred from bitmap size if omitted)
    */
-  downloadLogo(logoName: string, _bitmap: Uint8Array): this {
+  downloadLogo(
+    logoName: string,
+    bitmap: Uint8Array,
+    options?: { width?: number; height?: number }
+  ): this {
+    const width = options?.width ?? 100;
+    const bytesPerRow = Math.ceil(width / 8);
+    const height = options?.height ?? Math.max(1, Math.floor(bitmap.length / bytesPerRow));
+    const totalBytes = bytesPerRow * height;
+
+    // Validate bitmap size
+    if (bitmap.length < totalBytes) {
+      this.logger.warn(
+        `CPCL logo bitmap size mismatch: expected ${totalBytes}, got ${bitmap.length}`
+      );
+    }
+
+    // Convert bitmap bytes to hex string (uppercase)
+    const hexData: string[] = [];
+    const limit = Math.min(bitmap.length, totalBytes);
+    for (let i = 0; i < limit; i++) {
+      const byte = bitmap[i]!;
+      hexData.push(byte.toString(16).padStart(2, '0').toUpperCase());
+    }
+
+    // CPCL macro definition with graphic data
     this.commands.push(`! DF ${logoName}`);
-    // TODO: Encode bitmap to CPCL format
-    this.logger.debug('CPCL logo download not fully implemented');
+    this.commands.push(`CG ${totalBytes} ${bytesPerRow} ${height} ${hexData.join('')}`);
     this.commands.push(`! DF`);
+    this.logger.debug(`CPCL logo downloaded: ${logoName} (${width}x${height})`);
     return this;
   }
 

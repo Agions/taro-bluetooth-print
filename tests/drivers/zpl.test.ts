@@ -181,6 +181,31 @@ describe('ZplDriver', () => {
       const result = driver.ellipse(100, 100, 80, 50, 3);
       expect(result).toBe(driver);
     });
+
+    it('should add image and be chainable', () => {
+      const driver = new ZplDriver();
+      driver.startFormat();
+      const bitmap = new Uint8Array([0xFF, 0x00, 0xAA, 0x55]);
+      const result = driver.image(50, 100, 16, 16, bitmap);
+      expect(result).toBe(driver);
+      const commands = driver.getCommands();
+      expect(commands).toContain('^FO50,100');
+      expect(commands).toContain('^GFA');
+      expect(commands).toContain('FF00AA55');
+      expect(commands).toContain('^FS');
+      driver.endFormat();
+    });
+
+    it('should handle image with empty bitmap', () => {
+      const driver = new ZplDriver();
+      driver.startFormat();
+      const bitmap = new Uint8Array(0);
+      const result = driver.image(0, 0, 8, 8, bitmap);
+      expect(result).toBe(driver);
+      const commands = driver.getCommands();
+      expect(commands).toContain('^GFA');
+      driver.endFormat();
+    });
   });
 
   describe('Printer Configuration', () => {

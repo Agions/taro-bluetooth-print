@@ -107,14 +107,18 @@ export class PrinterStatus {
       await writeFunc(queryCmd.buffer);
 
       // Set up timeout promise
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const timeoutPromise = new Promise<ArrayBuffer>((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new BluetoothPrintError(ErrorCode.CONNECTION_TIMEOUT, 'Status query timed out'));
         }, timeout);
       });
 
       // Read response with timeout
       const response = await Promise.race([readFunc(), timeoutPromise]);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
 
       return this.parseStatus(new Uint8Array(response), includeRaw);
     } catch (error) {

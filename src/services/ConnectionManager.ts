@@ -144,8 +144,9 @@ export class ConnectionManager
         this.emit('state-change', PrinterState.CONNECTING);
 
         const connectPromise = this.adapter.connect(deviceId);
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         const timeoutPromise = new Promise<void>((_, reject) => {
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             reject(
               new BluetoothPrintError(
                 ErrorCode.CONNECTION_TIMEOUT,
@@ -156,6 +157,9 @@ export class ConnectionManager
         });
 
         await Promise.race([connectPromise, timeoutPromise]);
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+        }
         this.state = PrinterState.CONNECTED;
         this.emit('state-change', PrinterState.CONNECTED);
         this.emit('connected', deviceId);

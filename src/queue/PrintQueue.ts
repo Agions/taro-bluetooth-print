@@ -149,6 +149,7 @@ export class PrintQueue implements IPrintQueue {
   private activeJobs = 0;
   private jobCounter = 0;
   private executor: JobExecutor | null = null;
+  private retryTimerId: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Creates a new PrintQueue instance
@@ -257,6 +258,12 @@ export class PrintQueue implements IPrintQueue {
    * Clear all pending jobs
    */
   clear(): void {
+    // Cancel pending retry timer if one is active
+    if (this.retryTimerId !== null) {
+      clearTimeout(this.retryTimerId);
+      this.retryTimerId = null;
+    }
+
     const pendingJobs = [...this.pendingQueue];
     for (const jobId of pendingJobs) {
       const job = this.jobs.get(jobId);
@@ -430,13 +437,14 @@ export class PrintQueue implements IPrintQueue {
         job.status = PrintJobStatus.PENDING;
 
         // Re-add to queue after delay
-        setTimeout(() => {
+        this.retryTimerId = setTimeout(() => {
           if (job.status === PrintJobStatus.PENDING) {
             this.insertByPriority(job.id, job.priority);
             if (this.config.autoProcess && !this.isPaused) {
               this.processQueue();
             }
           }
+          this.retryTimerId = null;
         }, this.config.retryDelay);
       } else {
         job.status = PrintJobStatus.FAILED;

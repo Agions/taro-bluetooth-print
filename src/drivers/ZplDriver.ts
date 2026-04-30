@@ -428,18 +428,37 @@ export class ZplDriver {
   }
 
   /**
-   * Add image from raw bitmap
-   * Note: For best results, use pre-processed images. This is a placeholder for future implementation.
-   * @param _x - X position (placeholder)
-   * @param _y - Y position (placeholder)
-   * @param _width - Image width (placeholder)
-   * @param _height - Image height (placeholder)
-   * @param _bitmap - Binary bitmap data (placeholder)
+   * Add image from raw bitmap using ZPL ^GFA (Graphic Field) command.
+   * The bitmap should be 1-bit (monochrome) data where each bit represents a pixel.
+   * @param x - X position in dots
+   * @param y - Y position in dots
+   * @param width - Image width in pixels
+   * @param height - Image height in pixels
+   * @param bitmap - 1-bit monochrome bitmap data (MSB first, row-major)
    */
-  image(_x: number, _y: number, _width: number, _height: number, _bitmap: Uint8Array): this {
-    // TODO: Implement proper ZPL image encoding using ^GFA or ^XG commands
-    // For now, this is a placeholder
-    this.logger.debug('ZPL image encoding not fully implemented');
+  image(x: number, y: number, width: number, height: number, bitmap: Uint8Array): this {
+    const bytesPerRow = Math.ceil(width / 8);
+    const totalBytes = bytesPerRow * height;
+
+    // Validate bitmap size
+    if (bitmap.length < totalBytes) {
+      this.logger.warn(
+        `ZPL image bitmap size mismatch: expected ${totalBytes}, got ${bitmap.length}`
+      );
+    }
+
+    // Convert bitmap bytes to hex string (uppercase)
+    const hexData: string[] = [];
+    const limit = Math.min(bitmap.length, totalBytes);
+    for (let i = 0; i < limit; i++) {
+      const byte = bitmap[i]!;
+      hexData.push(byte.toString(16).padStart(2, '0').toUpperCase());
+    }
+
+    this.commands.push(`^FO${x},${y}`);
+    this.commands.push(`^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hexData.join('')}`);
+    this.commands.push('^FS');
+    this.logger.debug(`ZPL image encoded: ${width}x${height} at (${x},${y})`);
     return this;
   }
 

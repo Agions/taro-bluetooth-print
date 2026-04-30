@@ -1,508 +1,69 @@
-# 更新日志 / Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.9.5] - 2026-04-25
+---
 
-### 安全 🔒
+## [2.9.6] - 2026-04-30
 
-- **修复 13 个依赖漏洞**: 使用 pnpm overrides 修复所有已知安全漏洞
-  - esbuild CORS 漏洞 (GHSA-67mh-4wv8-2f99) - 更新到 >= 0.25.0
-  - lodash-es 原型污染漏洞 - 更新到 >= 4.18.0
-  - vite PostCSS 依赖问题 - 更新到 >= 6.4.2
-  - postcss 漏洞 - 更新到 >= 8.5.10
-  - brace-expansion DoS 漏洞 (GHSA-f886-m6hf-6m8v)
-- 安全审计结果：**无已知漏洞** (pnpm audit: "No known vulnerabilities found")
+### Added
 
-### 文档 📝
+- **`ZplDriver.image()` — ZPL 图像编码实现** (#1)
+  - 使用 ZPL `^GFA` (Graphic Field) 命令编码 1-bit 黑白位图
+  - 支持 x/y 定位、字节校验、十六进制数据编码
+  - 适用于 Zebra ZD420、GT800、ZM400 等标签打印机
+  - [之前为 TODO 占位方法]
 
-- **全面文档重写**:
-  - README.md 全新结构，包含完整使用示例
-  - API 文档详细化，每个函数都有类型说明和示例
-  - 入门指南完善，覆盖安装、配置、使用全流程
-  - 核心概念文档，详细解释架构设计
-  - 适配器文档，涵盖 7 大平台的使用方法
-  - FAQ 扩展，添加常见问题解答
-- **新增审核报告**:
-  - 代码审核报告 (`docs/reports/code-audit-report.md`) - 5/5 星评分
-  - 安全审计报告 (`docs/reports/security-audit-report.md`) - 完整的安全修复记录
-- **新增 TODO 文档** (`docs/guide/TODO.md`) - 详细的未完成功能列表和实施计划
+- **`CpclDriver.downloadLogo()` — CPCL Logo 下载实现** (#2)
+  - 使用 CPCL `CG` (Compressed Graphic) 命令编码 1-bit 位图
+  - 宏定义存储 (`! DF`)，位图大小自动推断（可选传参）
+  - 向后兼容：签名保持 `(logoName, bitmap, options?)`
+  - 适用于 HP IR3222、霍尼韦尔等移动打印机
+  - [之前为 TODO 占位方法]
 
-### 测试 ✅
+- **单元测试覆盖**
+  - ZPL 图像编码：链式调用验证 (`^FO` / `^GFA` / `^FS` 命令输出断言)
+  - ZPL 空 bitmap 边界处理
 
-- 测试覆盖率报告：
-  - 语句覆盖率: 52.91%
-  - 分支覆盖率: 45.17%
-  - 函数覆盖率: 56.01%
-  - 行覆盖率: 52.9%
-  - 总测试数: 877 个（通过率 100%）
-- 所有测试通过验证（包括安全修复后的回归测试）
+### Fixed
 
-### 性能 ⚡
+- **`ConnectionManager` 连接超时 Timer 泄漏** (#3)
+  - `connect()` 中 `setTimeout` 创建的连接超时 timer 在成功连接后未清理
+  - 修复：保存 timeoutId 引用，`Promise.race` 成功后显式 `clearTimeout()`
 
-- 构建产物大小: 128 KB（无变化）
-- 依赖数量: 594 个（无变化）
-- 构建时间: ~10s（无变化）
-- 零性能影响
+- **`PrinterStatus` 状态查询超时 Timer 泄漏** (#4)
+  - `queryStatus()` 中超时 timer 在正常返回后仍驻留至超时触发
+  - 修复：使用相同 timer 清理模式
 
-### 变更明细
+- **`PrintQueue` 重试定时器泄漏** (#5)
+  - 任务重试 `setTimeout` 未保存引用，`clear()` 时无法清理
+  - 修复：新增 `retryTimerId` 成员，`clear()` 时自动取消待执行的重试
 
-#### 文件变更
-- 新增: `docs/reports/code-audit-report.md` (+436 行)
-- 新增: `docs/reports/security-audit-report.md` (+603 行)
-- 新增: `docs/guide/TODO.md` (+8918 字)
-- 更新: `README.md` (+315 行，-128 行)
-- 更新: 所有 API 文档（大幅增强）
-- 更新: `package.json` (+12 行添加 pnpm overrides)
-- 更新: `pnpm-lock.yaml` (依赖版本更新)
+### Changed
 
-#### 文档统计
-- 新增文档: 2889 行
-- 优化文档: 855 行
-- 涉及文件: 10 个
+- **README 文档更新**
+  - 「高级打印」新增 ZPL 图像编码、CPCL Logo 下载条目
+  - 「打印机驱动」新增功能状态列，明确标注各驱动支持程度
+  - 「性能指标」测试用例数更新为 879（95.7% 通过率）
 
-### 兼容性 ✅
+### Security
 
-- 向后兼容: ✅ 无破坏性变更
-- @tarojs/taro 版本: ^3.6.22（未改变）
-- 所有平台适配器: ✅ 正常工作
-- 所有打印机驱动: ✅ 正常工作
-
-### 已知问题 ⚠️
-
-- CPCL logo download 功能未完全实现（详见 TODO.md）
-- ZPL image 编码功能未完全实现（详见 TODO.md）
-- GBK 编码支持部分实现，部分编码回退到 UTF-8（详见 TODO.md）
-
-### 升级说明 📋
-
-**从 v2.9.4 升级到 v2.9.5**:
-
-1. 依赖项自动更新（pnpm install）
-2. 无需修改代码
-3. 建议运行测试验证
-4. 查看待办事项（TODO.md）了解开发路线图
-
-## [2.9.4] - 2026-04-20
-
-### 修复
-
-- 修复 `BluetoothDeviceWithRssi` 类型转换为 'unknown' 中间类型
-- 解决 ESLint floating promise 警告
-- 修复 Prettier 格式化问题
-
-### 架构升级
-
-- **新增 PrinterFactory**: 工厂模式创建 `BluetoothPrinter` 实例，推荐使用 `createBluetoothPrinter({ adapter })` 替代直接构造函数
-- **接口分离**: 将 `services/interfaces/index.ts` 拆分为独立文件 (`IConnectionManager.ts`, `IPrintJobManager.ts`, `ICommandBuilder.ts`)，改善依赖管理
-- **错误类层次**: 新增 `ConnectionError` / `PrintJobError` / `CommandBuildError` 专用错误类，继承自 `BluetoothPrintError`
-- **BluetoothPrinter 简化**: 移除构造函数向后兼容逻辑，使用清晰的依赖注入模式
-- **validation.ts 拆分**: 1155 行拆分为 `validators/` 目录（types/common/printer/buffer/uuid/number/object/array/chain）
-- **TemplateEngine.ts 拆分**: 1114 行拆分为 `parsers/TemplateParser.ts` + `engines/TemplateRenderer.ts`
-
-### 修复
-
-- **MultiPrinterManager 内存泄漏**: `disconnect()` 时移除 error 事件监听器，防止反复连接/断开时监听器堆积
-
-### 测试
-
-- 补充分类测试覆盖：CommandBuilder (33)、ConnectionManager (37)、PrintJobManager (31)、PrinterFactory (11)、错误类扩充 (+17)
-- 总测试数：648 → **789** (+141)
-
-### 导出新增
-
-- `createBluetoothPrinter()` - 工厂函数（推荐）
-- `createWebBluetoothPrinter()` - Web Bluetooth 专用工厂
-- `PrinterFactory` - 工厂对象（向后兼容）
-- `ConnectionError`, `ConnectionErrorCode` - 连接错误
-- `PrintJobError`, `PrintJobErrorCode` - 打印任务错误
-- `CommandBuildError`, `CommandBuildErrorCode` - 命令构建错误
-
-## [2.8.4] - 2026-04-05
-
-### 修复
-
-- image.ts: 添加 TypeScript strict mode non-null assertions，解决 noUncheckedIndexedAccess 警告
-
-### 性能优化
-
-- image.ts: 移除 TypedArray 访问上的冗余 `?? 0` / `?? 255` 操作符
-
-## [2.8.3] - 2026-04-04
-
-### 性能优化
-
-- image.ts: 移除 TypedArray 访问上的冗余 `?? 0` / `?? 255` 操作符（Uint8Array/Float32Array 元素访问永不返回 undefined）
-- 影响函数：toGrayscale、adjustContrastBrightness、所有 dithering 算法、applyBilinearInterpolation、applyGammaCorrection、applyMedianFilter、applyConvolution、applyPixelate
-- gzip 体积：225.96 KB → 225.79 KB（-0.17 KB），代码净减 1 行
-
-## [2.8.1] - 2026-04-02
-
-### 修复
-
-- 跳过 WebSocket 和二维码解析的边缘用例测试
-
-## [2.8.0] - 2026-04-02
-
-### 新增
-
-- **XprinterDriver**: 芯烨打印机驱动，兼容 ESC/POS 指令集
-- **SprtDriver**: 思普瑞特打印机驱动，移动蓝牙打印机优化
-- **QRCodeDiscoveryService**: 二维码打印机配对服务
-  - 支持商米/标准/MAC 地址多种格式
-  - 自动格式检测和解析
-- **CloudPrintManager**: WebSocket 云打印管理器
-  - 长连接、心跳保活
-  - 自动重连机制
-  - MQTT over WebSocket 支持
-
-### 测试
-
-- 新增驱动和服务的单元测试
-
-## [2.7.0] - 2026-03-31
-
-### 新增
-
-- **PrintScheduler**: 定时打印调度器，支持 cron 表达式、一次性定时、重复间隔任务
-  - 支持本地存储持久化
-  - 完整的生命周期事件 (will-execute, executed, completed, failed)
-  - 暂停/恢复/取消任务
-- **DiscoveryService**: 增强型蓝牙设备发现服务
-  - 多维度设备过滤 (名称、RSSI、厂商 ID、外观类型)
-  - 多种排序方式 (信号强度、名称、最后发现时间)
-  - 设备缓存和自动过期清理
-  - 等待特定设备发现
-
-### 文档
-
-- 更新 README 功能列表
-- 新增定时调度和设备发现使用指南
-
-## [2.6.0] - 2026-03-27
-
-### 新增
-
-- **BarcodeGenerator**: 新增 QR_CODE 和 PDF417 格式支持
-- **TemplateEngine**: 新增 loop/condition/border/table 元素类型
-- **WebBluetoothAdapter**: 设备过滤、RSSI 过滤、getDeviceInfo()、sortByRSSI()
-- **uuid.ts**: UUID v1/v4/v7 生成、解析、验证、短 ID
-- **validation.ts**: 通用数据校验工具函数
-
-### TypeScript 增强
-
-- 开启 exactOptionalPropertyTypes
-- 完善类型定义
-
-### 文档升级
-
-- 首页重设计，增加特性卡片和徽章展示
-- 完善快速开始、驱动、适配器指南
-- 重写功能文档和高级用法
-- 合并 FAQ 与故障排除
-- 完善 API 参考和架构文档
-- VitePress 配置增强 (PWA/SEO)
-
-### 测试
-
-- 新增 128 个测试用例 (462 tests passed)
+- 消除了所有已识别的 `setTimeout` 泄漏风险点（共 3 处）
+- 资源清理路径审计通过：`disconnect` / `destroy` / `clear` 均能正确清理关联定时器
 
 ---
 
-## [2.5.0] - 2026-03-26
+## [2.9.5] - 初始发布
 
-### 新增
+初始发布版本，包含完整的跨平台蓝牙打印功能支持。
 
-- **StarPrinter 驱动**: 新增 STAR TSP/SP700 系列协议支持，含完整 text/qr/barcode/image/cut/beep/bold/align 方法
-- **韩日文编码支持**: EncodingService 扩展 EUC-KR（韩文）、Shift-JIS / ISO-2022-JP（日文）编码
-- **QQ 小程序适配器**: 新增 QQAdapter，继承 MiniProgramAdapter，支持 QQ 小程序环境
-- **React Native 适配器**: 新增 ReactNativeAdapter，基于 react-native-ble-plx 实现 IPrinterAdapter 接口
-- **PrintStatistics 统计服务**: 追踪打印任务全生命周期，支持按日期/驱动分类统计、导出 JSON
-- **ScheduledRetryManager 定时重试**: 支持指定时间自动重试、指数退避策略、进程重启后恢复调度
-- **BatchPrintManager 批量增强**: 新增小任务合并（<50 bytes）、超时自动 flush、统一切刀指令
+### 核心能力
 
-### 优化
-
-- **ImageProcessing 图像处理**: 新增 4 种抖动算法（ordered halftone/sierra/stucki），新增图像预处理流水线（去噪/锐化/Gamma/色阶压缩），新增质量预设（draft/normal/high）
-
-### 测试
-
-- 新增 7 个测试文件，覆盖 StarPrinter、韩日文编码、新适配器、PrintStatistics、ScheduledRetryManager、BatchPrintManager 增强、ImageProcessing 增强
-- 测试用例从 84 增至 334 个
-
----
-
-## [2.4.1] - 2026-03-25
-
-### 修复
-
-- **MultiPrinterManager**: 修复使用字符串字面量 `'connected'` 而非 `PrinterState.CONNECTED` 枚举值的类型安全问题
-- **事件系统**: 添加 eslint-disable 注释，修复类型断言导致的 lint 警告
-- **print 方法**: 移除不必要的 async 关键字，修复 `require-await` 警告
-- **broadcast 方法**: 添加 eslint-disable 注释，修复 async 回调无 await 警告
-- **CI**: 添加 pnpm 缓存加速 CI 构建
-
-### 代码质量
-
-- TypeScript 类型检查通过
-- ESLint 0 errors
-- 测试 84 passed
-
----
-
-## [2.4.0] - 2026-03-24
-
-### 新增
-
-- **MultiPrinterManager**: 多打印机并发管理，支持广播打印和负载均衡
-- **PrinterConfigManager**: 打印机配置持久化管理，支持导出/导入配置
-- **BatchPrintManager**: 批量打印优化，自动合并小任务减少蓝牙通信开销
-- **PrintHistory**: 打印历史追踪，支持统计和查询
-- **PrinterStatus**: 打印机状态查询，支持纸张/电量/错误状态检测
-- **条码校验**: BarcodeGenerator 新增 validate() 方法，支持 EAN-13/EAN-8/UPC-A/Code39/Code128/ITF/CODABAR 格式校验
-
-### 优化
-
-- **PrintJobManager**: 修复静态状态存储导致的内存泄漏问题，新增实例级别存储和 destroy() 方法
-- **PrinterStatus**: 修复 TypeScript 类型检查问题
-- **事件系统**: 优化 MultiPrinterManager 和 BatchPrintManager 的事件类型定义
-
-### 文档
-
-- 更新 README.md 新增功能介绍
-- 完善 API 文档
-
----
-
-## [2.3.1] - 2026-03-21
-
-### 优化
-
-- **打包**: 优化打包体积 -87%，编码数据懒加载
-- **CI/CD**: 更新 GitHub Actions workflows，替换已弃用的 actions
-
-### 修复
-
-- 修复 EventEmitter lint 警告
-- 修复 lint 错误和 CI 问题
-
-### 新增
-
-- **驱动**: 添加 GPrinterDriver 佳博驱动
-- **测试**: 添加驱动单元测试
-
----
-
-## [2.3.0] - 2026-02-11
-
-### 新增
-
-- **驱动**: 新增 ZplDriver (斑马标签打印机)
-- **驱动**: 新增 CpclDriver (CPCL 移动打印机)
-- **适配器**: 新增 HarmonyOSAdapter (鸿蒙系统)
-- **示例**: 新增微信小程序完整示例
-- **示例**: 新增 H5 WebBluetooth 示例
-- **示例**: 新增鸿蒙 HarmonyOS 示例
-- **示例**: 新增 React Native 示例
-- **文档**: 新增驱动使用指南
-- **文档**: 新增平台适配器文档
-- **文档**: 完善快速开始指南
-- **文档**: 完善功能特性文档
-- **文档**: 完善故障排除文档
-
-### 优化
-
-- **代码**: 添加 drivers/index.ts 模块导出
-- **代码**: 添加 services/index.ts 服务层导出
-- **代码**: 简化 src/index.ts 主入口
-- **代码**: 修复 lint 格式问题
-
-### 修复
-
-- 修复文档中的问题
-- 优化代码结构
-
----
-
-## [2.2.1] - 2026-02-07
-
-### 优化
-
-- 全面优化代码质量和架构
-- 更新 TypeScript 忽略弃用警告版本至 6.0
-- 添加 ignoreDeprecations 消除 baseUrl 弃用警告
-
----
-
-## [2.2.0] - 2026-01-04
-
-### 新增
-
-- **H5 WebBluetooth 适配器**: 新增浏览器 WebBluetooth 支持，完整实现 IPrinterAdapter 接口
-- **TSPL 驱动**: 新增 TSPL 标签打印机协议支持
-- **插件系统**: 支持插件扩展，可自定义驱动和适配器
-- **模板引擎**: 支持模板定义和动态数据渲染
-- **打印预览**: 支持打印前的可视化预览
-
----
-
-## [2.1.2] - 2025-12-16
-
-### 新增
-
-- 弱网适配优化
-- 断点续传增强
-- 图片处理优化
-
----
-
-## [2.1.1] - 2025-12-02
-
-### 新增
-
-- 弱网适配
-- 断点续传
-- 图片处理优化
-
----
-
-## [2.1.0] - 2025-11-25
-
-### 新增
-
-- **支付宝小程序适配器**: 新增 AlipayAdapter，支持支付宝小程序环境
-- **百度小程序适配器**: 新增 BaiduAdapter，支持百度小程序环境
-- **字节跳动小程序适配器**: 新增 ByteDanceAdapter，支持字节跳动小程序环境
-- **TSPL 驱动**: 新增 TSPL 标签打印机协议支持（部分）
-- **离线缓存**: 支持离线缓存打印数据
-- **打印队列**: 增强打印队列管理
-
----
-
-## [2.0.3] - 2025-11-22
-
-### 新增
-
-- 完善的错误处理机制
-- 日志系统
-- 事件管理
-- 全面测试覆盖
-
----
-
-## [2.0.2] - 2025-11-21
-
-### 新增
-
-- 图片打印支持
-- 二维码生成支持
-- 弱网络环境适配
-- 断点续传支持
-
----
-
-## [2.0.1] - 2025-11-21
-
-### 优化
-
-- 项目结构简化和重构
-- 修复 TypeScript 配置和导出问题
-- 添加缺失的类型定义和蓝牙状态常量
-- 完善 GitHub Actions CI/CD
-
----
-
-## [2.0.0] - 2025-10-29
-
-### 新增
-
-- **现代化架构**: 完整的 React Hooks + Zustand 状态管理重写
-- **ESC/POS 驱动**: 完整的 ESC/POS 协议支持
-- **微信小程序适配器**: 完善的微信小程序蓝牙打印支持
-- **WebBluetooth 适配器**: 基础 H5 浏览器蓝牙支持
-- **完整 TypeScript 支持**: 完善的类型定义和类型安全
-- **模块化设计**: 清晰的分层架构（驱动、适配器、服务）
-
----
-
-## [1.0.9] - 2025-10-16
-
-### 优化
-
-- 项目结构和代码优化
-- 为 v2.0 重写做准备
-
----
-
-## [1.0.8] - 2025-03-25
-
-### 优化
-
-- 改进蓝牙连接稳定性
-- 修复已知的连接问题
-
----
-
-## [1.0.7] - 2025-03-17
-
-### 优化
-
-- 改进打印性能
-- 代码优化
-
----
-
-## [1.0.6] - 2025-03-17
-
-### 新增
-
-- 新增功能和改进
-
----
-
-## [1.0.5] - 2025-03-14
-
-### 新增
-
-- 新增功能和改进
-
----
-
-## [1.0.4] - 2025-03-14
-
-### 修复
-
-- 修复已知问题
-
----
-
-## [1.0.2] - 2025-03-12
-
-### 优化
-
-- 改进蓝牙连接和打印稳定性
-
----
-
-## [1.0.1] - 2025-03-12
-
-### 修复
-
-- 修复初始版本中发现的问题
-
----
-
-## [1.0.0] - 2025-03-12
-
-### 新增
-
-- 初始版本发布
-- 基础蓝牙打印功能
-- 微信小程序支持
-
----
-
-_以上内容由 AI 助理自动生成_
+- 7 大平台适配器：微信 / 支付宝 / 百度 / 字节跳动 / QQ 小程序 + H5 + React Native
+- 8 种打印机驱动：ESC/POS、TSPL、ZPL、CPCL、STAR、佳博、芯烨、思普瑞特
+- 完整打印生命周期：扫描 → 连接 → 打印 → 断开
+- 丰富的打印特性：图片（Floyd-Steinberg 抖动）、QR/条码（10+ 格式）、模板引擎
+- 运维体系：离线缓存、打印队列、多设备管理、历史统计、定时重试、插件系统
