@@ -53,3 +53,6 @@ docs/.vitepress/cache
 .kiro
 # Internal planning docs
 ROADMAP.md
+
+# Code audit report (generated, local only)
+CODE_AUDIT_REPORT.md
