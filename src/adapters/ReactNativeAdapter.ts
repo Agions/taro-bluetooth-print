@@ -33,7 +33,7 @@ import {
  * into the ChunkWriteStrategy template.
  */
 interface RNWriteOptions {
-  arrayBufferToBase64: (buffer: ArrayBuffer) => string;
+  arrayBufferToBase64: (buffer: ArrayBuffer | ArrayBufferLike) => string;
   bleManager: BLEManager;
 }
 
