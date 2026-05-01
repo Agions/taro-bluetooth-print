@@ -15,6 +15,8 @@
 
 import Taro from '@tarojs/taro';
 import { Logger } from '@/utils/logger';
+import { normalizeError, emitAndThrow } from '@/utils/normalizeError';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Cached job
@@ -76,11 +78,6 @@ export interface OfflineCacheEvents {
 }
 
 /**
- * Event handler type
- */
-type EventHandler<T> = (data: T) => void;
-
-/**
  * Offline cache interface
  */
 export interface IOfflineCache {
@@ -124,9 +121,8 @@ const DEFAULT_CONFIG: CacheConfig = {
  * Offline Cache class
  * Manages offline storage for print jobs
  */
-export class OfflineCache implements IOfflineCache {
-  private readonly logger = Logger.scope('OfflineCache');
-  private readonly listeners: Map<string, Set<EventHandler<unknown>>> = new Map();
+export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IOfflineCache {
+  protected readonly logger = Logger.scope('OfflineCache');
   private readonly config: CacheConfig;
   private readonly JOBS_KEY: string;
   private syncExecutor: SyncExecutor | null = null;
@@ -136,6 +132,7 @@ export class OfflineCache implements IOfflineCache {
    * Creates a new OfflineCache instance
    */
   constructor(config?: Partial<CacheConfig>) {
+    super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.JOBS_KEY = `${this.config.storagePrefix}jobs`;
   }
@@ -178,9 +175,7 @@ export class OfflineCache implements IOfflineCache {
       this.emit('job-saved', job);
       this.logger.debug(`Job saved to cache: ${job.id}`);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     }
   }
 
@@ -206,9 +201,7 @@ export class OfflineCache implements IOfflineCache {
         this.logger.debug(`Job removed from cache: ${jobId}`);
       }
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     }
   }
 
@@ -230,9 +223,7 @@ export class OfflineCache implements IOfflineCache {
 
       return removedCount;
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     }
   }
 
@@ -276,7 +267,7 @@ export class OfflineCache implements IOfflineCache {
         } catch (error) {
           failed++;
           job.retryCount++;
-          job.lastError = error instanceof Error ? error.message : String(error);
+          job.lastError = normalizeError(error).message;
           this.save(job);
           this.logger.warn(`Job sync failed: ${job.id}`, error);
         }
@@ -285,9 +276,7 @@ export class OfflineCache implements IOfflineCache {
       this.emit('sync-completed', { success, failed });
       this.logger.info(`Sync completed: ${success} success, ${failed} failed`);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     } finally {
       this.isSyncing = false;
     }
@@ -338,32 +327,6 @@ export class OfflineCache implements IOfflineCache {
       retryCount: 0,
       metadata,
     };
-  }
-
-  /**
-   * Register event listener
-   */
-  on<K extends keyof OfflineCacheEvents>(
-    event: K,
-    callback: EventHandler<OfflineCacheEvents[K]>
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(callback as EventHandler<unknown>);
-  }
-
-  /**
-   * Remove event listener
-   */
-  off<K extends keyof OfflineCacheEvents>(
-    event: K,
-    callback: EventHandler<OfflineCacheEvents[K]>
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.delete(callback as EventHandler<unknown>);
-    }
   }
 
   /**
@@ -439,22 +402,6 @@ export class OfflineCache implements IOfflineCache {
       lastError: stored.lastError,
       metadata: stored.metadata,
     };
-  }
-
-  /**
-   * Emit an event
-   */
-  private emit<K extends keyof OfflineCacheEvents>(event: K, data: OfflineCacheEvents[K]): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (error) {
-          this.logger.error(`Error in event handler for "${event}":`, error);
-        }
-      });
-    }
   }
 }
 

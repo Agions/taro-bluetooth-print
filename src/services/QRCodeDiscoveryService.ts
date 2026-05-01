@@ -208,6 +208,7 @@ export class QRCodeDiscoveryService {
 
       return null;
     } catch {
+      // Invalid JSON or no matching fields — not an error, just not a parseable QR code
       return null;
     }
   }
@@ -391,7 +392,8 @@ export class QRCodeDiscoveryService {
         }
       }
     } catch {
-      // Ignore parse errors
+      // Parse errors here are benign — metadata extraction from QR codes is supplementary
+      // information; a failure should not block the discovery process
     }
     return metadata;
   }

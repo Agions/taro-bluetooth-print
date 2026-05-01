@@ -27,8 +27,10 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
 import { OfflineCache, CachedJob } from '@/cache/OfflineCache';
 import { PrintQueue } from '@/queue/PrintQueue';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Scheduled retry entry
@@ -76,11 +78,6 @@ export interface ScheduledRetryEvents {
 }
 
 /**
- * Event handler type
- */
-type EventHandler<T> = (data: T) => void;
-
-/**
  * Scheduled retry configuration
  */
 export interface ScheduledRetryManagerConfig {
@@ -114,14 +111,11 @@ const DEFAULT_CONFIG: ScheduledRetryManagerConfig = {
  * - Persistence across process restarts via OfflineCache
  * - Event-driven callbacks for retry execution
  */
-export class ScheduledRetryManager {
-  private readonly logger = Logger.scope('ScheduledRetryManager');
+export class ScheduledRetryManager extends EventEmitter<ScheduledRetryEvents> {
+  protected readonly logger = Logger.scope('ScheduledRetryManager');
 
   /** Scheduled retries map: jobId -> ScheduledRetry */
   private readonly scheduledRetries: Map<string, ScheduledRetry> = new Map();
-
-  /** Event listeners */
-  private readonly listeners: Map<string, Set<EventHandler<unknown>>> = new Map();
 
   /** Configuration */
   private readonly config: ScheduledRetryManagerConfig;
@@ -142,6 +136,7 @@ export class ScheduledRetryManager {
    * @param offlineCache - Optional OfflineCache instance (uses singleton if not provided)
    */
   constructor(config?: Partial<ScheduledRetryManagerConfig>, offlineCache?: OfflineCache) {
+    super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.offlineCache = offlineCache ?? new OfflineCache();
 
@@ -310,38 +305,6 @@ export class ScheduledRetryManager {
   }
 
   /**
-   * Register event listener
-   *
-   * @param event - Event name
-   * @param callback - Event handler
-   */
-  on<K extends keyof ScheduledRetryEvents>(
-    event: K,
-    callback: EventHandler<ScheduledRetryEvents[K]>
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(callback as EventHandler<unknown>);
-  }
-
-  /**
-   * Remove event listener
-   *
-   * @param event - Event name
-   * @param callback - Event handler to remove
-   */
-  off<K extends keyof ScheduledRetryEvents>(
-    event: K,
-    callback: EventHandler<ScheduledRetryEvents[K]>
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.delete(callback as EventHandler<unknown>);
-    }
-  }
-
-  /**
    * Clear all scheduled retries
    */
   clearAll(): void {
@@ -360,7 +323,7 @@ export class ScheduledRetryManager {
    */
   destroy(): void {
     this.clearAll();
-    this.listeners.clear();
+    this.removeAllListeners();
     this.logger.info('ScheduledRetryManager destroyed');
   }
 
@@ -403,7 +366,7 @@ export class ScheduledRetryManager {
 
       this.emit('retry-executed', { entry, success });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = normalizeError(error).message;
       entry.lastError = errorMessage;
 
       this.logger.error(`Retry failed for ${jobId}:`, error);
@@ -533,25 +496,6 @@ export class ScheduledRetryManager {
       }
     } catch (error) {
       this.logger.error('Failed to restore scheduled retries:', error);
-    }
-  }
-
-  /**
-   * Emit an event
-   */
-  private emit<K extends keyof ScheduledRetryEvents>(
-    event: K,
-    data: ScheduledRetryEvents[K]
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          (handler as EventHandler<ScheduledRetryEvents[K]>)(data);
-        } catch (error) {
-          this.logger.error(`Error in event handler for "${event}":`, error);
-        }
-      });
     }
   }
 }

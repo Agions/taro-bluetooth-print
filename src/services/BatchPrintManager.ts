@@ -23,6 +23,7 @@
 
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Batch job entry
@@ -86,20 +87,13 @@ export interface BatchStats {
  * Batch events
  */
 export interface BatchEvents {
-  'batch-ready': (data: BatchJob[]) => void;
-  'batch-processed': (data: { jobCount: number; bytes: number }) => void;
-  'job-added': (data: BatchJob) => void;
-  'job-rejected': (data: { reason: string }) => void;
-  'auto-flush': (data: { jobCount: number; bytes: number }) => void;
-  'jobs-merged': (data: { fromCount: number; toCount: number; savedBytes: number }) => void;
+  'batch-ready': BatchJob[];
+  'batch-processed': { jobCount: number; bytes: number };
+  'job-added': BatchJob;
+  'job-rejected': { reason: string };
+  'auto-flush': { jobCount: number; bytes: number };
+  'jobs-merged': { fromCount: number; toCount: number; savedBytes: number };
 }
-
-/**
- * Event handler map type
- */
-type BatchEventHandlerMap = {
-  [K in keyof BatchEvents]: Set<BatchEvents[K]>;
-};
 
 /**
  * ESC/POS commands for cutting
@@ -136,17 +130,9 @@ const DEFAULT_CONFIG: BatchConfig = {
  * - Unified cut: optionally appends a single cut command after batch merge
  * - Priority sorting: higher priority jobs are processed first
  */
-export class BatchPrintManager {
-  private readonly logger = Logger.scope('BatchPrintManager');
+export class BatchPrintManager extends EventEmitter<BatchEvents> {
+  protected readonly logger = Logger.scope('BatchPrintManager');
   private readonly jobs: BatchJob[] = [];
-  private readonly listeners: BatchEventHandlerMap = {
-    'batch-ready': new Set(),
-    'batch-processed': new Set(),
-    'job-added': new Set(),
-    'job-rejected': new Set(),
-    'auto-flush': new Set(),
-    'jobs-merged': new Set(),
-  };
   private config: BatchConfig;
   private isProcessing = false;
   private waitTimer: ReturnType<typeof setTimeout> | null = null;
@@ -173,42 +159,8 @@ export class BatchPrintManager {
    * @param config - Optional configuration overrides
    */
   constructor(config: Partial<BatchConfig> = {}) {
+    super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  /**
-   * Register event listener
-   *
-   * @param event - Event name
-   * @param callback - Event handler
-   */
-  on<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
-    this.listeners[event].add(callback);
-  }
-
-  /**
-   * Remove event listener
-   *
-   * @param event - Event name
-   * @param callback - Event handler to remove
-   */
-  off<K extends keyof BatchEvents>(event: K, callback: BatchEvents[K]): void {
-    this.listeners[event].delete(callback);
-  }
-
-  /**
-   * Emit an event
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private emit<K extends keyof BatchEvents>(event: K, data: Parameters<BatchEvents[K]>[0]): void {
-    this.listeners[event].forEach(handler => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        (handler as (data: Parameters<BatchEvents[K]>[0]) => void)(data);
-      } catch (error) {
-        this.logger.error(`Error in event handler for "${event}":`, error);
-      }
-    });
   }
 
   /**
@@ -757,10 +709,8 @@ export class BatchPrintManager {
    */
   destroy(): void {
     this.cancelAll();
-    // Clear all listeners
-    for (const key of Object.keys(this.listeners) as (keyof BatchEventHandlerMap)[]) {
-      this.listeners[key].clear();
-    }
+    // Clear all listeners using inherited method
+    this.removeAllListeners();
     this.logger.info('BatchPrintManager destroyed');
   }
 }

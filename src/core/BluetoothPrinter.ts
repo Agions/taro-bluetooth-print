@@ -6,6 +6,7 @@
 import { IAdapterOptions, IQrOptions, PrinterState, IPrinterAdapter } from '@/types';
 import { EventEmitter } from './EventEmitter';
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 import { ConnectionManager } from '@/services/ConnectionManager';
 import { PrintJobManager } from '@/services/PrintJobManager';
@@ -180,7 +181,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
           : new BluetoothPrintError(
               ErrorCode.CONNECTION_FAILED,
               'Connection failed',
-              error as Error
+              normalizeError(error)
             );
       this.emit('error', printError);
       this.updateState();
@@ -217,7 +218,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       const printError = new BluetoothPrintError(
         ErrorCode.DEVICE_DISCONNECTED,
         'Disconnect failed',
-        error as Error
+        normalizeError(error)
       );
       this.emit('error', printError);
       this.updateState();
@@ -363,7 +364,7 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       const printError = new BluetoothPrintError(
         ErrorCode.PRINT_JOB_FAILED,
         'Failed to resume print job',
-        error as Error
+        normalizeError(error)
       );
       this.emit('error', printError);
       this.updateState();
@@ -458,7 +459,11 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       const printError =
         error instanceof BluetoothPrintError
           ? error
-          : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
+          : new BluetoothPrintError(
+              ErrorCode.PRINT_JOB_FAILED,
+              'Print job failed',
+              normalizeError(error)
+            );
       this.emit('error', printError);
       throw printError;
     } finally {

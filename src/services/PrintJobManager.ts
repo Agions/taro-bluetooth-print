@@ -9,6 +9,7 @@ import type { IPrinterAdapter } from '@/types';
 import { IAdapterOptions } from '@/types';
 import { IPrintJobManager, IConnectionManager } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
@@ -154,7 +155,11 @@ export class PrintJobManager implements IPrintJobManager {
       const printError =
         error instanceof BluetoothPrintError
           ? error
-          : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
+          : new BluetoothPrintError(
+              ErrorCode.PRINT_JOB_FAILED,
+              'Print job failed',
+              normalizeError(error)
+            );
       throw printError;
     }
   }
@@ -199,7 +204,11 @@ export class PrintJobManager implements IPrintJobManager {
       const printError =
         error instanceof BluetoothPrintError
           ? error
-          : new BluetoothPrintError(ErrorCode.PRINT_JOB_FAILED, 'Print job failed', error as Error);
+          : new BluetoothPrintError(
+              ErrorCode.PRINT_JOB_FAILED,
+              'Print job failed',
+              normalizeError(error)
+            );
       throw printError;
     }
   }
@@ -295,7 +304,7 @@ export class PrintJobManager implements IPrintJobManager {
       throw new BluetoothPrintError(
         ErrorCode.PRINT_JOB_FAILED,
         `Failed to load job ${jobId}`,
-        error as Error
+        normalizeError(error)
       );
     }
   }

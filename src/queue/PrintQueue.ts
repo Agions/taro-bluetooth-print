@@ -13,6 +13,8 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Print job status
@@ -95,11 +97,6 @@ export interface PrintQueueEvents {
 }
 
 /**
- * Event handler type
- */
-type EventHandler<T> = (data: T) => void;
-
-/**
  * Print queue interface
  */
 export interface IPrintQueue {
@@ -115,7 +112,10 @@ export interface IPrintQueue {
     completed: number;
     failed: number;
   };
-  on<K extends keyof PrintQueueEvents>(event: K, callback: EventHandler<PrintQueueEvents[K]>): void;
+  on<K extends keyof PrintQueueEvents>(
+    event: K,
+    callback: (data: PrintQueueEvents[K]) => void
+  ): void;
 }
 
 /**
@@ -138,9 +138,8 @@ const DEFAULT_CONFIG: QueueConfig = {
  * Print Queue class
  * Manages print jobs with priority and retry support
  */
-export class PrintQueue implements IPrintQueue {
-  private readonly logger = Logger.scope('PrintQueue');
-  private readonly listeners: Map<string, Set<EventHandler<unknown>>> = new Map();
+export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrintQueue {
+  protected readonly logger = Logger.scope('PrintQueue');
   private readonly config: QueueConfig;
   private jobs: Map<string, PrintJob> = new Map();
   private pendingQueue: string[] = [];
@@ -155,6 +154,7 @@ export class PrintQueue implements IPrintQueue {
    * Creates a new PrintQueue instance
    */
   constructor(config?: Partial<QueueConfig>) {
+    super();
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -342,32 +342,6 @@ export class PrintQueue implements IPrintQueue {
   }
 
   /**
-   * Register event listener
-   */
-  on<K extends keyof PrintQueueEvents>(
-    event: K,
-    callback: EventHandler<PrintQueueEvents[K]>
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(callback as EventHandler<unknown>);
-  }
-
-  /**
-   * Remove event listener
-   */
-  off<K extends keyof PrintQueueEvents>(
-    event: K,
-    callback: EventHandler<PrintQueueEvents[K]>
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.delete(callback as EventHandler<unknown>);
-    }
-  }
-
-  /**
    * Process the queue
    */
   private processQueue(): void {
@@ -430,13 +404,16 @@ export class PrintQueue implements IPrintQueue {
       this.logger.debug(`Job completed: ${job.id}`);
     } catch (error) {
       job.retryCount++;
-      job.error = error instanceof Error ? error : new Error(String(error));
+      job.error = normalizeError(error);
 
       if (job.retryCount < job.maxRetries) {
         this.logger.warn(`Job ${job.id} failed, retrying (${job.retryCount}/${job.maxRetries})`);
         job.status = PrintJobStatus.PENDING;
 
         // Re-add to queue after delay
+        if (this.retryTimerId !== null) {
+          clearTimeout(this.retryTimerId);
+        }
         this.retryTimerId = setTimeout(() => {
           if (job.status === PrintJobStatus.PENDING) {
             this.insertByPriority(job.id, job.priority);
@@ -491,22 +468,6 @@ export class PrintQueue implements IPrintQueue {
   private generateJobId(): string {
     this.jobCounter++;
     return `job_${Date.now()}_${this.jobCounter}`;
-  }
-
-  /**
-   * Emit an event
-   */
-  private emit<K extends keyof PrintQueueEvents>(event: K, data: PrintQueueEvents[K]): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (error) {
-          this.logger.error(`Error in event handler for "${event}":`, error);
-        }
-      });
-    }
   }
 }
 

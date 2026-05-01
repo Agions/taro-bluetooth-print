@@ -12,6 +12,7 @@
 
 import { EventEmitter } from '../core/EventEmitter';
 import { IPrinterAdapter } from '../types';
+import { normalizeError } from '../utils/normalizeError';
 
 export interface DiscoveredDevice {
   id: string;
@@ -187,7 +188,7 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
       const devices = (await (this.platformAdapter as any)?.requestDevices?.()) ?? [];
       this.processDevices(devices);
     } catch (error) {
-      this.emit('discovery-error', error as Error);
+      this.emit('discovery-error', normalizeError(error));
     }
 
     // Set timeout to stop discovery

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.0] - 2026-05-01
+
+### Added
+
+- **`ChunkWriteStrategy` 自适应分块写入抽象基类** (#R4)
+  - Template Method 模式：将 MiniProgramAdapter 与 ReactNativeAdapter 共用的自适应分块写入逻辑提取到统一基类
+  - 子类仅需实现 `writeSingleChunk()` 平台特定的单块写入操作
+  - 公共框架包括：自适应分块大小调整、指数退避重试、连接状态周期性检查、单块超时、分块间 BLE 拥塞控制延迟
+  - `MiniProgramWriteStrategy` — 封装 Taro/微信/支付宝/百度/字节/QQ 小程序 BLE API
+  - `ReactNativeWriteStrategy` — 封装 react-native-ble-plx，含 withResponse/withoutResponse 降级回退
+
+- **`withTimeout()` 工具函数集成** (#R5)
+  - 提取 Promise race + setTimeout 重复模式到 `src/utils/withTimeout.ts`
+  - 已集成至 `BaseAdapter.connect()`、`ReactNativeAdapter.connect()`、`ConnectionManager.connect()`、`PrinterStatus.queryStatus()`
+  - 减少约 40 行重复的手动 timer 管理代码，消除遗漏 clearTimeout 的风险
+
+### Changed
+
+- **适配器代码重构**
+  - `MiniProgramBLEApi.writeBLECharacteristicValue` 参数类型从 `ArrayBuffer` 扩展为 `ArrayBuffer | ArrayBufferLike`，消除 `chunk.buffer` 的类型兼容性 warning
+  - `ReactNativeAdapter.arrayBufferToBase64` 同理扩展参数类型
+  - `ChunkWriteStrategy.logger` 类型修正为 `ReturnType<typeof Logger.scope>`，修复 Logger 实例类型不匹配
+
+### Fixed
+
+- **`ChunkWriteStrategy.ts` 缺少 Logger 导入** — 导致 5 个适配器测试失败（TaroAdapter、AlipayAdapter、BaiduAdapter、ByteDanceAdapter、QQAdapter）
+- **`chunk.buffer` 类型兼容性** — `Uint8Array.buffer` 返回 `ArrayBufferLike`，原 `ArrayBuffer` 参数类型导致 TypeScript 编译错误
+
+### Security
+
+- `withTimeout()` 统一使用 try/finally 模式的 timer 清理，消除所有手动 `Promise.race` + `setTimeout` 模式中遗漏 `clearTimeout` 的风险
+
+---
+
 ## [2.9.6] - 2026-04-30
 
 ### Added

@@ -3,6 +3,8 @@
  * 支持事件订阅、发布、一次性监听、异步处理等
  */
 
+import { normalizeError } from '@/utils/normalizeError';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type EventHandler<T = any> = (payload: T) => void | Promise<void>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,7 +243,7 @@ export class EventBus {
         })
         .catch(error => {
           clearTimeout(timer);
-          reject(error instanceof Error ? error : new Error(String(error)));
+          reject(normalizeError(error));
         });
     });
   }

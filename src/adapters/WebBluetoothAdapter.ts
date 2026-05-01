@@ -8,6 +8,7 @@
 
 import { IAdapterOptions, PrinterState } from '@/types';
 import { BaseAdapter } from './BaseAdapter';
+import { normalizeError } from '@/utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
@@ -155,7 +156,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
       this.logger.info('Device selected:', device.name || device.id);
       return device;
     } catch (error) {
-      const errorMessage = (error as Error).message || '';
+      const errorMessage = normalizeError(error).message;
 
       if (errorMessage.includes('cancelled') || errorMessage.includes('canceled')) {
         throw new BluetoothPrintError(
@@ -171,7 +172,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         'Failed to request Bluetooth device',
-        error as Error
+        normalizeError(error)
       );
     }
   }
@@ -265,19 +266,19 @@ export class WebBluetoothAdapter extends BaseAdapter {
         throw error;
       }
 
-      const errorMessage = (error as Error).message || '';
+      const errorMessage = normalizeError(error).message;
       if (errorMessage.includes('timeout')) {
         throw new BluetoothPrintError(
           ErrorCode.CONNECTION_TIMEOUT,
           `Connection to device ${deviceId} timed out`,
-          error as Error
+          normalizeError(error)
         );
       }
 
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
-        error as Error
+        normalizeError(error)
       );
     }
   }
@@ -382,7 +383,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
             throw new BluetoothPrintError(
               ErrorCode.WRITE_FAILED,
               `Failed to write chunk ${chunkNum}/${totalChunks}`,
-              error as Error
+              normalizeError(error)
             );
           }
           this.logger.warn(`Chunk ${chunkNum} write failed, retry ${attempt}/${retries}`);
@@ -608,7 +609,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
         })
         .catch(error => {
           clearTimeout(timeoutId);
-          reject(error instanceof Error ? error : new Error(String(error)));
+          reject(normalizeError(error));
         });
     });
   }
@@ -653,7 +654,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
       throw new BluetoothPrintError(
         ErrorCode.SERVICE_DISCOVERY_FAILED,
         'Failed to discover device services',
-        error as Error
+        normalizeError(error)
       );
     }
   }

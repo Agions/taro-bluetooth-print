@@ -16,7 +16,72 @@ const Platform = (globalThis as { Platform?: PlatformInterface }).Platform;
 import { BaseAdapter } from './BaseAdapter';
 import { IPrinterAdapter, IAdapterOptions, PrinterState } from '@/types';
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
+import { withTimeout } from '@/utils/withTimeout';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { ChunkWriteStrategy, type ChunkWriteContext, type ChunkWriteResult, DEFAULT_ADAPTIVE_CONFIG } from './ChunkWriteStrategy';
+
+/**
+ * React Native BLE Chunk Write Strategy
+ *
+ * Wraps react-native-ble-plx's withResponse/withoutResponse fallback
+ * into the ChunkWriteStrategy template.
+ */
+interface RNWriteOptions {
+  arrayBufferToBase64: (buffer: ArrayBuffer) => string;
+  bleManager: BLEManager;
+}
+
+class ReactNativeWriteStrategy extends ChunkWriteStrategy<RNWriteOptions> {
+  constructor() {
+    super('ReactNativeAdapter', {
+      ...DEFAULT_ADAPTIVE_CONFIG,
+      maxChunkSize: 512,
+      connectionCheckInterval: 0, // RN doesn't need periodic connection checks
+    });
+  }
+
+  protected computeTimeoutMs(chunkLength: number): number {
+    return Math.max(2000, Math.min(10000, 1000 + chunkLength * 10));
+  }
+
+  protected async writeSingleChunk(
+    chunk: Uint8Array,
+    context: ChunkWriteContext,
+    options?: RNWriteOptions
+  ): Promise<ChunkWriteResult> {
+    if (!options) {
+      return { success: false, error: new Error('RNWriteOptions required') };
+    }
+
+    const base64Value = options.arrayBufferToBase64(chunk.buffer);
+
+    try {
+      // Try with-response first
+      await (options.bleManager.writeCharacteristicWithResponseForDevice(
+        context.deviceId,
+        context.serviceId,
+        context.characteristicId,
+        base64Value
+      ) as Promise<void>);
+      return { success: true };
+    } catch {
+      // With-response BLE write failed — some devices don't support response mode;
+      // retry as write-without-response as a best-effort fallback
+      try {
+        await (options.bleManager.writeCharacteristicWithoutResponseForDevice(
+          context.deviceId,
+          context.serviceId,
+          context.characteristicId,
+          base64Value
+        ) as Promise<void>);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: normalizeError(error) };
+      }
+    }
+  }
+}
 
 /**
  * BLE characteristic info with full UUIDs
@@ -116,6 +181,7 @@ interface RNDevice {
 export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
   private bleManager: BLEManager;
   private deviceCache: Map<string, RNDevice> = new Map();
+  private writeStrategy = new ReactNativeWriteStrategy();
 
   /**
    * Creates a new ReactNativeAdapter instance
@@ -165,20 +231,11 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
     try {
       // Add connection timeout
       const timeoutMs = 15000;
-      const connectionPromise = this.performConnect(deviceId);
-
-      let timeoutHandle: NodeJS.Timeout | null = null;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-          reject(new Error('Connection timeout'));
-        }, timeoutMs);
-      });
-
-      const device = await Promise.race([connectionPromise, timeoutPromise]);
-
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
+      const device = await withTimeout(
+        this.performConnect(deviceId),
+        timeoutMs,
+        'Connection timeout'
+      );
 
       this.deviceCache.set(deviceId, device as RNDevice);
       await this.discoverServices(deviceId, device as RNDevice);
@@ -189,25 +246,25 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
       this.updateState(PrinterState.DISCONNECTED);
       this.cleanupDevice(deviceId);
 
-      const errorMsg = (error as Error).message || '';
+      const errorMsg = normalizeError(error).message;
       if (errorMsg.includes('timeout')) {
         throw new BluetoothPrintError(
           ErrorCode.CONNECTION_TIMEOUT,
           `Connection to device ${deviceId} timed out`,
-          error as Error
+          normalizeError(error)
         );
       } else if (errorMsg.includes('not found') || errorMsg.includes('not exist')) {
         throw new BluetoothPrintError(
           ErrorCode.DEVICE_NOT_FOUND,
           `Device ${deviceId} not found`,
-          error as Error
+          normalizeError(error)
         );
       }
 
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
-        error as Error
+        normalizeError(error)
       );
     }
   }
@@ -272,7 +329,6 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
     this.validateDeviceId(deviceId);
     this.validateBuffer(buffer);
     const serviceInfo = this.getServiceInfo(deviceId);
-    const validatedOptions = this.validateOptions(options);
 
     const device = this.deviceCache.get(deviceId);
     if (!device || !device.isConnected) {
@@ -283,127 +339,19 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
       );
     }
 
-    let { chunkSize } = validatedOptions;
-    const { delay, retries } = validatedOptions;
-    const data = new Uint8Array(buffer);
-    const totalChunks = Math.ceil(data.length / chunkSize);
-
-    Logger.scope('ReactNativeAdapter').debug(
-      `Writing ${data.length} bytes in ${totalChunks} chunks`
+    await this.writeStrategy.execute(
+      buffer,
+      {
+        deviceId,
+        serviceId: serviceInfo.serviceId,
+        characteristicId: serviceInfo.characteristicId,
+      },
+      options ?? {},
+      {
+        bleManager: this.bleManager,
+        arrayBufferToBase64: this.arrayBufferToBase64.bind(this),
+      }
     );
-
-    if (data.length === 0) {
-      Logger.scope('ReactNativeAdapter').warn('No data to write');
-      return;
-    }
-
-    // Adaptive transmission parameters
-    let successCount = 0;
-    let consecutiveFailures = 0;
-    const minChunkSize = 10;
-    const maxChunkSize = Math.min(512, device.mtu - 5); // Respect MTU if available
-    let baseDelay = delay;
-    const maxDelay = 200;
-
-    for (let i = 0; i < data.length; i += chunkSize) {
-      const chunk = data.slice(i, i + chunkSize);
-      const chunkNum = Math.floor(i / chunkSize) + 1;
-      let attempt = 0;
-      let writeSuccess = false;
-
-      while (attempt <= retries) {
-        try {
-          // Convert Uint8Array to base64 string for react-native-ble-plx
-          const base64Value = this.arrayBufferToBase64(chunk.buffer);
-
-          // Timeout per write
-          const timeoutMs = Math.max(2000, Math.min(10000, 1000 + chunk.length * 10));
-          let timeoutHandle: NodeJS.Timeout | null = null;
-
-          const writePromise = (async () => {
-            try {
-              await (this.bleManager.writeCharacteristicWithResponseForDevice(
-                deviceId,
-                serviceInfo.serviceId,
-                serviceInfo.characteristicId,
-                base64Value
-              ) as Promise<void>);
-            } catch {
-              // Fallback to without-response if with-response fails
-              await (this.bleManager.writeCharacteristicWithoutResponseForDevice(
-                deviceId,
-                serviceInfo.serviceId,
-                serviceInfo.characteristicId,
-                base64Value
-              ) as Promise<void>);
-            }
-          })();
-
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            timeoutHandle = setTimeout(() => {
-              reject(new Error(`Write timeout after ${timeoutMs}ms`));
-            }, timeoutMs);
-          });
-
-          await Promise.race([writePromise, timeoutPromise]);
-
-          if (timeoutHandle) {
-            clearTimeout(timeoutHandle);
-          }
-
-          Logger.scope('ReactNativeAdapter').debug(
-            `Chunk ${chunkNum}/${totalChunks} written successfully`
-          );
-          writeSuccess = true;
-          break;
-        } catch (error) {
-          attempt++;
-          if (attempt > retries) {
-            Logger.scope('ReactNativeAdapter').error(
-              `Chunk ${chunkNum} failed after ${retries} retries`
-            );
-            throw new BluetoothPrintError(
-              ErrorCode.WRITE_FAILED,
-              `Failed to write chunk ${chunkNum}/${totalChunks}`,
-              error as Error
-            );
-          }
-          Logger.scope('ReactNativeAdapter').warn(
-            `Chunk ${chunkNum} write failed, retry ${attempt}/${retries}`
-          );
-
-          const retryDelay = baseDelay * Math.pow(2, attempt - 1);
-          await new Promise(r => setTimeout(r, Math.min(retryDelay, maxDelay)));
-        }
-      }
-
-      // Adaptive chunk size and delay adjustment
-      if (writeSuccess) {
-        successCount++;
-        consecutiveFailures = 0;
-
-        if (successCount % 3 === 0 && chunkSize < maxChunkSize) {
-          chunkSize = Math.min(maxChunkSize, chunkSize + 5);
-          baseDelay = Math.max(baseDelay / 1.2, validatedOptions.delay);
-        }
-      } else {
-        consecutiveFailures++;
-        successCount = Math.max(0, successCount - 1);
-
-        if (consecutiveFailures >= 2 && chunkSize > minChunkSize) {
-          chunkSize = Math.max(minChunkSize, chunkSize - 5);
-          baseDelay = Math.min(baseDelay * 1.5, maxDelay);
-          consecutiveFailures = 0;
-        }
-      }
-
-      // Inter-chunk delay
-      if (i + chunkSize < data.length) {
-        await new Promise(r => setTimeout(r, baseDelay));
-      }
-    }
-
-    Logger.scope('ReactNativeAdapter').info(`Successfully wrote ${data.length} bytes`);
   }
 
   /**
@@ -418,12 +366,12 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
         this.bleManager.startDeviceScan(null, { allowDuplicates: false }, (error: unknown) => {
           if (error) {
             // eslint-disable-next-line @typescript-eslint/no-base-to-string
-            reject(error instanceof Error ? error : new Error(String(error)));
+            reject(normalizeError(error));
           }
         });
         resolve();
       } catch (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
+        reject(normalizeError(error));
       }
     });
   }
@@ -483,7 +431,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
       throw new BluetoothPrintError(
         ErrorCode.SERVICE_DISCOVERY_FAILED,
         'Failed to discover device services',
-        error as Error
+        normalizeError(error)
       );
     }
   }
@@ -494,7 +442,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
    * @param buffer - ArrayBuffer to convert
    * @returns Base64 encoded string
    */
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+  private arrayBufferToBase64(buffer: ArrayBuffer | ArrayBufferLike): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {

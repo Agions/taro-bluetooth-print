@@ -12,6 +12,7 @@
 
 import { EventEmitter } from '@/core/EventEmitter';
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
 
 export interface CloudPrintOptions {
   /** WebSocket 服务器地址 */
@@ -203,7 +204,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
         clearTimeout(timeout);
         this.log.error('Failed to create WebSocket', error);
         if (this.connectReject) {
-          this.connectReject(error as Error);
+          this.connectReject(normalizeError(error));
           this.connectResolve = null;
           this.connectReject = null;
         }

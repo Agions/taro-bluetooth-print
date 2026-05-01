@@ -14,6 +14,8 @@
 
 import Taro from '@tarojs/taro';
 import { Logger } from '@/utils/logger';
+import { emitAndThrow } from '@/utils/normalizeError';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Bluetooth device information
@@ -64,11 +66,6 @@ export interface DeviceManagerEvents {
 }
 
 /**
- * Event handler type
- */
-type EventHandler<T> = (data: T) => void;
-
-/**
  * Device manager interface
  */
 export interface IDeviceManager {
@@ -81,11 +78,11 @@ export interface IDeviceManager {
   getDeviceInfo(deviceId: string): BluetoothDevice | null;
   on<K extends keyof DeviceManagerEvents>(
     event: K,
-    callback: EventHandler<DeviceManagerEvents[K]>
+    callback: (data: DeviceManagerEvents[K]) => void
   ): void;
   off<K extends keyof DeviceManagerEvents>(
     event: K,
-    callback: EventHandler<DeviceManagerEvents[K]>
+    callback: (data: DeviceManagerEvents[K]) => void
   ): void;
 }
 
@@ -103,9 +100,8 @@ interface DeviceCacheEntry {
  * Device Manager class
  * Manages Bluetooth device discovery and connection
  */
-export class DeviceManager implements IDeviceManager {
-  private readonly logger = Logger.scope('DeviceManager');
-  private readonly listeners: Map<string, Set<EventHandler<unknown>>> = new Map();
+export class DeviceManager extends EventEmitter<DeviceManagerEvents> implements IDeviceManager {
+  protected readonly logger = Logger.scope('DeviceManager');
   private discoveredDevices: Map<string, BluetoothDevice> = new Map();
   private deviceCache: Map<string, DeviceCacheEntry> = new Map();
   private isScanning = false;
@@ -150,9 +146,7 @@ export class DeviceManager implements IDeviceManager {
       }, timeout);
     } catch (error) {
       this.isScanning = false;
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     }
   }
 
@@ -261,9 +255,7 @@ export class DeviceManager implements IDeviceManager {
       this.emit('device-connected', deviceId);
       this.logger.info(`Connected to device: ${deviceId}`);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.emit('error', err);
-      throw err;
+      emitAndThrow(error, this.emit.bind(this));
     }
   }
 
@@ -314,52 +306,10 @@ export class DeviceManager implements IDeviceManager {
   }
 
   /**
-   * Register event listener
-   */
-  on<K extends keyof DeviceManagerEvents>(
-    event: K,
-    callback: EventHandler<DeviceManagerEvents[K]>
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(callback as EventHandler<unknown>);
-  }
-
-  /**
-   * Remove event listener
-   */
-  off<K extends keyof DeviceManagerEvents>(
-    event: K,
-    callback: EventHandler<DeviceManagerEvents[K]>
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.delete(callback as EventHandler<unknown>);
-    }
-  }
-
-  /**
    * Check if currently scanning
    */
   get scanning(): boolean {
     return this.isScanning;
-  }
-
-  /**
-   * Emit an event
-   */
-  private emit<K extends keyof DeviceManagerEvents>(event: K, data: DeviceManagerEvents[K]): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (error) {
-          this.logger.error(`Error in event handler for "${event}":`, error);
-        }
-      });
-    }
   }
 
   /**

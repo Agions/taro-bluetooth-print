@@ -118,6 +118,7 @@ export class LocalStorage implements IConfigStorage {
       }
       return JSON.parse(stored) as T;
     } catch {
+      // Return default value if localStorage is inaccessible or data is corrupted
       return defaultValue;
     }
   }

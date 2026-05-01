@@ -7,6 +7,7 @@
 
 import { EventEmitter } from '../core/EventEmitter';
 import { generateUUID } from '../utils/uuid';
+import { normalizeError } from '../utils/normalizeError';
 
 export interface ScheduledPrint {
   id: string;
@@ -381,8 +382,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
       job.status = 'failed';
       job.updatedAt = Date.now();
       this.persistJobs();
-      this.emit('executed', { job, success: false, error: error as Error });
-      this.emit('failed', { job, error: error as Error });
+      this.emit('executed', { job, success: false, error: normalizeError(error) });
+      this.emit('failed', { job, error: normalizeError(error) });
     }
 
     if (job.status === 'active') {
@@ -398,7 +399,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
         localStorage.setItem(this.persistKey, data);
       }
     } catch {
-      // Ignore persist errors
+      // Persist errors are non-critical — the in-memory job list remains functional;
+      // persistence is only for crash-recovery convenience across app restarts
     }
   }
 
@@ -419,7 +421,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
         }
       }
     } catch {
-      // Ignore restore errors
+      // Restore errors from corrupted/missing localStorage are non-critical;
+      // the system initializes with an empty job list and continues normally — no data loss
     }
   }
 

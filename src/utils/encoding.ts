@@ -19,7 +19,8 @@ export interface EncodingConfig {
  * Text encoding utility class
  *
  * Provides encoding services for converting strings to byte arrays.
- * Currently supports UTF-8 natively, with a TODO for full GBK support.
+ * Currently supports UTF-8 natively. GBK support can be added via custom encoding
+ * functions passed to `encode()` and `decode()`.
  *
  * @example
  * ```typescript

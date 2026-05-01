@@ -5,7 +5,72 @@
 
 import { IPrinterAdapter, IAdapterOptions, PrinterState } from '@/types';
 import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
+import { withTimeout } from '@/utils/withTimeout';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { ChunkWriteStrategy, type ChunkWriteContext, type ChunkWriteResult, DEFAULT_ADAPTIVE_CONFIG } from './ChunkWriteStrategy';
+
+
+/**
+ * MiniProgram BLE Chunk Write Strategy
+ *
+ * Wraps the platform-specific writeBLECharacteristicValue call
+ * into the ChunkWriteStrategy template with Promise.race timeout.
+ */
+class MiniProgramWriteStrategy extends ChunkWriteStrategy {
+  constructor(private api: MiniProgramBLEApi) {
+    super('MiniProgramAdapter', {
+      ...DEFAULT_ADAPTIVE_CONFIG,
+      connectionCheckInterval: 5,
+    });
+  }
+
+  protected async writeSingleChunk(
+    chunk: Uint8Array,
+    context: ChunkWriteContext
+  ): Promise<ChunkWriteResult> {
+    const timeoutMs = this.computeTimeoutMs(chunk.length);
+
+    try {
+      const writePromise = this.api.writeBLECharacteristicValue({
+        deviceId: context.deviceId,
+        serviceId: context.serviceId,
+        characteristicId: context.characteristicId,
+        value: chunk.buffer,
+      });
+
+      let writeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        writeTimeoutId = setTimeout(() => {
+          reject(new Error(`Write timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      await Promise.race([writePromise, timeoutPromise]);
+      if (writeTimeoutId) clearTimeout(writeTimeoutId);
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: normalizeError(error) };
+    }
+  }
+
+  async checkConnection(deviceId: string): Promise<void> {
+    try {
+      const state = await this.api.getBLEConnectionState({ deviceId });
+      if (!state.connected) {
+        throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Device disconnected');
+      }
+    } catch (error) {
+      if (error instanceof BluetoothPrintError) throw error;
+      throw new BluetoothPrintError(
+        ErrorCode.DEVICE_DISCONNECTED,
+        'Device disconnected',
+        normalizeError(error)
+      );
+    }
+  }
+}
 
 /**
  * Service information cache entry
@@ -47,7 +112,7 @@ export interface MiniProgramBLEApi {
     deviceId: string;
     serviceId: string;
     characteristicId: string;
-    value: ArrayBuffer;
+    value: ArrayBuffer | ArrayBufferLike;
   }): Promise<void>;
   getBLEDeviceServices(options: {
     deviceId: string;
@@ -204,11 +269,23 @@ export abstract class BaseAdapter implements IPrinterAdapter {
  * Subclasses only need to implement `getApi()` to return the platform-specific BLE API object.
  */
 export abstract class MiniProgramAdapter extends BaseAdapter {
+  private writeStrategy: MiniProgramWriteStrategy | null = null;
+
   /**
    * Returns the platform-specific BLE API object.
    * Subclasses must implement this to return the appropriate global (Taro, my, swan, tt).
    */
   protected abstract getApi(): MiniProgramBLEApi;
+
+  /**
+   * Lazy-init the write strategy using the adapter's API
+   */
+  private getWriteStrategy(): MiniProgramWriteStrategy {
+    if (!this.writeStrategy) {
+      this.writeStrategy = new MiniProgramWriteStrategy(this.getApi());
+    }
+    return this.writeStrategy;
+  }
 
   /**
    * Connects to a Bluetooth device and discovers services
@@ -231,18 +308,11 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
 
     try {
       // 添加连接超时处理
-      let timeoutId: NodeJS.Timeout | undefined;
-      const connectionPromise = this.getApi().createBLEConnection({ deviceId });
-      const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new Error('Connection timeout after 10 seconds'));
-        }, 10000);
-      });
-
-      await Promise.race([connectionPromise, timeoutPromise]);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      await withTimeout(
+        this.getApi().createBLEConnection({ deviceId }),
+        10000,
+        'Connection timeout after 10 seconds'
+      );
       this.logger.info('BLE connection established');
 
       // Discover and cache services
@@ -263,25 +333,25 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
 
-      const errorMessage = (error as Error).message || '';
+      const errorMessage = normalizeError(error).message;
       if (errorMessage.includes('timeout')) {
         throw new BluetoothPrintError(
           ErrorCode.CONNECTION_TIMEOUT,
           `Connection to device ${deviceId} timed out`,
-          error as Error
+          normalizeError(error)
         );
       } else if (errorMessage.includes('not found')) {
         throw new BluetoothPrintError(
           ErrorCode.DEVICE_NOT_FOUND,
           `Device ${deviceId} not found`,
-          error as Error
+          normalizeError(error)
         );
       }
 
       throw new BluetoothPrintError(
         ErrorCode.CONNECTION_FAILED,
         `Failed to connect to device ${deviceId}`,
-        error as Error
+        normalizeError(error)
       );
     }
   }
@@ -327,139 +397,16 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
     this.validateDeviceId(deviceId);
     this.validateBuffer(buffer);
     const serviceInfo = this.getServiceInfo(deviceId);
-    const validatedOptions = this.validateOptions(options);
 
-    // 验证设备是否仍处于连接状态
-    await this.checkConnectionState(deviceId);
-
-    let { chunkSize } = validatedOptions;
-    const { delay, retries } = validatedOptions;
-    const data = new Uint8Array(buffer);
-    let totalChunks = Math.ceil(data.length / chunkSize);
-
-    this.logger.debug(`Writing ${data.length} bytes in ${totalChunks} chunks`);
-
-    if (data.length === 0) {
-      this.logger.warn('No data to write');
-      return;
-    }
-
-    // 自适应传输参数
-    let successCount = 0;
-    let failureCount = 0;
-    let consecutiveFailures = 0;
-    const minChunkSize = 10;
-    const maxChunkSize = 256;
-    let baseDelay = delay;
-    const maxDelay = 200;
-    const connectionCheckInterval = 5;
-
-    for (let i = 0; i < data.length; i += chunkSize) {
-      // 定期检查连接状态
-      if (i > 0 && Math.floor(i / chunkSize) % connectionCheckInterval === 0) {
-        await this.checkConnectionState(deviceId);
-      }
-
-      const chunk = data.slice(i, i + chunkSize);
-      const chunkNum = Math.floor(i / chunkSize) + 1;
-      let attempt = 0;
-      let writeSuccess = false;
-
-      while (attempt <= retries) {
-        try {
-          const timeoutMs = Math.max(1000, Math.min(10000, 1000 + chunk.length * 5));
-
-          const writePromise = this.getApi().writeBLECharacteristicValue({
-            deviceId,
-            serviceId: serviceInfo.serviceId,
-            characteristicId: serviceInfo.characteristicId,
-            value: chunk.buffer,
-          });
-
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new Error(`Write timeout after ${timeoutMs} milliseconds`));
-            }, timeoutMs);
-          });
-
-          await Promise.race([writePromise, timeoutPromise]);
-
-          this.logger.debug(`Chunk ${chunkNum}/${totalChunks} written successfully`);
-          writeSuccess = true;
-          break;
-        } catch (error) {
-          attempt++;
-          if (attempt > retries) {
-            this.logger.error(`Chunk ${chunkNum} failed after ${retries} retries`);
-            throw new BluetoothPrintError(
-              ErrorCode.WRITE_FAILED,
-              `Failed to write chunk ${chunkNum}/${totalChunks}`,
-              error as Error
-            );
-          }
-          this.logger.warn(`Chunk ${chunkNum} write failed, retry ${attempt}/${retries}`);
-
-          const retryDelay = baseDelay * Math.pow(2, attempt - 1);
-          await new Promise(r => setTimeout(r, Math.min(retryDelay, maxDelay)));
-        }
-      }
-
-      // 动态调整块大小和延迟
-      if (writeSuccess) {
-        successCount++;
-        consecutiveFailures = 0;
-        failureCount = Math.max(0, failureCount - 1);
-
-        if (successCount % 3 === 0 && chunkSize < maxChunkSize) {
-          chunkSize = Math.min(maxChunkSize, chunkSize + 5);
-          baseDelay = Math.max(baseDelay / 1.2, validatedOptions.delay);
-          totalChunks = Math.ceil((data.length - i - chunkSize) / chunkSize) + chunkNum;
-          this.logger.debug(`Increased chunk size to ${chunkSize}, delay to ${baseDelay}`);
-        }
-      } else {
-        failureCount++;
-        consecutiveFailures++;
-        successCount = Math.max(0, successCount - 1);
-
-        if (consecutiveFailures >= 2 && chunkSize > minChunkSize) {
-          chunkSize = Math.max(minChunkSize, chunkSize - 5);
-          baseDelay = Math.min(baseDelay * 1.5, maxDelay);
-          totalChunks = Math.ceil((data.length - i - chunkSize) / chunkSize) + chunkNum;
-          this.logger.debug(`Decreased chunk size to ${chunkSize}, delay to ${baseDelay}`);
-          consecutiveFailures = 0;
-        }
-      }
-
-      // Small delay to prevent congestion
-      if (i + chunkSize < data.length) {
-        await new Promise(r => setTimeout(r, baseDelay));
-      }
-    }
-
-    this.logger.info(`Successfully wrote ${data.length} bytes`);
-  }
-
-  /**
-   * Check connection state, throw if disconnected
-   */
-  private async checkConnectionState(deviceId: string): Promise<void> {
-    try {
-      const state = await this.getApi().getBLEConnectionState({ deviceId });
-      if (!state.connected) {
-        this.cleanupDevice(deviceId);
-        throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Device disconnected');
-      }
-    } catch (error) {
-      if (error instanceof BluetoothPrintError) {
-        throw error;
-      }
-      this.cleanupDevice(deviceId);
-      throw new BluetoothPrintError(
-        ErrorCode.DEVICE_DISCONNECTED,
-        'Device disconnected',
-        error as Error
-      );
-    }
+    await this.getWriteStrategy().execute(
+      buffer,
+      {
+        deviceId,
+        serviceId: serviceInfo.serviceId,
+        characteristicId: serviceInfo.characteristicId,
+      },
+      options ?? {}
+    );
   }
 
   /**
@@ -509,7 +456,7 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
       throw new BluetoothPrintError(
         ErrorCode.SERVICE_DISCOVERY_FAILED,
         'Failed to discover device services',
-        error as Error
+        normalizeError(error)
       );
     }
   }

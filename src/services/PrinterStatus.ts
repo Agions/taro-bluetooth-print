@@ -13,6 +13,7 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { withTimeout } from '@/utils/withTimeout';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
@@ -106,19 +107,12 @@ export class PrinterStatus {
       const queryCmd = new Uint8Array([ESCPOS_STATUS_CMD, ESCPOS_STATUS_NUL]);
       await writeFunc(queryCmd.buffer);
 
-      // Set up timeout promise
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const timeoutPromise = new Promise<ArrayBuffer>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new BluetoothPrintError(ErrorCode.CONNECTION_TIMEOUT, 'Status query timed out'));
-        }, timeout);
-      });
-
       // Read response with timeout
-      const response = await Promise.race([readFunc(), timeoutPromise]);
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
+      const response = await withTimeout(
+        readFunc(),
+        timeout,
+        'Status query timed out'
+      );
 
       return this.parseStatus(new Uint8Array(response), includeRaw);
     } catch (error) {
@@ -229,6 +223,7 @@ export class PrinterStatus {
       const status = await this.getStatus(writeFunc, readFunc);
       return status.paper !== PaperStatus.OUT && !status.cutterError && !status.motorError;
     } catch {
+      // Return false gracefully if status query fails (e.g., device disconnected)
       return false;
     }
   }

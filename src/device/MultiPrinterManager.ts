@@ -27,6 +27,7 @@ import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 import { BluetoothPrinter } from '@/core/BluetoothPrinter';
 import { PrinterState } from '@/types';
+import { EventEmitter } from '@/core/EventEmitter';
 
 /**
  * Printer connection info
@@ -75,21 +76,14 @@ export interface BroadcastOptions {
  */
 export interface MultiPrinterManagerEvents {
   /** Emitted when a printer connects */
-  'printer-connected': (data: PrinterConnection) => void;
+  'printer-connected': PrinterConnection;
   /** Emitted when a printer disconnects */
-  'printer-disconnected': (data: { printerId: string; deviceId: string }) => void;
+  'printer-disconnected': { printerId: string; deviceId: string };
   /** Emitted when a printer has an error */
-  'printer-error': (data: { printerId: string; error: Error }) => void;
+  'printer-error': { printerId: string; error: Error };
   /** Emitted when broadcast completes */
-  'broadcast-complete': (data: { success: number; failed: number }) => void;
+  'broadcast-complete': { success: number; failed: number };
 }
-
-/**
- * Event handler map type
- */
-type EventHandlerMap = {
-  [K in keyof MultiPrinterManagerEvents]: Set<MultiPrinterManagerEvents[K]>;
-};
 
 /**
  * Multi Printer Manager
@@ -100,56 +94,17 @@ type EventHandlerMap = {
  * - Individual printer control
  * - Automatic reconnection
  */
-export class MultiPrinterManager {
-  private readonly logger = Logger.scope('MultiPrinterManager');
+export class MultiPrinterManager extends EventEmitter<MultiPrinterManagerEvents> {
+  protected readonly logger = Logger.scope('MultiPrinterManager');
   private readonly printers: Map<string, PrinterConnection> = new Map();
   private readonly deviceToPrinter: Map<string, string> = new Map();
-  private readonly listeners: EventHandlerMap = {
-    'printer-connected': new Set(),
-    'printer-disconnected': new Set(),
-    'printer-error': new Set(),
-    'broadcast-complete': new Set(),
-  };
 
   /**
    * Creates a new MultiPrinterManager instance
    */
-  constructor() {}
-
-  /**
-   * Register event listener
-   */
-  on<K extends keyof MultiPrinterManagerEvents>(
-    event: K,
-    callback: MultiPrinterManagerEvents[K]
-  ): void {
-    this.listeners[event].add(callback);
+  constructor() {
+    super();
   }
-
-  /**
-   * Remove event listener
-   */
-  off<K extends keyof MultiPrinterManagerEvents>(
-    event: K,
-    callback: MultiPrinterManagerEvents[K]
-  ): void {
-    this.listeners[event].delete(callback);
-  }
-
-  /**
-   * Emit an event
-   */
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
-  private emit<K extends keyof MultiPrinterManagerEvents>(event: K, data: any): void {
-    this.listeners[event].forEach(handler => {
-      try {
-        (handler as (data: any) => void)(data);
-      } catch (error) {
-        this.logger.error(`Error in event handler for "${event}":`, error);
-      }
-    });
-  }
-  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
 
   /**
    * Connect to a printer
@@ -465,10 +420,8 @@ export class MultiPrinterManager {
 
     await this.disconnectAll();
 
-    // Clear all listeners
-    for (const key of Object.keys(this.listeners) as (keyof EventHandlerMap)[]) {
-      this.listeners[key].clear();
-    }
+    // Clear all listeners using inherited method
+    this.removeAllListeners();
 
     this.logger.info('MultiPrinterManager destroyed');
   }

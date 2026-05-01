@@ -122,9 +122,16 @@ export function createBluetoothPrinter(options: PrinterFactoryOptions = {}): Blu
  * ```
  */
 export async function createWebBluetoothPrinter(): Promise<BluetoothPrinter> {
-  const { WebBluetoothAdapter } = await import('@/adapters/WebBluetoothAdapter');
-  const adapter = new WebBluetoothAdapter();
-  return createBluetoothPrinter({ adapter });
+  try {
+    const { WebBluetoothAdapter } = await import('@/adapters/WebBluetoothAdapter');
+    const adapter = new WebBluetoothAdapter();
+    return createBluetoothPrinter({ adapter });
+  } catch {
+    throw new Error(
+      'Failed to dynamically import WebBluetoothAdapter. ' +
+        'This adapter is only available in browser environments that support the Web Bluetooth API.'
+    );
+  }
 }
 
 /**

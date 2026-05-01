@@ -147,8 +147,15 @@ export async function batchProcess<T, R>(
     const batch = items.slice(i, i + batchSize);
     const batchIndex = Math.floor(i / batchSize) + 1;
 
-    const batchResults = await processor(batch, batchIndex);
-    results.push(...batchResults);
+    try {
+      const batchResults = await processor(batch, batchIndex);
+      results.push(...batchResults);
+    } catch (error) {
+      // Log the error and continue processing subsequent batches
+      console.error(`[batchProcess] Error processing batch ${batchIndex}/${totalBatches}:`, error);
+      // Re-throw so the caller can handle the failure
+      throw error;
+    }
 
     // 添加小延迟，避免阻塞
     if (batchIndex < totalBatches) {
