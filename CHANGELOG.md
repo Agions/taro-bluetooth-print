@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.1] - 2026-05-01
+
+### Fixed
+
+- **npm publish 版本冲突** — `v2.10.0` 因旧 tag 提前发布导致新内容无法覆盖。bump 至 `2.10.1` 重新发布。
+
+---
+
 ## [2.10.0] - 2026-05-01
 
 ### Added
