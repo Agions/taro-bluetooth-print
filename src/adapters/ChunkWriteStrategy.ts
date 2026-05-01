@@ -86,10 +86,7 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
   protected readonly logger: ReturnType<typeof Logger.scope>;
   protected readonly config: AdaptiveWriteConfig;
 
-  constructor(
-    loggerScope: string,
-    config: Partial<AdaptiveWriteConfig> = {}
-  ) {
+  constructor(loggerScope: string, config: Partial<AdaptiveWriteConfig> = {}) {
     this.logger = Logger.scope(loggerScope);
     this.config = { ...DEFAULT_ADAPTIVE_CONFIG, ...config };
   }
@@ -157,14 +154,8 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
       1,
       Math.min(256, adapterOptions.chunkSize ?? this.config.defaultChunkSize)
     );
-    const delay = Math.max(
-      10,
-      Math.min(100, adapterOptions.delay ?? this.config.defaultDelay)
-    );
-    const retries = Math.max(
-      1,
-      Math.min(10, adapterOptions.retries ?? this.config.defaultRetries)
-    );
+    const delay = Math.max(10, Math.min(100, adapterOptions.delay ?? this.config.defaultDelay));
+    const retries = Math.max(1, Math.min(10, adapterOptions.retries ?? this.config.defaultRetries));
 
     const maxChunkSize = this.getMaxChunkSize(context.deviceId);
 
@@ -229,7 +220,8 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
         if (successCount % successThreshold === 0 && currentChunkSize < maxChunkSize) {
           currentChunkSize = Math.min(maxChunkSize, currentChunkSize + 5);
           baseDelay = Math.max(baseDelay / 1.2, delay);
-          totalChunks = Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
+          totalChunks =
+            Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
           this.logger.debug(`Increased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);
         }
       } else {
@@ -238,7 +230,8 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
         if (consecutiveFailures >= failureThreshold && currentChunkSize > minChunkSize) {
           currentChunkSize = Math.max(minChunkSize, currentChunkSize - 5);
           baseDelay = Math.min(baseDelay * 1.5, maxDelay);
-          totalChunks = Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
+          totalChunks =
+            Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
           this.logger.debug(`Decreased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);
           consecutiveFailures = 0;
         }

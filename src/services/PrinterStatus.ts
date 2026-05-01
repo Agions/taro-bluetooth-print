@@ -14,7 +14,6 @@
 
 import { Logger } from '@/utils/logger';
 import { withTimeout } from '@/utils/withTimeout';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
 
 /**
  * Paper status
@@ -108,11 +107,7 @@ export class PrinterStatus {
       await writeFunc(queryCmd.buffer);
 
       // Read response with timeout
-      const response = await withTimeout(
-        readFunc(),
-        timeout,
-        'Status query timed out'
-      );
+      const response = await withTimeout(readFunc(), timeout, 'Status query timed out');
 
       return this.parseStatus(new Uint8Array(response), includeRaw);
     } catch (error) {

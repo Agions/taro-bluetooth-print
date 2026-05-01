@@ -19,7 +19,12 @@ import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
 import { withTimeout } from '@/utils/withTimeout';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
-import { ChunkWriteStrategy, type ChunkWriteContext, type ChunkWriteResult, DEFAULT_ADAPTIVE_CONFIG } from './ChunkWriteStrategy';
+import {
+  ChunkWriteStrategy,
+  type ChunkWriteContext,
+  type ChunkWriteResult,
+  DEFAULT_ADAPTIVE_CONFIG,
+} from './ChunkWriteStrategy';
 
 /**
  * React Native BLE Chunk Write Strategy

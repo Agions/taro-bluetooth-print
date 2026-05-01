@@ -146,11 +146,7 @@ export class ConnectionManager
         this.emit('state-change', PrinterState.CONNECTING);
 
         const connectPromise = this.adapter.connect(deviceId);
-        await withTimeout(
-          connectPromise,
-          timeout,
-          `Connection to device ${deviceId} timed out`
-        );
+        await withTimeout(connectPromise, timeout, `Connection to device ${deviceId} timed out`);
         this.state = PrinterState.CONNECTED;
         this.emit('state-change', PrinterState.CONNECTED);
         this.emit('connected', deviceId);
@@ -174,7 +170,8 @@ export class ConnectionManager
           const printError: BluetoothPrintError =
             error instanceof BluetoothPrintError
               ? error
-              : errorMessage.toLowerCase().includes('timed out') || errorMessage.toLowerCase().includes('timeout')
+              : errorMessage.toLowerCase().includes('timed out') ||
+                  errorMessage.toLowerCase().includes('timeout')
                 ? new BluetoothPrintError(
                     ErrorCode.CONNECTION_TIMEOUT,
                     `Connection to device ${deviceId} timed out after ${timeout}ms`
