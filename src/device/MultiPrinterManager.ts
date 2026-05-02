@@ -24,7 +24,7 @@
  */
 
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { BluetoothPrinter } from '@/core/BluetoothPrinter';
 import { PrinterState } from '@/types';
 import { EventEmitter } from '@/core/EventEmitter';

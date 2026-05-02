@@ -280,8 +280,8 @@ export class ScheduledRetryManager extends EventEmitter<ScheduledRetryEvents> {
     if (!entry) return undefined;
 
     // Return a copy without the timeout (timeout cannot be serialized)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { timeout, ...rest } = entry;
+    void timeout;
     return rest as ScheduledRetry;
   }
 

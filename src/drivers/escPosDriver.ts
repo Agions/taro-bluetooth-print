@@ -232,4 +232,84 @@ export class EscPos implements IPrinterDriver {
 
     return commands;
   }
+
+  /**
+   * ESC/POS: Open cash drawer (钱箱控制)
+   * Sends ESC p command to trigger cash drawer kick-out
+   *
+   * @param pin - Cash drawer pin (0 or 1, default: 0)
+   * @returns Array of command buffers
+   */
+  openCashDrawer(pin = 0): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x70, pin, 50, 200])];
+  }
+
+  /**
+   * ESC/POS: Sound buzzer (蜂鸣器)
+   * Sends ESC B command to activate the printer's built-in buzzer
+   *
+   * @param times - Number of beeps (1-9, default: 3)
+   * @param duration - Duration in ms (default: 50)
+   * @returns Array of command buffers
+   */
+  beep(times = 3, duration = 50): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x42, times, duration])];
+  }
+
+  /**
+   * ESC/POS: Self test (自检)
+   * Sends ESC i command to print a self-test page and return status
+   *
+   * @returns Array of command buffers
+   */
+  selfTest(): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x69])];
+  }
+
+  /**
+   * ESC/POS: Get printer status (状态查询)
+   * Sends DLE EOT n commands to query printer, offline, error, and paper status
+   *
+   * @returns Array of command buffers (4 status queries)
+   */
+  getStatus(): Uint8Array[] {
+    const buffers: Uint8Array[] = [];
+    for (let i = 1; i <= 4; i++) {
+      buffers.push(new Uint8Array([0x10, 0x04, i]));
+    }
+    return buffers;
+  }
+
+  /**
+   * ESC/POS: Set character code page (代码页设置)
+   * Sends ESC t command to select character code page
+   *
+   * @param codePage - Code page number (0-255)
+   * @returns Array of command buffers
+   */
+  setCodePage(codePage: number): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x74, codePage])];
+  }
+
+  /**
+   * ESC/POS: Set left margin (左边界设置)
+   * Sends ESC l command to set left margin in characters
+   *
+   * @param n - Number of characters from left edge
+   * @returns Array of command buffers
+   */
+  setLeftMargin(n: number): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x6c, n])];
+  }
+
+  /**
+   * ESC/POS: Set print area width (打印区域宽度)
+   * Sends ESC W command to set print width in characters
+   *
+   * @param n - Width in characters
+   * @returns Array of command buffers
+   */
+  setPrintWidth(n: number): Uint8Array[] {
+    return [new Uint8Array([0x1b, 0x57, n])];
+  }
 }

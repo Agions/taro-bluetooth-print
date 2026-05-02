@@ -11,7 +11,7 @@
  * - 部分型号有特殊初始化序列
  */
 
-import { EscPos, type EscPosOptions } from './EscPos';
+import { EscPos, type EscPosOptions } from './escPosDriver';
 
 /**
  * Xprinter options (same as EscPosOptions)
@@ -50,39 +50,6 @@ export class XprinterDriver extends EscPos {
   }
 
   /**
-   * 芯烨打印机特定: 打开钱箱
-   * @param pin 钱箱引脚 (0 或 1, 默认 0)
-   * @returns Array of command buffers
-   */
-  openCashDrawer(pin = 0): Uint8Array[] {
-    // ESC p m t1 t2
-    // m = 0 or 1 (pin)
-    // t1 = 50 (on time)
-    // t2 = 200 (off time)
-    return [new Uint8Array([0x1b, 0x70, pin, 50, 200])];
-  }
-
-  /**
-   * 芯烨打印机特定: 发送声响警报
-   * @param times 次数 (1-9)
-   * @param duration 持续时间 (ms)
-   * @returns Array of command buffers
-   */
-  beep(times = 3, duration = 50): Uint8Array[] {
-    // ESC B n t
-    return [new Uint8Array([0x1b, 0x42, times, duration])];
-  }
-
-  /**
-   * 芯烨打印机特定: 打印自检页
-   * @returns Array of command buffers
-   */
-  selfTest(): Uint8Array[] {
-    // ESC i (0x1B 0x69) - 自检并返回状态
-    return [new Uint8Array([0x1b, 0x69])];
-  }
-
-  /**
    * 芯烨打印机特定: 获取打印机状态
    * 返回打印机状态字节
    * @returns Array of command buffers
@@ -108,36 +75,6 @@ export class XprinterDriver extends EscPos {
       buffers.push(new Uint8Array([0x10, 0x04, i]));
     }
     return buffers;
-  }
-
-  /**
-   * 芯烨打印机特定: 设置字符代码页
-   * @param codePage 代码页编号 (0-255)
-   * @returns Array of command buffers
-   */
-  setCodePage(codePage: number): Uint8Array[] {
-    // ESC t n
-    return [new Uint8Array([0x1b, 0x74, codePage])];
-  }
-
-  /**
-   * 芯烨打印机特定: 设置左边界
-   * @param n 左边界字符数
-   * @returns Array of command buffers
-   */
-  setLeftMargin(n: number): Uint8Array[] {
-    // ESC l n
-    return [new Uint8Array([0x1b, 0x6c, n])];
-  }
-
-  /**
-   * 芯烨打印机特定: 设置打印区域宽度
-   * @param n 宽度 (字符数)
-   * @returns Array of command buffers
-   */
-  setPrintWidth(n: number): Uint8Array[] {
-    // ESC W n
-    return [new Uint8Array([0x1b, 0x57, n])];
   }
 
   /**

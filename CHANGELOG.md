@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.2] - 2026-05-02
+
+### Fixed
+
+- **代码质量优化 — 消除所有 ESLint 错误** (#37 → 0)
+  - 移除 3 个文件顶部 `eslint-disable`（共 18 条规则绕过）
+  - 修复所有非空断言 (`!`) — `Uint8Array[i]!`、`parts[x]!`、`job.nextRunTime!` 等
+  - 修复所有 `any` 类型绕过 — `as string` 改为 `typeof` 运行时检查
+  - JSON.parse 结果改用 `as Record<string, unknown>` + 类型守卫访问
+  - 异步方法 `void` → `await`，消除 `require-await` 错误
+  - `Record<string, any>` → `Record<string, unknown>`
+  - 消除 `no-base-to-string`：`String(value)` → `JSON.stringify(value)`
+  - 消除 `no-unused-vars`：废弃变量改为 `void timeout`
+- **零 ESLint 警告/错误、零非空断言、零行内 eslint-disable 残留**
+
+---
+
 ## [2.10.1] - 2026-05-01
 
 ### Fixed

@@ -10,7 +10,7 @@ import { IAdapterOptions } from '@/types';
 import { IPrintJobManager, IConnectionManager } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Creates a no-op adapter for backward compatibility with mock objects in tests.

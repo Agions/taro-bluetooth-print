@@ -4,7 +4,7 @@
  * Specialized error for command building failures
  */
 
-import { BluetoothPrintError, ErrorCode } from './BluetoothError';
+import { BluetoothPrintError, ErrorCode } from './baseError';
 
 /**
  * Command building error codes

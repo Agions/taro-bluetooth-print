@@ -12,7 +12,7 @@ import { ByteDanceAdapter } from './ByteDanceAdapter';
 import { QQAdapter } from './QQAdapter';
 import { WebBluetoothAdapter } from './WebBluetoothAdapter';
 import { PlatformType, detectPlatform } from '@/utils/platform';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Adapter factory class

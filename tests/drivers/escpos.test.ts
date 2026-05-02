@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { EscPos } from '../../src/drivers/EscPos';
+import { EscPos } from '../../src/drivers/escPosDriver';
 
 describe('EscPos Driver', () => {
   it('should initialize printer', () => {

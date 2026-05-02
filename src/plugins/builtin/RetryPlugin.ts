@@ -5,7 +5,7 @@
 
 import { Plugin, PluginFactory, PluginOptions } from '../types';
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 export interface RetryPluginOptions extends PluginOptions {
   /** Maximum retry attempts (default: 3) */

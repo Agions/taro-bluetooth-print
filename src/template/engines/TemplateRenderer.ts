@@ -7,7 +7,7 @@
 import { Logger } from '@/utils/logger';
 import { TextFormatter, TextAlign } from '@/formatter';
 import { BarcodeGenerator, BarcodeFormat } from '@/barcode';
-import { EscPos } from '@/drivers/EscPos';
+import { EscPos } from '@/drivers/escPosDriver';
 import type {
   TemplateElement,
   LoopElement,

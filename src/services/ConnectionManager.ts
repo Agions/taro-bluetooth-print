@@ -11,7 +11,7 @@ import { AdapterFactory } from '@/adapters/AdapterFactory';
 import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
 import { withTimeout } from '@/utils/withTimeout';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { EventEmitter } from '@/core/EventEmitter';
 
 /**

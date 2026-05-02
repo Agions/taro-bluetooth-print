@@ -4,7 +4,7 @@
  */
 
 import { Plugin, PluginHooks, PluginOptions } from './types';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { PrinterState } from '@/types';
 import { Logger } from '@/utils/logger';
 

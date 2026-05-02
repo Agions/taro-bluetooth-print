@@ -7,7 +7,7 @@ import { IAdapterOptions, IQrOptions, PrinterState, IPrinterAdapter } from '@/ty
 import { EventEmitter } from './EventEmitter';
 import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { ConnectionManager } from '@/services/ConnectionManager';
 import { PrintJobManager } from '@/services/PrintJobManager';
 import { CommandBuilder } from '@/services/CommandBuilder';

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-floating-promises */
-
 /**
  * PrintScheduler - Scheduled printing service
  * Supports one-time scheduling, repeat intervals, and cron expressions
@@ -16,7 +14,7 @@ export interface ScheduledPrint {
   onceAt?: number;
   repeatInterval?: number;
   printerId?: string;
-  templateData: Record<string, any>;
+  templateData: Record<string, unknown>;
   templateId?: string;
   status: 'active' | 'paused' | 'completed' | 'failed';
   nextRunTime?: number;
@@ -33,7 +31,7 @@ export interface ScheduleOptions {
   onceAt?: Date | number;
   repeatInterval?: number;
   printerId?: string;
-  templateData: Record<string, any>;
+  templateData: Record<string, unknown>;
   templateId?: string;
   maxRuns?: number;
 }
@@ -62,11 +60,13 @@ export function parseCronExpression(cron: string): {
     throw new Error('Invalid cron expression');
   }
 
-  const minPart = parts[0]!;
-  const hourPart = parts[1]!;
-  const dayPart = parts[2]!;
-  const monthPart = parts[3]!;
-  const dowPart = parts[4]!;
+  const [minPart, hourPart, dayPart, monthPart, dowPart] = parts as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
 
   const parseField = (field: string, min: number, max: number): number[] => {
     if (field === '*') {
@@ -301,8 +301,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
 
   getUpcomingJobs(limit: number = 10): ScheduledPrint[] {
     return this.getActiveJobs()
-      .filter(j => j.nextRunTime)
-      .sort((a, b) => a.nextRunTime! - b.nextRunTime!)
+      .filter((j): j is ScheduledPrint & { nextRunTime: number } => !!j.nextRunTime)
+      .sort((a, b) => a.nextRunTime - b.nextRunTime)
       .slice(0, limit);
   }
 
@@ -329,20 +329,20 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
     }
 
     const nextJob = this.getActiveJobs()
-      .filter(j => j.nextRunTime)
-      .sort((a, b) => a.nextRunTime! - b.nextRunTime!)[0];
+      .filter((j): j is ScheduledPrint & { nextRunTime: number } => !!j.nextRunTime)
+      .sort((a, b) => a.nextRunTime - b.nextRunTime)[0];
 
     if (!nextJob) return;
 
-    const delay = nextJob.nextRunTime! - Date.now();
+    const delay = nextJob.nextRunTime - Date.now();
     if (delay <= 0) {
-      this.executeJob(nextJob);
+      void this.executeJob(nextJob);
       return;
     }
 
     this.timer = setTimeout(
       () => {
-        this.executeJob(nextJob);
+        void this.executeJob(nextJob);
       },
       Math.min(delay, 2147483647)
     );
@@ -386,9 +386,9 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
       this.emit('failed', { job, error: normalizeError(error) });
     }
 
-    if (job.status === 'active') {
+    if (job.status === 'active' && job.nextRunTime) {
       this.scheduleNext();
-      this.emit('next-run', { job, runTime: job.nextRunTime! });
+      this.emit('next-run', { job, runTime: job.nextRunTime });
     }
   }
 
@@ -440,8 +440,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
   } {
     const activeJobs = this.getActiveJobs();
     const nextJob = activeJobs
-      .filter(j => j.nextRunTime)
-      .sort((a, b) => a.nextRunTime! - b.nextRunTime!)[0];
+      .filter((j): j is ScheduledPrint & { nextRunTime: number } => !!j.nextRunTime)
+      .sort((a, b) => a.nextRunTime - b.nextRunTime)[0];
 
     return {
       isRunning: this.isRunning,

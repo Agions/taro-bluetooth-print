@@ -4,7 +4,7 @@
  * Specialized error for connection-related failures
  */
 
-import { BluetoothPrintError, ErrorCode } from './BluetoothError';
+import { BluetoothPrintError, ErrorCode } from './baseError';
 
 /**
  * Connection-related error codes

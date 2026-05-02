@@ -272,7 +272,6 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
    */
   private handleMessage(data: string): void {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const message = JSON.parse(data) as ServerMessage;
       this.log.debug('Received message', message.type);
 
@@ -366,7 +365,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
     let binary = '';
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]!);
+      binary += String.fromCharCode(bytes[i] ?? 0);
     }
     return btoa(binary);
   }

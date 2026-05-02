@@ -3,7 +3,7 @@
  * Defines interfaces for extending BluetoothPrinter functionality
  */
 
-import { BluetoothPrintError } from '@/errors/BluetoothError';
+import { BluetoothPrintError } from '@/errors/baseError';
 import { PrinterState } from '@/types';
 
 /**

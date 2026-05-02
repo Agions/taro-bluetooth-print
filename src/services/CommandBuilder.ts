@@ -7,7 +7,7 @@
 import type { IPrinterDriver, IQrOptions } from '@/types';
 import { ICommandBuilder } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
-import { EscPos } from '@/drivers/EscPos';
+import { EscPos } from '@/drivers/escPosDriver';
 import { TextFormatter, TextAlign, TextStyle } from '@/formatter';
 import { BarcodeGenerator, BarcodeOptions } from '@/barcode';
 

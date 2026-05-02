@@ -6,10 +6,9 @@
  *
  * @example
  * ```typescript
- * import { generateUUID, parseUUID, isValidUUID } from '@/utils/uuid';
+ * import { generateUUID, isValidUUID } from '@/utils/uuid';
  *
  * const id = generateUUID(); // v4 UUID
- * const parsed = parseUUID(id);
  * const valid = isValidUUID(id);
  * ```
  */
@@ -69,27 +68,6 @@ export interface UUIDValidationResult {
   /** Error message if invalid */
   error?: string;
 }
-
-/**
- * UUID namespace for generating namespaced UUIDs (V5)
- */
-export interface UUIDNamespace {
-  /** Namespace UUID */
-  uuid: string;
-  /** Namespace name */
-  name: string;
-}
-
-/**
- * Predefined namespaces for namespaced UUIDs (RFC 4122)
- */
-export const UUID_NAMESPACES: Record<string, UUIDNamespace> = {
-  NAMESPACE_DNS: { uuid: '6ba7b810-9dad-11d1-80b4-00c04fd430c8', name: 'dns' },
-  NAMESPACE_URL: { uuid: '6ba7b811-9dad-11d1-80b4-00c04fd430c8', name: 'url' },
-  NAMESPACE_OID: { uuid: '6ba7b812-9dad-11d1-80b4-00c04fd430c8', name: 'oid' },
-  NAMESPACE_X500: { uuid: '6ba7b814-9dad-11d1-80b4-00c04fd430c8', name: 'x500' },
-  NAMESPACE_NS: { uuid: '6ba7b810-9dad-11d1-80b4-00c04fd430c8', name: 'null' },
-};
 
 /**
  * Generate a random UUID
@@ -212,11 +190,10 @@ function generateUUIDv7(): string {
   bytes[5] = timestamp48 & 0xff;
 
   // Version and variant bits for random part
-  // Version 7 in high nibble of byte 6
+  // Version 7 in high nibble of byte 6 (randomBytes[0] after copy)
   randomBytes[0] = ((randomBytes[0] ?? 0) & 0x0f) | 0x70;
-  // Variant (10xx) - both bytes 7 and 8 need high bits set to 10
-  randomBytes[6] = ((randomBytes[6] ?? 0) & 0x3f) | 0xc0; // byte 8: variant bits 10
-  randomBytes[7] = ((randomBytes[7] ?? 0) & 0x3f) | 0x80; // byte 7: variant bits 10 (high bit only, low bit is already 0 from mask)
+  // Variant (10xx) in high nibble of byte 8 (randomBytes[2] after copy)
+  randomBytes[2] = ((randomBytes[2] ?? 0) & 0x3f) | 0x80;
 
   // Copy random bytes
   bytes.set(randomBytes.slice(0, 6), 6);
@@ -234,80 +211,6 @@ function formatUUIDBytes(bytes: Uint8Array): string {
     .join('');
 
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-/**
- * Parse a UUID string into its components
- *
- * @param uuid - UUID string to parse
- * @returns Parsed UUID structure
- *
- * @example
- * ```typescript
- * const parsed = parseUUID('550e8400-e29b-41d4-a716-446655440000');
- * console.log(parsed.version); // 4
- * console.log(parsed.valid); // true
- * ```
- */
-export function parseUUID(uuid: string): ParsedUUID {
-  const result: ParsedUUID = {
-    raw: uuid,
-    version: 0 as unknown as UUIDVersion,
-    variant: 0,
-    valid: false,
-  };
-
-  // Validate basic format
-  if (!uuid || typeof uuid !== 'string') {
-    return result;
-  }
-
-  // Remove hyphens for processing
-  const normalized = uuid.replace(/-/g, '');
-
-  // Must be 32 hex characters
-  if (normalized.length !== 32 || !/^[0-9a-f]{32}$/i.test(normalized)) {
-    return result;
-  }
-
-  // Extract version
-  const versionChar = normalized.charAt(12);
-  const version = parseInt(versionChar, 16);
-
-  if (isNaN(version) || version < 1 || version > 7) {
-    return result;
-  }
-
-  result.version = version as UUIDVersion;
-
-  // Extract variant
-  const variantChar = normalized.charAt(16);
-  const variantInt = parseInt(variantChar, 16);
-  result.variant = variantInt;
-
-  // Parse timestamp for time-based UUIDs (v1 and v7)
-  if (version === 1 || version === 7) {
-    if (version === 1) {
-      // V1: time_low (8), time_mid (4), time_hi (4), node (12)
-      const timeLow = parseInt(normalized.slice(0, 8), 16);
-      const timeMid = parseInt(normalized.slice(8, 12), 16);
-      const timeHi = parseInt(normalized.slice(12, 16), 16) & 0x0fff;
-      result.timestamp = (timeHi << 48) | (timeMid << 32) | timeLow;
-      result.node = normalized.slice(20);
-    } else if (version === 7) {
-      // V7: 48-bit timestamp
-      const timestamp48 = parseInt(normalized.slice(0, 12), 16);
-      result.timestamp = timestamp48;
-    }
-  }
-
-  // Parse random bytes for random UUIDs
-  if (version === 4) {
-    result.random = normalized.slice(12);
-  }
-
-  result.valid = true;
-  return result;
 }
 
 /**
@@ -346,177 +249,5 @@ export function isValidUUID(uuid: string): UUIDValidationResult {
     return { valid: false, error: `Invalid UUID version: ${version}` };
   }
 
-  // Check variant bits (should be 8, 9, a, or b)
-  const variantChar = normalized.charAt(16);
-  const variant = parseInt(variantChar, 16);
-  if ((variant & 0xc000) !== 0x8000) {
-    // Note: We don't fail on this, just note it
-  }
-
   return { valid: true, version: version as UUIDVersion };
-}
-
-/**
- * Extract timestamp from a time-based UUID (v1 or v7)
- *
- * @param uuid - UUID string
- * @returns Timestamp in milliseconds, or null if not a time-based UUID
- *
- * @example
- * ```typescript
- * const timestamp = getUUIDTimestamp('07c450b0-7d4a-11ed-a1eb-0242ac120002');
- * console.log(new Date(timestamp ?? 0));
- * ```
- */
-export function getUUIDTimestamp(uuid: string): number | null {
-  const parsed = parseUUID(uuid);
-
-  if (!parsed.valid) {
-    return null;
-  }
-
-  if (parsed.version !== UUIDVersion.V1 && parsed.version !== UUIDVersion.V7) {
-    return null;
-  }
-
-  return parsed.timestamp ?? null;
-}
-
-/**
- * Compare two UUIDs chronologically (for time-based UUIDs)
- *
- * @param uuidA - First UUID
- * @param uuidB - Second UUID
- * @returns -1 if A < B, 0 if equal, 1 if A > B
- *
- * @example
- * ```typescript
- * const order = compareUUIDs(uuid1, uuid2);
- * ```
- */
-export function compareUUIDs(uuidA: string, uuidB: string): number {
-  const parsedA = parseUUID(uuidA);
-  const parsedB = parseUUID(uuidB);
-
-  if (!parsedA.valid || !parsedB.valid) {
-    throw new Error('Invalid UUID provided for comparison');
-  }
-
-  const timeA = parsedA.timestamp ?? 0;
-  const timeB = parsedB.timestamp ?? 0;
-
-  if (timeA < timeB) return -1;
-  if (timeA > timeB) return 1;
-
-  // Same timestamp, compare random parts
-  return uuidA.localeCompare(uuidB);
-}
-
-/**
- * Convert UUID to bytes (Uint8Array)
- *
- * @param uuid - UUID string
- * @returns UUID as 16-byte array
- */
-export function uuidToBytes(uuid: string): Uint8Array {
-  const normalized = uuid.replace(/-/g, '');
-  const bytes = new Uint8Array(16);
-
-  for (let i = 0; i < 32; i += 2) {
-    bytes[i / 2] = parseInt(normalized.slice(i, i + 2), 16);
-  }
-
-  return bytes;
-}
-
-/**
- * Convert bytes to UUID string
- *
- * @param bytes - 16-byte array
- * @param hyphenated - Include hyphens (default: true)
- * @returns UUID string
- */
-export function bytesToUUID(bytes: Uint8Array, hyphenated = true): string {
-  if (bytes.length !== 16) {
-    throw new Error('UUID bytes must be exactly 16 bytes');
-  }
-
-  const hex = Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  if (hyphenated) {
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-  }
-
-  return hex;
-}
-
-/**
- * Generate a short ID (8-12 character hex string)
- * Useful for display purposes like job IDs
- *
- * @param length - Length of ID (default: 8)
- * @returns Short hex ID
- *
- * @example
- * ```typescript
- * const shortId = generateShortId(8); // e.g., 'a3f2b1c9'
- * ```
- */
-export function generateShortId(length = 8): string {
-  const bytes = new Uint8Array(Math.ceil(length / 2));
-  crypto.getRandomValues(bytes);
-
-  const hex = Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  return hex.substring(0, length);
-}
-
-/**
- * Generate a namespaced UUID (v5)
- *
- * @param namespace - Namespace UUID
- * @param name - Name within namespace
- * @param options - Generation options
- * @returns Namespaced UUID
- *
- * @example
- * ```typescript
- * const uuid = generateNamespacedUUID(UUID_NAMESPACES.NAMESPACE_DNS, 'example.com');
- * ```
- */
-export function generateNamespacedUUID(
-  namespace: string,
-  name: string,
-  options?: UUIDOptions
-): string {
-  const nsBytes = uuidToBytes(namespace);
-  const nameBytes = new TextEncoder().encode(name);
-
-  // SHA-1 hashing (simplified - using Web Crypto)
-  // Note: Full implementation would use crypto.subtle.digest
-  // For v5, we use a deterministic pseudo-random approach
-  const combined = new Uint8Array(nsBytes.length + nameBytes.length);
-  combined.set(nsBytes);
-  combined.set(nameBytes, nsBytes.length);
-
-  // Simple hash for demo - in production use proper SHA-1 via Web Crypto
-  let hash = 0;
-  for (let i = 0; i < combined.length; i++) {
-    hash = ((hash << 5) - hash + (combined[i] ?? 0)) | 0;
-  }
-
-  const hashBytes = new Uint8Array(16);
-  for (let i = 0; i < 16; i++) {
-    hashBytes[i] = Math.abs(hash >> (i * 2)) & 0xff;
-  }
-
-  // Set version (5) and variant bits
-  hashBytes[6] = ((hashBytes[6] ?? 0) & 0x0f) | 0x50;
-  hashBytes[8] = ((hashBytes[8] ?? 0) & 0x3f) | 0x80;
-
-  return bytesToUUID(hashBytes, options?.hyphenated ?? true);
 }

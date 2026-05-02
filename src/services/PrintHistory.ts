@@ -201,11 +201,13 @@ export class PrintHistory {
     let results = Array.from(this.entries.values());
 
     if (options.startDate) {
-      results = results.filter(e => e.createdAt >= options.startDate!);
+      const startDate = options.startDate;
+      results = results.filter(e => e.createdAt >= startDate);
     }
 
     if (options.endDate) {
-      results = results.filter(e => e.createdAt <= options.endDate!);
+      const endDate = options.endDate;
+      results = results.filter(e => e.createdAt <= endDate);
     }
 
     if (options.status) {

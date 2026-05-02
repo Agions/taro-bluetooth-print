@@ -162,10 +162,12 @@ export class PrintStatistics {
 
       // Update driver breakdown
       if (record.driver) {
-        if (!this.byDriver[record.driver]) {
-          this.byDriver[record.driver] = { completed: 0, failed: 0 };
+        let driverStats = this.byDriver[record.driver];
+        if (!driverStats) {
+          driverStats = { completed: 0, failed: 0 };
+          this.byDriver[record.driver] = driverStats;
         }
-        this.byDriver[record.driver]!.completed++;
+        driverStats.completed++;
       }
 
       // Update date breakdown
@@ -211,10 +213,12 @@ export class PrintStatistics {
 
       // Update driver breakdown
       if (record.driver) {
-        if (!this.byDriver[record.driver]) {
-          this.byDriver[record.driver] = { completed: 0, failed: 0 };
+        let driverStats = this.byDriver[record.driver];
+        if (!driverStats) {
+          driverStats = { completed: 0, failed: 0 };
+          this.byDriver[record.driver] = driverStats;
         }
-        this.byDriver[record.driver]!.failed++;
+        driverStats.failed++;
       }
 
       // Update date breakdown
@@ -487,13 +491,15 @@ export class PrintStatistics {
     const result: Record<string, { completed: number; failed: number }> = {};
     for (const job of jobs) {
       if (!job.driver) continue;
-      if (!result[job.driver]) {
-        result[job.driver] = { completed: 0, failed: 0 };
+      let driverStats = result[job.driver];
+      if (!driverStats) {
+        driverStats = { completed: 0, failed: 0 };
+        result[job.driver] = driverStats;
       }
       if (job.status === 'completed') {
-        result[job.driver]!.completed++;
+        driverStats.completed++;
       } else if (job.status === 'failed') {
-        result[job.driver]!.failed++;
+        driverStats.failed++;
       }
     }
     return result;

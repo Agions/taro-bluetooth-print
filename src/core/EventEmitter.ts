@@ -42,7 +42,10 @@ export class EventEmitter<T> {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(handler as (data: T[keyof T]) => void);
+    const existing = this.listeners.get(event);
+    if (existing) {
+      existing.add(handler as (data: T[keyof T]) => void);
+    }
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Added listener for "${String(event)}"`, {

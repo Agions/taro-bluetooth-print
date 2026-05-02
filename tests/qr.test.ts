@@ -3,7 +3,7 @@ import { describe, test, expect } from 'vitest';
 import { TextEncoder } from 'util';
 global.TextEncoder = TextEncoder as any;
 
-import { EscPos } from '../src/drivers/EscPos';
+import { EscPos } from '../src/drivers/escPosDriver';
 import { Encoding } from '../src/utils/encoding';
 
 // Mock Encoding since it might depend on TextEncoder which is available in Node 11+

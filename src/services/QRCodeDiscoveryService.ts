@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-base-to-string */
-
 /**
  * QRCodeDiscoveryService - 二维码打印机配对服务
  *
@@ -187,18 +185,28 @@ export class QRCodeDiscoveryService {
       }
 
       // 尝试完整 JSON 解析
-      const json = JSON.parse(content);
+      const json = JSON.parse(content) as Record<string, unknown>;
       if (json.mac || json.MAC || json.address || json.bluetooth) {
-        const address = json.mac || json.MAC || json.address || json.bluetooth;
-        const name = json.name || json.Name || json.deviceName || 'Sunmi Device';
-        const deviceType = this.normalizeDeviceType(json.type || json.deviceType);
+        const rawAddress = json.mac || json.MAC || json.address || json.bluetooth;
+        const address = typeof rawAddress === 'string' ? rawAddress : '';
+        const rawName = json.name || json.Name || json.deviceName;
+        const name = typeof rawName === 'string' ? rawName : 'Sunmi Device';
+        const rawType = json.type || json.deviceType;
+        const deviceType = this.normalizeDeviceType(
+          typeof rawType === 'string' ? rawType : undefined
+        );
 
         return {
           device: {
             name: name || 'Unknown Device',
             address: this.normalizeMacAddress(address) || '',
             type: deviceType || 'printer',
-            serviceUuid: ((json.serviceUuid || json.uuid) as string) || undefined,
+            serviceUuid:
+              typeof json.serviceUuid === 'string'
+                ? json.serviceUuid
+                : typeof json.uuid === 'string'
+                  ? json.uuid
+                  : undefined,
             metadata: this.extractJsonMetadata(content),
           },
           raw: content,
@@ -375,7 +383,7 @@ export class QRCodeDiscoveryService {
   private extractJsonMetadata(jsonStr: string): Record<string, string> {
     const metadata: Record<string, string> = {};
     try {
-      const json = JSON.parse(jsonStr);
+      const json = JSON.parse(jsonStr) as Record<string, unknown>;
       const knownKeys = [
         'name',
         'mac',
@@ -388,7 +396,7 @@ export class QRCodeDiscoveryService {
       ];
       for (const [key, value] of Object.entries(json)) {
         if (!knownKeys.includes(key) && value !== undefined && value !== null) {
-          metadata[key] = String(value);
+          metadata[key] = typeof value === 'string' ? value : JSON.stringify(value);
         }
       }
     } catch {

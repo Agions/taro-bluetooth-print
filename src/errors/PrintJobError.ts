@@ -4,7 +4,7 @@
  * Specialized error for print job failures
  */
 
-import { BluetoothPrintError, ErrorCode } from './BluetoothError';
+import { BluetoothPrintError, ErrorCode } from './baseError';
 
 /**
  * Print job-related error codes

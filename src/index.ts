@@ -94,7 +94,7 @@ export {
 export type { TruncateOptions } from './utils/outputLimiter';
 
 // Error handling - 错误处理
-export { BluetoothPrintError, ErrorCode } from './errors/BluetoothError';
+export { BluetoothPrintError, ErrorCode } from './errors/baseError';
 export { ConnectionError, ConnectionErrorCode } from './errors/ConnectionError';
 export { PrintJobError, PrintJobErrorCode } from './errors/PrintJobError';
 export { CommandBuildError, CommandBuildErrorCode } from './errors/CommandBuildError';

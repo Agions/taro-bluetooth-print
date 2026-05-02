@@ -22,7 +22,7 @@
  */
 
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { EventEmitter } from '@/core/EventEmitter';
 
 /**
@@ -392,7 +392,10 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
 
       if (jobs.length === 1 && this.config.unifiedCutCommand) {
         // Single job with unified cut
-        mergedData = this.concatBuffers([jobs[0]!.data, this.config.unifiedCutCommand]);
+        mergedData = this.concatBuffers([
+          (jobs[0] as { data: Uint8Array }).data,
+          this.config.unifiedCutCommand,
+        ]);
         this.stats.unifiedCutsApplied++;
       } else {
         mergedData = jobs[0]?.data ?? new Uint8Array(0);

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 /**
  * @fileoverview DiscoveryService uses dynamic adapter loading for platform-specific Bluetooth operations.
  * The platformAdapter field is typed as `BaseAdapter | undefined` because different adapters
@@ -184,9 +184,8 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const devices = (await (this.platformAdapter as any)?.requestDevices?.()) ?? [];
-      this.processDevices(devices);
+      // 启动平台适配器的设备发现
+      await this.platformAdapter?.startDiscovery?.();
     } catch (error) {
       this.emit('discovery-error', normalizeError(error));
     }
@@ -217,47 +216,8 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
     }
   }
 
-  /**
-   * 处理发现的设备
-   */
-  private processDevices(devices: any[]): void {
-    for (const device of devices) {
-      this.processDevice(device);
-    }
-  }
-
-  /**
-   * 处理单个设备
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private processDevice(deviceInfo: any): void {
-    const deviceId = deviceInfo.deviceId || deviceInfo.id;
-    const now = Date.now();
-
-    const existing = this.discoveredDevices.get(deviceId);
-    const isNew = !existing;
-
-    const device: DiscoveredDevice = {
-      id: deviceId,
-      name: deviceInfo.name || `Device-${deviceId.slice(0, 8)}`,
-      deviceId,
-      rssi: deviceInfo.rssi ?? deviceInfo.RSSI,
-      appearance: deviceInfo.appearance,
-      manufacturerData: deviceInfo.manufacturerData,
-      serviceData: deviceInfo.serviceData,
-      txPowerLevel: deviceInfo.txPowerLevel,
-      lastSeen: now,
-      discoveredCount: existing ? existing.discoveredCount + 1 : 1,
-    };
-
-    this.discoveredDevices.set(deviceId, device);
-
-    if (isNew) {
-      this.emit('device-found', device);
-    } else {
-      this.emit('device-updated', device);
-    }
-  }
+  // 监听 platform adapter 的设备发现回调（预留扩展点）
+  // private processDevice(deviceInfo: any): void { ... }
 
   /**
    * 获取过滤和排序后的设备列表

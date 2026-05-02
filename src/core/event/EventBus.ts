@@ -4,6 +4,7 @@
  */
 
 import { normalizeError } from '@/utils/normalizeError';
+import { Logger } from '@/utils/logger';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type EventHandler<T = any> = (payload: T) => void | Promise<void>;
@@ -133,7 +134,7 @@ export class EventBus {
           await listener.handler(payload);
         }
       } catch (error) {
-        console.error(`Error in event handler for "${eventKey}":`, error);
+        Logger.error(`Error in event handler for "${eventKey}":`, error);
       }
 
       // 标记一次性监听器
@@ -160,7 +161,7 @@ export class EventBus {
    */
   emitSync<T>(event: string | symbol, payload: T): void {
     this.emit(event, payload).catch(error => {
-      console.error(`Error in async event handler for "${String(event)}":`, error);
+      Logger.error(`Error in async event handler for "${String(event)}":`, error);
     });
   }
 

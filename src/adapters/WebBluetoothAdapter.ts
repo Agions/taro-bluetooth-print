@@ -9,7 +9,7 @@
 import { IAdapterOptions, PrinterState } from '@/types';
 import { BaseAdapter } from './BaseAdapter';
 import { normalizeError } from '@/utils/normalizeError';
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Extended Bluetooth device interface with RSSI support

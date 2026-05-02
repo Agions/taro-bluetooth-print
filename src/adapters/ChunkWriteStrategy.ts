@@ -10,7 +10,7 @@
  * @template TOptions - Platform-specific options/context for writeChunk()
  */
 
-import { BluetoothPrintError, ErrorCode } from '@/errors/BluetoothError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import type { IAdapterOptions } from '@/types';
 import { Logger } from '@/utils/logger';
 
