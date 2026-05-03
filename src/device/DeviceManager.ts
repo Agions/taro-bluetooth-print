@@ -13,6 +13,8 @@
  */
 
 import Taro from '@tarojs/taro';
+
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { Logger } from '@/utils/logger';
 import { emitAndThrow } from '@/utils/normalizeError';
 import { EventEmitter } from '@/core/EventEmitter';
@@ -214,7 +216,7 @@ export class DeviceManager extends EventEmitter<DeviceManagerEvents> implements 
       const services = servicesRes.services;
 
       if (services.length === 0) {
-        throw new Error('No services found on device');
+        throw new BluetoothPrintError(ErrorCode.SERVICE_NOT_FOUND, 'No services found on device');
       }
 
       let serviceId: string | undefined;
@@ -238,7 +240,10 @@ export class DeviceManager extends EventEmitter<DeviceManagerEvents> implements 
       }
 
       if (!serviceId || !characteristicId) {
-        throw new Error('No writable characteristic found');
+        throw new BluetoothPrintError(
+          ErrorCode.CHARACTERISTIC_NOT_FOUND,
+          'No writable characteristic found'
+        );
       }
 
       const device = this.discoveredDevices.get(deviceId);

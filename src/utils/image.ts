@@ -5,6 +5,8 @@
  * Supports multiple dithering algorithms and image preprocessing.
  */
 
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+
 export class ImageProcessing {
   // Pre-computed Bayer matrices for ordered dithering
   private static readonly BAYER_MATRIX_2: ReadonlyArray<ReadonlyArray<number>> = [
@@ -84,7 +86,8 @@ export class ImageProcessing {
     }
 
     if (data.length !== width * height * 4) {
-      throw new Error(
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_IMAGE_DATA,
         `Invalid image data length: expected ${width * height * 4}, got ${data.length}`
       );
     }

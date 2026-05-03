@@ -32,6 +32,13 @@ export enum ErrorCode {
 
   // Platform errors
   PLATFORM_NOT_SUPPORTED = 'PLATFORM_NOT_SUPPORTED',
+
+  // Queue errors
+  QUEUE_FULL = 'QUEUE_FULL',
+  QUEUE_JOB_NOT_FOUND = 'QUEUE_JOB_NOT_FOUND',
+
+  // Preview errors
+  PREVIEW_FAILED = 'PREVIEW_FAILED',
 }
 
 /**

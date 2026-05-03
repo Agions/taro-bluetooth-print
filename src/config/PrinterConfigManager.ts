@@ -29,6 +29,7 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Print configuration for a device
@@ -338,7 +339,7 @@ export class PrinterConfigManager {
   setDefaultPrinter(id: string): void {
     const printer = this.printers.get(id);
     if (!printer) {
-      throw new Error(`Printer not found: ${id}`);
+      throw new BluetoothPrintError(ErrorCode.DEVICE_NOT_FOUND, `Printer not found: ${id}`);
     }
 
     // Unset other defaults

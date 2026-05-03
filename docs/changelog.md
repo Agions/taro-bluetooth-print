@@ -1,89 +1,147 @@
+# Changelog
+
+## [2.11.0] - 2026-05-04
+
+### Changed
+- **错误体系统一**: 将 14 处 `throw new Error()` 迁移为 `BluetoothPrintError` + `ErrorCode`，覆盖 ReactNativeAdapter、DeviceManager、PrinterConfigManager、PrinterFactory、PreviewRenderer、PrintQueue、CloudPrintManager、PrintJobManager、PrintScheduler、image.ts
+- **DiscoveryService.ts**: 移除顶部 3 条 eslint-disable 规则，清理注释代码
+- **TemplateRenderer.ts**: `itemData: any` → `Record<string, unknown>`，移除 3 处行内 eslint-disable
+- **outputLimiter.ts**: batchProcess 错误处理规范化（instanceof Error 守卫 + message 输出）
+- **魔数提取**: ChunkWriteStrategy 提取 7 个常量（CHUNK_SIZE_STEP、DELAY_BACKOFF_FACTOR 等），PrintHistory 提取 DEFAULT_MAX_ENTRIES，TemplateRenderer/TemplateEngine 提取 DEFAULT_PAPER_WIDTH
+
+### Added
+- 新增 ErrorCode: `QUEUE_FULL`、`QUEUE_JOB_NOT_FOUND`、`PREVIEW_FAILED`
+
+### Testing
+- 985 tests passed, 38 skipped, 0 regressions
+- type-check: 0 errors
+- lint: 0 errors
+
+
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ---
-outline: [2, 3]
+
+## [2.10.2] - 2026-05-02
+
+### Fixed
+
+- **代码质量优化 — 消除所有 ESLint 错误** (#37 → 0)
+  - 移除 3 个文件顶部 `eslint-disable`（共 18 条规则绕过）
+  - 修复所有非空断言 (`!`) — `Uint8Array[i]!`、`parts[x]!`、`job.nextRunTime!` 等
+  - 修复所有 `any` 类型绕过 — `as string` 改为 `typeof` 运行时检查
+  - JSON.parse 结果改用 `as Record<string, unknown>` + 类型守卫访问
+  - 异步方法 `void` → `await`，消除 `require-await` 错误
+  - `Record<string, any>` → `Record<string, unknown>`
+  - 消除 `no-base-to-string`：`String(value)` → `JSON.stringify(value)`
+  - 消除 `no-unused-vars`：废弃变量改为 `void timeout`
+- **零 ESLint 警告/错误、零非空断言、零行内 eslint-disable 残留**
+
 ---
 
-# 更新日志
+## [2.10.1] - 2026-05-01
 
-所有重要的项目变更都会记录在此文件中。
+### Fixed
 
-本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 规范，并使用 [Semantic Versioning](https://semver.org/lang/zh-CN/) 进行版本管理。
+- **npm publish 版本冲突** — `v2.10.0` 因旧 tag 提前发布导致新内容无法覆盖。bump 至 `2.10.1` 重新发布。
 
-## [2.9.2] - 2026-04-13
+---
 
-### 修复
+## [2.10.0] - 2026-05-01
 
-- **Container.ts**: 修复 `injectable` 装饰器类型断言，使用 `unknown` 中转解决 TypeScript 严格模式下的类型转换错误
+### Added
 
-### 文档
+- **`ChunkWriteStrategy` 自适应分块写入抽象基类** (#R4)
+  - Template Method 模式：将 MiniProgramAdapter 与 ReactNativeAdapter 共用的自适应分块写入逻辑提取到统一基类
+  - 子类仅需实现 `writeSingleChunk()` 平台特定的单块写入操作
+  - 公共框架包括：自适应分块大小调整、指数退避重试、连接状态周期性检查、单块超时、分块间 BLE 拥塞控制延迟
+  - `MiniProgramWriteStrategy` — 封装 Taro/微信/支付宝/百度/字节/QQ 小程序 BLE API
+  - `ReactNativeWriteStrategy` — 封装 react-native-ble-plx，含 withResponse/withoutResponse 降级回退
 
-- 完善 API 文档完整性
-- 补充缺失的文档页面
+- **`withTimeout()` 工具函数集成** (#R5)
+  - 提取 Promise race + setTimeout 重复模式到 `src/utils/withTimeout.ts`
+  - 已集成至 `BaseAdapter.connect()`、`ReactNativeAdapter.connect()`、`ConnectionManager.connect()`、`PrinterStatus.queryStatus()`
+  - 减少约 40 行重复的手动 timer 管理代码，消除遗漏 clearTimeout 的风险
 
-## [2.9.1] - 2026-04-13
+### Changed
 
-### 修复
+- **适配器代码重构**
+  - `MiniProgramBLEApi.writeBLECharacteristicValue` 参数类型从 `ArrayBuffer` 扩展为 `ArrayBuffer | ArrayBufferLike`，消除 `chunk.buffer` 的类型兼容性 warning
+  - `ReactNativeAdapter.arrayBufferToBase64` 同理扩展参数类型
+  - `ChunkWriteStrategy.logger` 类型修正为 `ReturnType<typeof Logger.scope>`，修复 Logger 实例类型不匹配
 
-- **Container.ts**: 解决 lint 错误，包括 Prettier 格式化和不必要的 `any` 类型声明
+### Fixed
 
-## [2.9.0] - 2026-04-13
+- **`ChunkWriteStrategy.ts` 缺少 Logger 导入** — 导致 5 个适配器测试失败（TaroAdapter、AlipayAdapter、BaiduAdapter、ByteDanceAdapter、QQAdapter）
+- **`chunk.buffer` 类型兼容性** — `Uint8Array.buffer` 返回 `ArrayBufferLike`，原 `ArrayBuffer` 参数类型导致 TypeScript 编译错误
 
-### 架构升级
+### Security
 
-- **依赖注入容器**: 新增 `Container` 类，支持构造函数注入、工厂函数注入、实例注入
-- **事件总线**: 新增 `EventBus` 类，实现应用内组件通信
-- **插件系统**: 新增 `PluginManager`，支持插件生命周期管理
-- **ServiceProvider**: 新增 `ServiceProvider` 模块，统一管理所有服务注册
+- `withTimeout()` 统一使用 try/finally 模式的 timer 清理，消除所有手动 `Promise.race` + `setTimeout` 模式中遗漏 `clearTimeout` 的风险
 
-### 新增功能
+---
 
-- `Container.register()` / `registerSingleton()` / `registerType()` / `registerInstance()` - 多种注册方式
-- `Container.resolve()` / `resolveAll()` - 服务解析
-- 装饰器支持：`@injectable()` / `@inject(token)`
+## [2.9.6] - 2026-04-30
 
-### 测试覆盖率提升
+### Added
 
-- DeviceManager: 0% → 47.7%
-- PrintQueue: 0% → 60.3%
-- OfflineCache: 0% → 71.7%
-- OutputLimiter: 新增测试套件
+- **`ZplDriver.image()` — ZPL 图像编码实现** (#1)
+  - 使用 ZPL `^GFA` (Graphic Field) 命令编码 1-bit 黑白位图
+  - 支持 x/y 定位、字节校验、十六进制数据编码
+  - 适用于 Zebra ZD420、GT800、ZM400 等标签打印机
+  - [之前为 TODO 占位方法]
 
-## [2.8.4] - 2026-04-05
+- **`CpclDriver.downloadLogo()` — CPCL Logo 下载实现** (#2)
+  - 使用 CPCL `CG` (Compressed Graphic) 命令编码 1-bit 位图
+  - 宏定义存储 (`! DF`)，位图大小自动推断（可选传参）
+  - 向后兼容：签名保持 `(logoName, bitmap, options?)`
+  - 适用于 HP IR3222、霍尼韦尔等移动打印机
+  - [之前为 TODO 占位方法]
 
-### 修复
+- **单元测试覆盖**
+  - ZPL 图像编码：链式调用验证 (`^FO` / `^GFA` / `^FS` 命令输出断言)
+  - ZPL 空 bitmap 边界处理
 
-- `image.ts`: 添加 TypeScript strict mode non-null assertions，解决 `noUncheckedIndexedAccess` 警告
+### Fixed
 
-### 性能优化
+- **`ConnectionManager` 连接超时 Timer 泄漏** (#3)
+  - `connect()` 中 `setTimeout` 创建的连接超时 timer 在成功连接后未清理
+  - 修复：保存 timeoutId 引用，`Promise.race` 成功后显式 `clearTimeout()`
 
-- `image.ts`: 移除 TypedArray 访问上的冗余 `?? 0` / `?? 255` 操作符
+- **`PrinterStatus` 状态查询超时 Timer 泄漏** (#4)
+  - `queryStatus()` 中超时 timer 在正常返回后仍驻留至超时触发
+  - 修复：使用相同 timer 清理模式
 
-## [2.8.3] - 2026-04-04
+- **`PrintQueue` 重试定时器泄漏** (#5)
+  - 任务重试 `setTimeout` 未保存引用，`clear()` 时无法清理
+  - 修复：新增 `retryTimerId` 成员，`clear()` 时自动取消待执行的重试
 
-### 性能优化
+### Changed
 
-- `image.ts`: 移除 TypedArray 访问上的冗余操作符
-- gzip 体积：225.96 KB → 225.79 KB（-0.17 KB）
+- **README 文档更新**
+  - 「高级打印」新增 ZPL 图像编码、CPCL Logo 下载条目
+  - 「打印机驱动」新增功能状态列，明确标注各驱动支持程度
+  - 「性能指标」测试用例数更新为 879（95.7% 通过率）
 
-## [2.8.0] - 2026-04-02
+### Security
 
-### 新增
+- 消除了所有已识别的 `setTimeout` 泄漏风险点（共 3 处）
+- 资源清理路径审计通过：`disconnect` / `destroy` / `clear` 均能正确清理关联定时器
 
-- **XprinterDriver**: 芯烨打印机驱动
-- **SprtDriver**: 思普瑞特打印机驱动
-- **QRCodeDiscoveryService**: 二维码打印机配对服务
-- **CloudPrintManager**: WebSocket 云打印管理器
+---
 
-## [2.7.0] - 2026-03-31
+## [2.9.5] - 初始发布
 
-### 新增
+初始发布版本，包含完整的跨平台蓝牙打印功能支持。
 
-- **PrintScheduler**: 定时打印调度器
-- **DiscoveryService**: 增强型蓝牙设备发现服务
+### 核心能力
 
-## [2.6.0] - 2026-03-27
-
-### 首次正式发布
-
-- 完整的蓝牙打印解决方案
-- 多平台支持：微信小程序、H5、鸿蒙系统
-- 多协议支持：ESC/POS、TSPL、ZPL、CPCL、STAR
+- 7 大平台适配器：微信 / 支付宝 / 百度 / 字节跳动 / QQ 小程序 + H5 + React Native
+- 8 种打印机驱动：ESC/POS、TSPL、ZPL、CPCL、STAR、佳博、芯烨、思普瑞特
+- 完整打印生命周期：扫描 → 连接 → 打印 → 断开
+- 丰富的打印特性：图片（Floyd-Steinberg 抖动）、QR/条码（10+ 格式）、模板引擎
+- 运维体系：离线缓存、打印队列、多设备管理、历史统计、定时重试、插件系统

@@ -13,6 +13,7 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Preview options
@@ -141,7 +142,7 @@ export class PreviewRenderer implements IPreviewRenderer {
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        throw new Error('Failed to get canvas context');
+        throw new BluetoothPrintError(ErrorCode.PREVIEW_FAILED, 'Failed to get canvas context');
       }
 
       this.drawToContext(ctx, lines, pixelWidth, estimatedHeight, opts);
@@ -415,7 +416,7 @@ export class PreviewRenderer implements IPreviewRenderer {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      throw new Error('Failed to get canvas context');
+      throw new BluetoothPrintError(ErrorCode.PREVIEW_FAILED, 'Failed to get canvas context');
     }
 
     this.drawToContext(ctx, lines, width, height, opts);

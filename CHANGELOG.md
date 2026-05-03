@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.11.0] - 2026-05-04
+
+### Changed
+- **错误体系统一**: 将 14 处 `throw new Error()` 迁移为 `BluetoothPrintError` + `ErrorCode`，覆盖 ReactNativeAdapter、DeviceManager、PrinterConfigManager、PrinterFactory、PreviewRenderer、PrintQueue、CloudPrintManager、PrintJobManager、PrintScheduler、image.ts
+- **DiscoveryService.ts**: 移除顶部 3 条 eslint-disable 规则，清理注释代码
+- **TemplateRenderer.ts**: `itemData: any` → `Record<string, unknown>`，移除 3 处行内 eslint-disable
+- **outputLimiter.ts**: batchProcess 错误处理规范化（instanceof Error 守卫 + message 输出）
+- **魔数提取**: ChunkWriteStrategy 提取 7 个常量（CHUNK_SIZE_STEP、DELAY_BACKOFF_FACTOR 等），PrintHistory 提取 DEFAULT_MAX_ENTRIES，TemplateRenderer/TemplateEngine 提取 DEFAULT_PAPER_WIDTH
+
+### Added
+- 新增 ErrorCode: `QUEUE_FULL`、`QUEUE_JOB_NOT_FOUND`、`PREVIEW_FAILED`
+
+### Testing
+- 985 tests passed, 38 skipped, 0 regressions
+- type-check: 0 errors
+- lint: 0 errors
+
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

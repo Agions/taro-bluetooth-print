@@ -92,13 +92,16 @@ export class PrintHistory {
   private readonly logger = Logger.scope('PrintHistory');
   private readonly entries: Map<string, PrintHistoryEntry> = new Map();
   private counter = 0;
+  /** Default maximum number of history entries */
+  private static readonly DEFAULT_MAX_ENTRIES = 1000;
+
   private readonly maxEntries: number;
 
   /**
    * Creates a new PrintHistory instance
    * @param maxEntries - Maximum number of entries to keep (default: 1000)
    */
-  constructor(maxEntries = 1000) {
+  constructor(maxEntries = PrintHistory.DEFAULT_MAX_ENTRIES) {
     this.maxEntries = maxEntries;
   }
 

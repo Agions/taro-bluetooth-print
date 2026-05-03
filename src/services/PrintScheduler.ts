@@ -6,6 +6,7 @@
 import { EventEmitter } from '../core/EventEmitter';
 import { generateUUID } from '../utils/uuid';
 import { normalizeError } from '../utils/normalizeError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 export interface ScheduledPrint {
   id: string;
@@ -57,7 +58,7 @@ export function parseCronExpression(cron: string): {
 } {
   const parts = cron.trim().split(/\s+/);
   if (parts.length !== 5) {
-    throw new Error('Invalid cron expression');
+    throw new BluetoothPrintError(ErrorCode.INVALID_CONFIGURATION, 'Invalid cron expression');
   }
 
   const [minPart, hourPart, dayPart, monthPart, dowPart] = parts as [
@@ -143,7 +144,10 @@ export function getNextCronRun(cron: string, fromTime: number = Date.now()): num
     date.setMinutes(date.getMinutes() + 1);
   }
 
-  throw new Error('Cannot find next run time within one year');
+  throw new BluetoothPrintError(
+    ErrorCode.INVALID_CONFIGURATION,
+    'Cannot find next run time within one year'
+  );
 }
 
 export function getNextIntervalRun(interval: number, fromTime: number = Date.now()): number {
@@ -173,7 +177,10 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
     const executeAt = onceAt instanceof Date ? onceAt.getTime() : onceAt;
 
     if (!executeAt || executeAt <= Date.now()) {
-      throw new Error('onceAt must be a future date');
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'onceAt must be a future date'
+      );
     }
 
     const job: ScheduledPrint = {
@@ -198,7 +205,10 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
     const { cronExpression, repeatInterval, ...rest } = options;
 
     if (!cronExpression && !repeatInterval) {
-      throw new Error('Either cronExpression or repeatInterval is required');
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'Either cronExpression or repeatInterval is required'
+      );
     }
 
     const job: ScheduledPrint = {

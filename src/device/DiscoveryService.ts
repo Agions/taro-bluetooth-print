@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 /**
  * @fileoverview DiscoveryService uses dynamic adapter loading for platform-specific Bluetooth operations.
  * The platformAdapter field is typed as `BaseAdapter | undefined` because different adapters
@@ -215,9 +214,6 @@ export class DiscoveryService extends EventEmitter<DiscoveryEvents> {
       this.emit('discovery-complete', this.getDevices());
     }
   }
-
-  // 监听 platform adapter 的设备发现回调（预留扩展点）
-  // private processDevice(deviceInfo: any): void { ... }
 
   /**
    * 获取过滤和排序后的设备列表

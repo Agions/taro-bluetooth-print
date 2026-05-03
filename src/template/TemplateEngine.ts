@@ -293,10 +293,13 @@ export class TemplateEngine implements ITemplateEngine {
   private readonly renderer: TemplateRenderer;
   private readonly templates: Map<string, TemplateDefinition> = new Map();
 
+  /** Default paper width in characters (58mm paper ≈ 48 chars) */
+  private static readonly DEFAULT_PAPER_WIDTH = 48;
+
   /**
    * Creates a new TemplateEngine instance
    */
-  constructor(paperWidth = 48) {
+  constructor(paperWidth = TemplateEngine.DEFAULT_PAPER_WIDTH) {
     this.parser = new TemplateParser();
     this.renderer = new TemplateRenderer(paperWidth);
   }

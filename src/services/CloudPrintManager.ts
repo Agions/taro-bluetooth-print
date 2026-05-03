@@ -12,6 +12,7 @@
 
 import { EventEmitter } from '@/core/EventEmitter';
 import { Logger } from '@/utils/logger';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { normalizeError } from '@/utils/normalizeError';
 
 export interface CloudPrintOptions {
@@ -233,7 +234,7 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
    */
   print(job: PrintJob): void {
     if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Not connected to server');
+      throw new BluetoothPrintError(ErrorCode.DEVICE_DISCONNECTED, 'Not connected to server');
     }
 
     const message = {

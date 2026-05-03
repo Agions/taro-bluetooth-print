@@ -12,6 +12,7 @@ import { PrintJobManager } from '@/services/PrintJobManager';
 import { CommandBuilder } from '@/services/CommandBuilder';
 import type { IPrinterAdapter } from '@/types';
 import type { IConnectionManager, IPrintJobManager, ICommandBuilder } from '@/services/interfaces';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
 /**
  * Options for creating a BluetoothPrinter via the factory
@@ -127,7 +128,8 @@ export async function createWebBluetoothPrinter(): Promise<BluetoothPrinter> {
     const adapter = new WebBluetoothAdapter();
     return createBluetoothPrinter({ adapter });
   } catch {
-    throw new Error(
+    throw new BluetoothPrintError(
+      ErrorCode.PLATFORM_NOT_SUPPORTED,
       'Failed to dynamically import WebBluetoothAdapter. ' +
         'This adapter is only available in browser environments that support the Web Bluetooth API.'
     );

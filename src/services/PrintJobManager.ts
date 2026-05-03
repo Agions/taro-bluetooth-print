@@ -297,7 +297,10 @@ export class PrintJobManager implements IPrintJobManager {
           `Loaded job ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
         );
       } else {
-        throw new Error(`Job state not found for ${jobId}`);
+        throw new BluetoothPrintError(
+          ErrorCode.QUEUE_JOB_NOT_FOUND,
+          `Job state not found for ${jobId}`
+        );
       }
     } catch (error) {
       this.logger.error(`Failed to load job state for ${jobId}:`, error);

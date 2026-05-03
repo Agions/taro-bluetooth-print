@@ -13,6 +13,7 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import { normalizeError } from '@/utils/normalizeError';
 import { EventEmitter } from '@/core/EventEmitter';
 
@@ -170,7 +171,7 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
    */
   add(data: Uint8Array, options?: Partial<PrintJob>): string {
     if (this.jobs.size >= this.config.maxSize) {
-      throw new Error('Queue is full');
+      throw new BluetoothPrintError(ErrorCode.QUEUE_FULL, 'Queue is full');
     }
 
     const id = this.generateJobId();

@@ -118,7 +118,10 @@ export class TemplateRenderer {
   private readonly parser: TemplateParser;
   private readonly paperWidth: number;
 
-  constructor(paperWidth = 48) {
+  /** Default paper width in characters (58mm paper ≈ 48 chars) */
+  private static readonly DEFAULT_PAPER_WIDTH = 48;
+
+  constructor(paperWidth = TemplateRenderer.DEFAULT_PAPER_WIDTH) {
     this.paperWidth = paperWidth;
     this.formatter = new TextFormatter();
     this.barcodeGenerator = new BarcodeGenerator();
@@ -363,21 +366,16 @@ export class TemplateRenderer {
     }
 
     for (let i = 0; i < items.length; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-      const itemData: any = items[i];
+      const itemData: Record<string, unknown> = items[i] as Record<string, unknown>;
 
       // Create iteration context with item and optionally index
       const context: Record<string, unknown> = {
         ...data,
-        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         [loop.itemVar]: itemData,
-        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       };
 
       if (loop.indexVar) {
-        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         context[loop.indexVar] = i;
-        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
       }
 
       // Render each element in the loop

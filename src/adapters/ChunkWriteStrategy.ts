@@ -116,12 +116,31 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
     // default: no connection check
   }
 
+  /** Step size for increasing chunk size on success (bytes) */
+  private static readonly CHUNK_SIZE_STEP = 5;
+  /** Delay backoff multiplier on failure */
+  private static readonly DELAY_BACKOFF_FACTOR = 1.5;
+  /** Delay recovery divisor on success */
+  private static readonly DELAY_RECOVERY_FACTOR = 1.2;
+  /** Timeout base (ms) for computeTimeoutMs */
+  private static readonly TIMEOUT_BASE_MS = 1000;
+  /** Timeout per-byte factor (ms) for computeTimeoutMs */
+  private static readonly TIMEOUT_PER_BYTE_MS = 5;
+  /** Maximum timeout (ms) for computeTimeoutMs */
+  private static readonly TIMEOUT_MAX_MS = 10000;
+
   /**
    * Compute chunk write timeout based on chunk size.
    * Override to customize timeout formula per platform.
    */
   protected computeTimeoutMs(chunkLength: number): number {
-    return Math.max(1000, Math.min(10000, 1000 + chunkLength * 5));
+    return Math.max(
+      ChunkWriteStrategy.TIMEOUT_BASE_MS,
+      Math.min(
+        ChunkWriteStrategy.TIMEOUT_MAX_MS,
+        ChunkWriteStrategy.TIMEOUT_BASE_MS + chunkLength * ChunkWriteStrategy.TIMEOUT_PER_BYTE_MS
+      )
+    );
   }
 
   /**
@@ -218,8 +237,11 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
         consecutiveFailures = 0;
 
         if (successCount % successThreshold === 0 && currentChunkSize < maxChunkSize) {
-          currentChunkSize = Math.min(maxChunkSize, currentChunkSize + 5);
-          baseDelay = Math.max(baseDelay / 1.2, delay);
+          currentChunkSize = Math.min(
+            maxChunkSize,
+            currentChunkSize + ChunkWriteStrategy.CHUNK_SIZE_STEP
+          );
+          baseDelay = Math.max(baseDelay / ChunkWriteStrategy.DELAY_RECOVERY_FACTOR, delay);
           totalChunks =
             Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
           this.logger.debug(`Increased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);
@@ -228,8 +250,11 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
         consecutiveFailures++;
 
         if (consecutiveFailures >= failureThreshold && currentChunkSize > minChunkSize) {
-          currentChunkSize = Math.max(minChunkSize, currentChunkSize - 5);
-          baseDelay = Math.min(baseDelay * 1.5, maxDelay);
+          currentChunkSize = Math.max(
+            minChunkSize,
+            currentChunkSize - ChunkWriteStrategy.CHUNK_SIZE_STEP
+          );
+          baseDelay = Math.min(baseDelay * ChunkWriteStrategy.DELAY_BACKOFF_FACTOR, maxDelay);
           totalChunks =
             Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
           this.logger.debug(`Decreased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);

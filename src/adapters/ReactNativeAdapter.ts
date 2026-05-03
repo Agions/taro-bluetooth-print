@@ -193,13 +193,14 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
    *
    * @param options - Configuration options
    * @param options.bleManager - BLE Manager instance (e.g., from react-native-ble-plx)
-   * @throws {Error} If bleManager is not provided or not supported
+   * @throws {BluetoothPrintError} If bleManager is not provided or not supported
    */
   constructor(options: { bleManager: BLEManager }) {
     super();
 
     if (!options?.bleManager) {
-      throw new Error(
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
         'ReactNativeAdapter requires a bleManager instance (e.g., react-native-ble-plx). ' +
           'Please pass { bleManager: yourBleManager } in the constructor.'
       );
