@@ -405,7 +405,8 @@ export class ImageProcessing {
         const newPixel = oldPixel < threshold ? 0 : 255;
         if (newPixel === 0) {
           // Bit operations: x>>3 = Math.floor(x/8), 0x80>>(x&7) = 1<<(7-(x%8))
-          bitmap[y * bytesPerLine + (x >> 3)] |= 0x80 >> (x & 7);
+          const byteIdx = y * bytesPerLine + (x >> 3);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (0x80 >> (x & 7));
         }
         const err = oldPixel - newPixel;
         // Inlined error distribution (no function call per neighbor)
@@ -442,7 +443,8 @@ export class ImageProcessing {
         const idx = y * width + x;
         const pixel = grayscale[idx]!;
         if (pixel < getThreshold(x, y, pixel)) {
-          bitmap[y * bytesPerLine + (x >> 3)] |= 0x80 >> (x & 7);
+          const byteIdx = y * bytesPerLine + (x >> 3);
+          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (0x80 >> (x & 7));
         }
       }
     }

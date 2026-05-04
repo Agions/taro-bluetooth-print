@@ -439,7 +439,8 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
     let high = this.pendingQueue.length;
     while (low < high) {
       const mid = (low + high) >>> 1;
-      const midJob = this.jobs.get(this.pendingQueue[mid]);
+      const midId = this.pendingQueue[mid];
+      const midJob = midId ? this.jobs.get(midId) : undefined;
       if (midJob && midJob.priority >= priority) {
         low = mid + 1;
       } else {

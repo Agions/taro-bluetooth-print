@@ -501,7 +501,7 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
           serviceId: service.uuid,
           characteristics: chars.characteristics.map((c: BLECharacteristic) => ({
             characteristicId: c.uuid,
-            isWritable: c.properties.write || c.properties.writeWithoutResponse,
+            isWritable: !!(c.properties.write || c.properties.writeWithoutResponse),
           })),
         });
       }
