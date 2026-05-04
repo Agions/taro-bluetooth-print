@@ -7,6 +7,7 @@
 
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
+import { bitmapToHex } from '@/utils/bitmap';
 
 /**
  * ZPL Label size configuration
@@ -448,15 +449,10 @@ export class ZplDriver {
     }
 
     // Convert bitmap bytes to hex string (uppercase)
-    const hexData: string[] = [];
-    const limit = Math.min(bitmap.length, totalBytes);
-    for (let i = 0; i < limit; i++) {
-      const byte = bitmap[i]!;
-      hexData.push(byte.toString(16).padStart(2, '0').toUpperCase());
-    }
+    const hexStr = bitmapToHex(bitmap, totalBytes);
 
     this.commands.push(`^FO${x},${y}`);
-    this.commands.push(`^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hexData.join('')}`);
+    this.commands.push(`^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hexStr}`);
     this.commands.push('^FS');
     this.logger.debug(`ZPL image encoded: ${width}x${height} at (${x},${y})`);
     return this;

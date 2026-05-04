@@ -402,38 +402,7 @@ export class EncodingService {
    * @returns GBK encoded bytes
    */
   private encodeGbk(text: string): Uint8Array {
-    const result: number[] = [];
-    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
-
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-
-      // Handle surrogate pairs
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-        const nextCode = text.charCodeAt(i + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          result.push(fallbackCode);
-          i++;
-          continue;
-        }
-      }
-
-      // ASCII passes through
-      if (isAscii(code)) {
-        result.push(code);
-        continue;
-      }
-
-      // Try GBK encoding
-      const bytes = getGbkBytes(code);
-      if (bytes) {
-        result.push(bytes[0], bytes[1]);
-      } else {
-        result.push(fallbackCode);
-      }
-    }
-
-    return new Uint8Array(result);
+    return this.encodeWithStrategy(text, (code) => getGbkBytes(code));
   }
 
   /**
@@ -442,44 +411,12 @@ export class EncodingService {
    * @returns Big5 encoded bytes
    */
   private encodeBig5(text: string): Uint8Array {
-    const result: number[] = [];
-    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
-
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-
-      // Handle surrogate pairs
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-        const nextCode = text.charCodeAt(i + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          result.push(fallbackCode);
-          i++;
-          continue;
-        }
-      }
-
-      // ASCII passes through
-      if (isAscii(code)) {
-        result.push(code);
-        continue;
-      }
-
-      // Try Big5 encoding
+    return this.encodeWithStrategy(text, (code) => {
       const bytes = getBig5Bytes(code);
-      if (bytes) {
-        result.push(bytes[0], bytes[1]);
-      } else {
-        // Fall back to GBK if Big5 doesn't have the character
-        const gbkBytes = getGbkBytes(code);
-        if (gbkBytes) {
-          result.push(gbkBytes[0], gbkBytes[1]);
-        } else {
-          result.push(fallbackCode);
-        }
-      }
-    }
-
-    return new Uint8Array(result);
+      if (bytes) return bytes;
+      // Fall back to GBK if Big5 doesn't have the character
+      return getGbkBytes(code);
+    });
   }
 
   /**
@@ -505,54 +442,18 @@ export class EncodingService {
       // Fall through to manual encoding
     }
 
-    const result: number[] = [];
-    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
-
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-
-      // Handle surrogate pairs
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-        const nextCode = text.charCodeAt(i + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          result.push(fallbackCode);
-          i++;
-          continue;
-        }
-      }
-
-      // ASCII passes through directly
-      if (isAscii(code)) {
-        result.push(code);
-        continue;
-      }
-
+    return this.encodeWithStrategy(text, (code) => {
       // Korean Hangul syllable (가각 same structure)
       if (isKoreanHangul(code)) {
-        const bytes = encodeHangulSyllable(code);
-        if (bytes) {
-          result.push(bytes[0], bytes[1]);
-          continue;
-        }
+        return encodeHangulSyllable(code);
       }
-
-      // Korean Jamo (ㅏㅑ etc) - limited support, skip or fallback
-      if (isKoreanJamo(code)) {
-        result.push(fallbackCode);
-        continue;
+      // Korean Jamo (ㅏㅑ etc) or Hanja - not supported, use fallback
+      if (isKoreanJamo(code) || isKoreanHanja(code)) {
+        return null;
       }
-
-      // Korean Hanja - fallback
-      if (isKoreanHanja(code)) {
-        result.push(fallbackCode);
-        continue;
-      }
-
-      // Unknown Korean character
-      result.push(fallbackCode);
-    }
-
-    return new Uint8Array(result);
+      // Unknown character
+      return null;
+    });
   }
 
   /**
@@ -566,55 +467,16 @@ export class EncodingService {
    * @returns Shift-JIS encoded bytes
    */
   private encodeShiftJis(text: string): Uint8Array {
-    const result: number[] = [];
-    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
-
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-
-      // Handle surrogate pairs
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-        const nextCode = text.charCodeAt(i + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          result.push(fallbackCode);
-          i++;
-          continue;
-        }
-      }
-
-      // ASCII passes through
-      if (isAscii(code)) {
-        result.push(code);
-        continue;
-      }
-
+    return this.encodeWithStrategy(text, (code) => {
       // Hiragana: U+3040-309F → Shift-JIS
       const hiraganaBytes = unicodeToShiftJisHiragana(code);
-      if (hiraganaBytes) {
-        result.push(hiraganaBytes[0], hiraganaBytes[1]);
-        continue;
-      }
-
+      if (hiraganaBytes) return hiraganaBytes;
       // Full-width Katakana: U+30A0-30FF → Shift-JIS
       const katakanaBytes = unicodeToShiftJisKatakana(code);
-      if (katakanaBytes) {
-        result.push(katakanaBytes[0], katakanaBytes[1]);
-        continue;
-      }
-
-      // Japanese Kanji - complex mapping, use fallback for unsupported
-      if (isJapaneseKanji(code)) {
-        // Try to map common Kanji ranges
-        // For full support, TextEncoder would be needed
-        result.push(fallbackCode);
-        continue;
-      }
-
-      // Japanese punctuation/symbols - partial support
-      result.push(fallbackCode);
-    }
-
-    return new Uint8Array(result);
+      if (katakanaBytes) return katakanaBytes;
+      // Japanese Kanji / punctuation - not fully supported, use fallback
+      return null;
+    });
   }
 
   /**
@@ -627,66 +489,34 @@ export class EncodingService {
    * @returns ISO-2022-JP encoded bytes with escape sequences
    */
   private encodeIso2022Jp(text: string): Uint8Array {
-    const result: number[] = [];
-    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
-
-    // Start in ASCII mode
-    result.push(...ISO2022JP_ESC_ASCII);
-
-    for (let i = 0; i < text.length; i++) {
-      const code = text.charCodeAt(i);
-
-      // Handle surrogate pairs
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-        const nextCode = text.charCodeAt(i + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          result.push(...ISO2022JP_ESC_ASCII); // Switch back to ASCII
-          result.push(fallbackCode);
-          i++;
-          continue;
+    return this.encodeWithStrategy(
+      text,
+      (code) => {
+        // Characters requiring JIS X 0208 (Hiragana, Katakana, Kanji)
+        if (requiresJisX0208Escape(code)) {
+          // Hiragana
+          const hiraganaBytes = unicodeToShiftJisHiragana(code);
+          if (hiraganaBytes) return [...ISO2022JP_ESC_JIS0208, ...hiraganaBytes];
+          // Full-width Katakana
+          const katakanaBytes = unicodeToShiftJisKatakana(code);
+          if (katakanaBytes) return [...ISO2022JP_ESC_JIS0208, ...katakanaBytes];
+          // Kanji - complex mapping, use fallback
+          return null;
         }
+        // Half-width Katakana or other - use fallback
+        return null;
+      },
+      {
+        init: (r) => r.push(...ISO2022JP_ESC_ASCII),
+        onSurrogate: (r, fallback) => {
+          r.push(...ISO2022JP_ESC_ASCII, fallback);
+        },
+        onAscii: (r, code) => {
+          r.push(...ISO2022JP_ESC_ASCII, code);
+        },
+        finalize: (r) => r.push(...ISO2022JP_ESC_ASCII),
       }
-
-      // ASCII: switch to ASCII mode, output directly
-      if (isAscii(code)) {
-        // Make sure we're in ASCII mode
-        result.push(...ISO2022JP_ESC_ASCII);
-        result.push(code);
-        continue;
-      }
-
-      // Characters requiring JIS X 0208 (Hiragana, Katakana, Kanji)
-      if (requiresJisX0208Escape(code)) {
-        // Switch to JIS X 0208
-        result.push(...ISO2022JP_ESC_JIS0208);
-
-        // Hiragana
-        const hiraganaBytes = unicodeToShiftJisHiragana(code);
-        if (hiraganaBytes) {
-          result.push(hiraganaBytes[0], hiraganaBytes[1]);
-          continue;
-        }
-
-        // Full-width Katakana
-        const katakanaBytes = unicodeToShiftJisKatakana(code);
-        if (katakanaBytes) {
-          result.push(katakanaBytes[0], katakanaBytes[1]);
-          continue;
-        }
-
-        // Kanji - complex mapping, use fallback
-        result.push(fallbackCode);
-        continue;
-      }
-
-      // Half-width Katakana or other - use fallback
-      result.push(fallbackCode);
-    }
-
-    // Return to ASCII mode at end
-    result.push(...ISO2022JP_ESC_ASCII);
-
-    return new Uint8Array(result);
+    );
   }
 
   /**
@@ -696,6 +526,81 @@ export class EncodingService {
    */
   private normalizeEncoding(encoding: string): string {
     return encoding.toUpperCase().replace(/-/g, '').replace('_', '');
+  }
+  /**
+   * Template method: encode text using a character-level strategy callback.
+   *
+   * Handles the common boilerplate shared by all encoding methods:
+   * - Surrogate pair detection → fallback
+   * - ASCII passthrough
+   * - Delegation to `encodeNonAscii` for non-ASCII characters
+   *
+   * Optional hooks allow encodings that need special treatment
+   * (e.g. ISO-2022-JP escape sequences) to customise every stage.
+   *
+   * @param text - Text to encode
+   * @param encodeNonAscii - Strategy callback; returns encoded bytes or null for fallback
+   * @param hooks - Optional hooks for pre/post processing and special ASCII/surrogate handling
+   * @returns Encoded bytes
+   */
+  private encodeWithStrategy(
+    text: string,
+    encodeNonAscii: (code: number) => number[] | null,
+    hooks?: {
+      /** Called once before the main loop (e.g. emit initial escape sequences) */
+      init?: (result: number[]) => void;
+      /** Override surrogate-pair handling; default pushes fallbackCode */
+      onSurrogate?: (result: number[], fallbackCode: number) => void;
+      /** Override ASCII handling; default pushes the code point directly */
+      onAscii?: (result: number[], code: number) => void;
+      /** Called once after the main loop (e.g. emit closing escape sequences) */
+      finalize?: (result: number[]) => void;
+    }
+  ): Uint8Array {
+    const result: number[] = [];
+    const fallbackCode = this.config.fallbackChar.charCodeAt(0);
+
+    hooks?.init?.(result);
+
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+
+      // Handle surrogate pairs
+      if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
+        const nextCode = text.charCodeAt(i + 1);
+        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
+          if (hooks?.onSurrogate) {
+            hooks.onSurrogate(result, fallbackCode);
+          } else {
+            result.push(fallbackCode);
+          }
+          i++;
+          continue;
+        }
+      }
+
+      // ASCII passes through
+      if (isAscii(code)) {
+        if (hooks?.onAscii) {
+          hooks.onAscii(result, code);
+        } else {
+          result.push(code);
+        }
+        continue;
+      }
+
+      // Delegate to encoding-specific strategy
+      const bytes = encodeNonAscii(code);
+      if (bytes) {
+        result.push(...bytes);
+      } else {
+        result.push(fallbackCode);
+      }
+    }
+
+    hooks?.finalize?.(result);
+
+    return new Uint8Array(result);
   }
 }
 

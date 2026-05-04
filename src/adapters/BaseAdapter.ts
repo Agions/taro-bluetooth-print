@@ -254,10 +254,95 @@ export abstract class BaseAdapter implements IPrinterAdapter {
   protected cleanupDevice(deviceId: string): void {
     this.serviceCache.delete(deviceId);
   }
+  /**
+   * Classifies a connection error into the appropriate BluetoothPrintError.
+   * Examines the error message to determine whether it was a timeout,
+   * device-not-found, or generic connection failure.
+   *
+   * @param error - The original error
+   * @param deviceId - The device ID that failed to connect
+   * @returns A classified BluetoothPrintError
+   */
+  protected classifyConnectionError(error: unknown, deviceId: string): BluetoothPrintError {
+    const errorMessage = normalizeError(error).message;
+    if (errorMessage.includes('timeout')) {
+      return new BluetoothPrintError(
+        ErrorCode.CONNECTION_TIMEOUT,
+        `Connection to device ${deviceId} timed out`,
+        normalizeError(error)
+      );
+    } else if (errorMessage.includes('not found') || errorMessage.includes('not exist')) {
+      return new BluetoothPrintError(
+        ErrorCode.DEVICE_NOT_FOUND,
+        `Device ${deviceId} not found`,
+        normalizeError(error)
+      );
+    }
+    return new BluetoothPrintError(
+      ErrorCode.CONNECTION_FAILED,
+      `Failed to connect to device ${deviceId}`,
+      normalizeError(error)
+    );
+  }
 
   /**
-   * Cleanup resources and destroy the adapter instance
-   * Removes all event listeners and releases resources
+   * Template method for discovering BLE services and caching the writeable characteristic.
+   * Subclasses provide a platform-specific discovery function that returns a normalised
+   * list of services with their characteristics.
+   *
+   * @param deviceId - Bluetooth device ID
+   * @param discoverFn - Function that returns normalised service/characteristic info
+   * @throws {BluetoothPrintError} When no writeable characteristic is found
+   */
+  protected async discoverAndCacheServices(
+    deviceId: string,
+    discoverFn: () => Promise<
+      Array<{
+        serviceId: string;
+        characteristics: Array<{ characteristicId: string; isWritable: boolean }>;
+      }>
+    >
+  ): Promise<void> {
+    this.logger.debug('Discovering services for device:', deviceId);
+
+    try {
+      const services = await discoverFn();
+
+      for (const service of services) {
+        const writeChar = service.characteristics.find((c) => c.isWritable);
+
+        if (writeChar) {
+          this.serviceCache.set(deviceId, {
+            serviceId: service.serviceId,
+            characteristicId: writeChar.characteristicId,
+          });
+          this.logger.info('Found writeable characteristic:', {
+            service: service.serviceId,
+            characteristic: writeChar.characteristicId,
+          });
+          return;
+        }
+      }
+
+      throw new BluetoothPrintError(
+        ErrorCode.CHARACTERISTIC_NOT_FOUND,
+        'No writeable characteristic found. Make sure the device is a supported printer.'
+      );
+    } catch (error) {
+      if (error instanceof BluetoothPrintError) {
+        throw error;
+      }
+      throw new BluetoothPrintError(
+        ErrorCode.SERVICE_DISCOVERY_FAILED,
+        'Failed to discover device services',
+        normalizeError(error)
+      );
+    }
+  }
+
+  /**
+   * Cleanup resources and destroy the adapter instance.
+   * Removes all event listeners and releases resources.
    */
   destroy(): void {
     this.logger.debug('Destroying BaseAdapter');
@@ -336,27 +421,7 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
     } catch (error) {
       this.updateState(PrinterState.DISCONNECTED);
       this.logger.error('Connection failed:', error);
-
-      const errorMessage = normalizeError(error).message;
-      if (errorMessage.includes('timeout')) {
-        throw new BluetoothPrintError(
-          ErrorCode.CONNECTION_TIMEOUT,
-          `Connection to device ${deviceId} timed out`,
-          normalizeError(error)
-        );
-      } else if (errorMessage.includes('not found')) {
-        throw new BluetoothPrintError(
-          ErrorCode.DEVICE_NOT_FOUND,
-          `Device ${deviceId} not found`,
-          normalizeError(error)
-        );
-      }
-
-      throw new BluetoothPrintError(
-        ErrorCode.CONNECTION_FAILED,
-        `Failed to connect to device ${deviceId}`,
-        normalizeError(error)
-      );
+      throw this.classifyConnectionError(error, deviceId);
     }
   }
 
@@ -421,47 +486,26 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
    * @throws {BluetoothPrintError} When no writeable characteristic is found
    */
   private async discoverServices(deviceId: string): Promise<void> {
-    this.logger.debug('Discovering services for device:', deviceId);
-
-    try {
+    await this.discoverAndCacheServices(deviceId, async () => {
       const services = await this.getApi().getBLEDeviceServices({ deviceId });
-
+      const result: Array<{
+        serviceId: string;
+        characteristics: Array<{ characteristicId: string; isWritable: boolean }>;
+      }> = [];
       for (const service of services.services) {
         const chars = await this.getApi().getBLEDeviceCharacteristics({
           deviceId,
           serviceId: service.uuid,
         });
-
-        const writeChar = chars.characteristics.find(
-          (c: BLECharacteristic) => c.properties.write || c.properties.writeWithoutResponse
-        );
-
-        if (writeChar) {
-          this.serviceCache.set(deviceId, {
-            serviceId: service.uuid,
-            characteristicId: writeChar.uuid,
-          });
-          this.logger.info('Found writeable characteristic:', {
-            service: service.uuid,
-            characteristic: writeChar.uuid,
-          });
-          return;
-        }
+        result.push({
+          serviceId: service.uuid,
+          characteristics: chars.characteristics.map((c: BLECharacteristic) => ({
+            characteristicId: c.uuid,
+            isWritable: c.properties.write || c.properties.writeWithoutResponse,
+          })),
+        });
       }
-
-      throw new BluetoothPrintError(
-        ErrorCode.CHARACTERISTIC_NOT_FOUND,
-        'No writeable characteristic found. Make sure the device is a supported printer.'
-      );
-    } catch (error) {
-      if (error instanceof BluetoothPrintError) {
-        throw error;
-      }
-      throw new BluetoothPrintError(
-        ErrorCode.SERVICE_DISCOVERY_FAILED,
-        'Failed to discover device services',
-        normalizeError(error)
-      );
-    }
+      return result;
+    });
   }
 }

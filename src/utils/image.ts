@@ -7,6 +7,13 @@
 
 import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 
+/** Entry in an error-diffusion kernel: relative position + fractional weight. */
+interface ErrorKernelEntry {
+  readonly dx: number;
+  readonly dy: number;
+  readonly weight: number;
+}
+
 export class ImageProcessing {
   // Pre-computed Bayer matrices for ordered dithering
   private static readonly BAYER_MATRIX_2: ReadonlyArray<ReadonlyArray<number>> = [
@@ -41,6 +48,59 @@ export class ImageProcessing {
     normal: { contrast: 1.0, brightness: 0.0, algorithm: 'floyd-steinberg' as const },
     high: { contrast: 1.15, brightness: 0.08, algorithm: 'halftone' as const },
   };
+
+  // ─── Data-driven error-diffusion kernels ───────────────────────────────────
+  private static readonly ERROR_KERNELS: Record<
+    'floyd-steinberg' | 'atkinson' | 'sierra' | 'stucki',
+    ReadonlyArray<ErrorKernelEntry>
+  > = {
+    'floyd-steinberg': [
+      { dx: 1, dy: 0, weight: 7 / 16 },
+      { dx: -1, dy: 1, weight: 3 / 16 },
+      { dx: 0, dy: 1, weight: 5 / 16 },
+      { dx: 1, dy: 1, weight: 1 / 16 },
+    ],
+    atkinson: [
+      { dx: 1, dy: 0, weight: 1 / 8 },
+      { dx: 2, dy: 0, weight: 1 / 8 },
+      { dx: -1, dy: 1, weight: 1 / 8 },
+      { dx: 0, dy: 1, weight: 1 / 8 },
+      { dx: 1, dy: 1, weight: 1 / 8 },
+      { dx: 0, dy: 2, weight: 1 / 8 },
+    ],
+    sierra: [
+      { dx: 1, dy: 0, weight: 5 / 32 },
+      { dx: 2, dy: 0, weight: 2 / 32 },
+      { dx: -2, dy: 1, weight: 2 / 32 },
+      { dx: -1, dy: 1, weight: 3 / 32 },
+      { dx: 0, dy: 1, weight: 5 / 32 },
+      { dx: 1, dy: 1, weight: 2 / 32 },
+      { dx: -1, dy: 2, weight: 2 / 32 },
+      { dx: 0, dy: 2, weight: 3 / 32 },
+      { dx: 1, dy: 2, weight: 2 / 32 },
+      { dx: 2, dy: 2, weight: 1 / 32 },
+    ],
+    stucki: [
+      { dx: 1, dy: 0, weight: 8 / 42 },
+      { dx: 2, dy: 0, weight: 4 / 42 },
+      { dx: -2, dy: 1, weight: 2 / 42 },
+      { dx: -1, dy: 1, weight: 4 / 42 },
+      { dx: 0, dy: 1, weight: 8 / 42 },
+      { dx: 1, dy: 1, weight: 4 / 42 },
+      { dx: 2, dy: 1, weight: 2 / 42 },
+      { dx: -2, dy: 2, weight: 1 / 42 },
+      { dx: -1, dy: 2, weight: 2 / 42 },
+      { dx: 0, dy: 2, weight: 4 / 42 },
+      { dx: 1, dy: 2, weight: 2 / 42 },
+      { dx: 2, dy: 2, weight: 1 / 42 },
+    ],
+  };
+
+  // Halftone threshold cache (keyed by "cellSize_dotType")
+  private static readonly halftoneThresholdCache = new Map<
+    string,
+    ReadonlyArray<ReadonlyArray<number>>
+  >();
 
   /**
    * Convert RGBA data to monochrome bitmap (1 bit per pixel)
@@ -132,8 +192,14 @@ export class ImageProcessing {
     const bytesPerLine = Math.ceil(processedWidth / 8);
     const bitmap = new Uint8Array(bytesPerLine * processedHeight);
 
-    let grayscale = this.toGrayscale(processedData, processedWidth, processedHeight);
-    grayscale = this.adjustContrastBrightness(grayscale, contrast, brightness);
+    // Fused grayscale conversion + contrast/brightness adjustment (single pass)
+    const grayscale = this.toGrayscaleAdjusted(
+      processedData,
+      processedWidth,
+      processedHeight,
+      contrast,
+      brightness
+    );
 
     if (useDithering) {
       this.applyDithering(grayscale, processedWidth, processedHeight, bitmap, bytesPerLine, {
@@ -143,13 +209,13 @@ export class ImageProcessing {
         halftoneDotType,
       });
     } else {
-      this.applyThreshold(
+      this.applyThresholdDithering(
         grayscale,
         processedWidth,
         processedHeight,
         bitmap,
         bytesPerLine,
-        threshold
+        () => threshold
       );
     }
 
@@ -198,32 +264,38 @@ export class ImageProcessing {
 
   // ─── Private helpers ────────────────────────────────────────────────────────
 
-  private static toGrayscale(data: Uint8Array, width: number, height: number): Float32Array {
-    const grayscale = new Float32Array(width * height);
-    for (let i = 0; i < data.length; i += 4) {
-      const idx = i >> 2;
-      const r = data[i]!;
-      const g = data[i + 1]!;
-      const b = data[i + 2]!;
-      grayscale[idx] = (r * 299 + g * 587 + b * 114) / 1000;
+  /**
+   * Fused RGBA→grayscale + contrast/brightness adjustment in a single pass.
+   * Eliminates the extra Float32Array allocation from the separate methods.
+   */
+  private static toGrayscaleAdjusted(
+    data: Uint8Array,
+    width: number,
+    height: number,
+    contrast: number,
+    brightness: number
+  ): Float32Array {
+    const len = width * height;
+    const grayscale = new Float32Array(len);
+    const needAdjust = contrast !== 1.0 || brightness !== 0.0;
+    const bAdj = brightness * 255;
+    for (let i = 0; i < len; i++) {
+      const ri = i << 2;
+      const r = data[ri]!;
+      const g = data[ri + 1]!;
+      const b = data[ri + 2]!;
+      let val = (r * 299 + g * 587 + b * 114) / 1000;
+      if (needAdjust) {
+        val = (val - 128) * contrast + 128 + bAdj;
+        grayscale[i] = val < 0 ? 0 : val > 255 ? 255 : val;
+      } else {
+        grayscale[i] = val;
+      }
     }
     return grayscale;
   }
 
-  private static adjustContrastBrightness(
-    grayscale: Float32Array,
-    contrast: number,
-    brightness: number
-  ): Float32Array {
-    if (contrast === 1.0 && brightness === 0.0) return grayscale;
-    const adjusted = new Float32Array(grayscale);
-    for (let i = 0; i < adjusted.length; i++) {
-      const value = adjusted[i]!;
-      adjusted[i] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + brightness * 255));
-    }
-    return adjusted;
-  }
-
+  /** Dispatch to the appropriate dithering algorithm. */
   private static applyDithering(
     grayscale: Float32Array,
     width: number,
@@ -238,173 +310,157 @@ export class ImageProcessing {
     }
   ): void {
     switch (opts.algorithm) {
-      case 'ordered':
-        this.applyOrderedDithering(
+      case 'ordered': {
+        const matrix =
+          opts.orderedMatrixSize === 2
+            ? this.BAYER_MATRIX_2
+            : opts.orderedMatrixSize === 8
+              ? this.BAYER_MATRIX_8
+              : this.BAYER_MATRIX_4;
+        const matrixMax = opts.orderedMatrixSize === 4 ? 16 : opts.orderedMatrixSize === 8 ? 64 : 4;
+        const th = opts.threshold;
+        const ms = opts.orderedMatrixSize;
+        this.applyThresholdDithering(
           grayscale,
           width,
           height,
           bitmap,
           bytesPerLine,
-          opts.threshold,
-          opts.orderedMatrixSize
+          (x, y) => th + ((matrix[y % ms]?.[x % ms] ?? 0) / matrixMax) * 48
         );
         break;
-      case 'halftone':
-        this.applyHalftone(
+      }
+      case 'halftone': {
+        const cellSize = 4;
+        const thresholds = this.getHalftoneThresholds(cellSize, opts.halftoneDotType);
+        const th = opts.threshold;
+        this.applyThresholdDithering(
           grayscale,
           width,
           height,
           bitmap,
           bytesPerLine,
-          opts.threshold,
-          opts.halftoneDotType
+          (x, y, pixel) => {
+            const t = thresholds[y % cellSize]?.[x % cellSize] ?? 128;
+            return t + (pixel < th ? -30 : 30);
+          }
         );
         break;
-      case 'sierra':
-        this.applySierraDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
-        break;
-      case 'stucki':
-        this.applyStuckiDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
-        break;
+      }
+      case 'floyd-steinberg':
       case 'atkinson':
-        this.applyAtkinsonDithering(grayscale, width, height, bitmap, bytesPerLine, opts.threshold);
-        break;
-      default:
-        this.applyFloydSteinbergDithering(
+      case 'sierra':
+      case 'stucki': {
+        const kernel = this.ERROR_KERNELS[opts.algorithm];
+        this.applyErrorDiffusionDithering(
           grayscale,
           width,
           height,
           bitmap,
           bytesPerLine,
-          opts.threshold
+          opts.threshold,
+          kernel
         );
-    }
-  }
-
-  // ─── Floyd-Steinberg ──────────────────────────────────────────────────────────
-
-  private static applyFloydSteinbergDithering(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    threshold: number
-  ): void {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx];
-        const newPixel = oldPixel! < threshold ? 0 : 255;
-        if (newPixel === 0) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-        const err = oldPixel! - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, (err * 7) / 16);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 3) / 16);
-        this.distributeErr(grayscale, width, height, x, y + 1, (err * 5) / 16);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 1) / 16);
+        break;
+      }
+      default: {
+        // Fallback to Floyd-Steinberg
+        this.applyErrorDiffusionDithering(
+          grayscale,
+          width,
+          height,
+          bitmap,
+          bytesPerLine,
+          opts.threshold,
+          this.ERROR_KERNELS['floyd-steinberg']
+        );
       }
     }
   }
 
-  // ─── Atkinson ────────────────────────────────────────────────────────────────
+  // ─── Generic error-diffusion dithering ─────────────────────────────────────
 
-  private static applyAtkinsonDithering(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    threshold: number
-  ): void {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx];
-        const newPixel = oldPixel! < threshold ? 0 : 255;
-        if (newPixel === 0) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-        const err = (oldPixel! - newPixel) / 8;
-        this.distributeErr(grayscale, width, height, x + 1, y, err);
-        this.distributeErr(grayscale, width, height, x + 2, y, err);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, err);
-        this.distributeErr(grayscale, width, height, x, y + 1, err);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, err);
-        this.distributeErr(grayscale, width, height, x, y + 2, err);
-      }
-    }
-  }
-
-  // ─── Ordered (Bayer) ─────────────────────────────────────────────────────────
-
-  private static applyOrderedDithering(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    thresholdOffset: number,
-    matrixSize: 2 | 4 | 8
-  ): void {
-    const matrix =
-      matrixSize === 2
-        ? ImageProcessing.BAYER_MATRIX_2
-        : matrixSize === 8
-          ? ImageProcessing.BAYER_MATRIX_8
-          : ImageProcessing.BAYER_MATRIX_4;
-    const matrixMax = matrixSize === 4 ? 16 : matrixSize === 8 ? 64 : 4;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const pixel = grayscale[idx];
-        const bayerRow = matrix[y % matrixSize] ?? [];
-        const bayerVal = bayerRow[x % matrixSize] ?? 0;
-        const adjustedThreshold = thresholdOffset + (bayerVal / matrixMax) * 48;
-        if (pixel! < adjustedThreshold) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-      }
-    }
-  }
-
-  // ─── Halftone ────────────────────────────────────────────────────────────────
-
-  private static applyHalftone(
+  /**
+   * Data-driven error-diffusion dithering. Replaces the four independent
+   * methods (Floyd-Steinberg / Atkinson / Sierra / Stucki) with a single
+   * loop that reads from a kernel table.
+   *
+   * Error distribution is inlined to eliminate per-pixel function-call overhead.
+   * Bit operations (>> 3, & 7, 0x80 >>) replace Math.floor and %.
+   */
+  private static applyErrorDiffusionDithering(
     grayscale: Float32Array,
     width: number,
     height: number,
     bitmap: Uint8Array,
     bytesPerLine: number,
     threshold: number,
-    dotType: 'round' | 'diamond' | 'square'
+    kernel: ReadonlyArray<ErrorKernelEntry>
   ): void {
-    const cellSize = 4;
-    const thresholds = this.computeHalftoneThresholds(cellSize, dotType);
+    const kLen = kernel.length;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const pixel = grayscale[idx];
-        const localY = y % cellSize;
-        const localX = x % cellSize;
-        const row = thresholds[localY] ?? [];
-        const t = row[localX] ?? 128;
-        const adjusted = t + (pixel! < threshold ? -30 : 30);
-        if (pixel! < adjusted) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
+        const oldPixel = grayscale[idx]!;
+        const newPixel = oldPixel < threshold ? 0 : 255;
+        if (newPixel === 0) {
+          // Bit operations: x>>3 = Math.floor(x/8), 0x80>>(x&7) = 1<<(7-(x%8))
+          bitmap[y * bytesPerLine + (x >> 3)] |= 0x80 >> (x & 7);
+        }
+        const err = oldPixel - newPixel;
+        // Inlined error distribution (no function call per neighbor)
+        for (let k = 0; k < kLen; k++) {
+          const e = kernel[k]!;
+          const nx = x + e.dx;
+          const ny = y + e.dy;
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            const nIdx = ny * width + nx;
+            const v = grayscale[nIdx]! + err * e.weight;
+            grayscale[nIdx] = v < 0 ? 0 : v > 255 ? 255 : v;
+          }
         }
       }
     }
+  }
+
+  // ─── Generic threshold-based dithering ─────────────────────────────────────
+
+  /**
+   * Unified threshold dithering for ordered / halftone / simple threshold.
+   * Bit operations replace Math.floor and %.
+   */
+  private static applyThresholdDithering(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    getThreshold: (x: number, y: number, pixel: number) => number
+  ): void {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const pixel = grayscale[idx]!;
+        if (pixel < getThreshold(x, y, pixel)) {
+          bitmap[y * bytesPerLine + (x >> 3)] |= 0x80 >> (x & 7);
+        }
+      }
+    }
+  }
+
+  // ─── Halftone threshold cache ──────────────────────────────────────────────
+
+  private static getHalftoneThresholds(
+    cellSize: number,
+    dotType: 'round' | 'diamond' | 'square'
+  ): ReadonlyArray<ReadonlyArray<number>> {
+    const key = `${cellSize}_${dotType}`;
+    let cached = this.halftoneThresholdCache.get(key);
+    if (!cached) {
+      cached = this.computeHalftoneThresholds(cellSize, dotType);
+      this.halftoneThresholdCache.set(key, cached);
+    }
+    return cached;
   }
 
   private static computeHalftoneThresholds(
@@ -428,117 +484,6 @@ export class ImageProcessing {
       }
     }
     return thresholds;
-  }
-
-  // ─── Sierra ──────────────────────────────────────────────────────────────────
-
-  private static applySierraDithering(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    threshold: number
-  ): void {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx];
-        const newPixel = oldPixel! < threshold ? 0 : 255;
-        if (newPixel === 0) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-        const err = oldPixel! - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, (err * 5) / 32);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 3) / 32);
-        this.distributeErr(grayscale, width, height, x, y + 1, (err * 5) / 32);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 2) / 32);
-        this.distributeErr(grayscale, width, height, x - 2, y + 1, (err * 2) / 32);
-        this.distributeErr(grayscale, width, height, x - 1, y + 2, (err * 2) / 32);
-        this.distributeErr(grayscale, width, height, x, y + 2, (err * 3) / 32);
-        this.distributeErr(grayscale, width, height, x + 1, y + 2, (err * 2) / 32);
-        this.distributeErr(grayscale, width, height, x + 2, y + 2, (err * 1) / 32);
-      }
-    }
-  }
-
-  // ─── Stucki ─────────────────────────────────────────────────────────────────
-
-  private static applyStuckiDithering(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    threshold: number
-  ): void {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx];
-        const newPixel = oldPixel! < threshold ? 0 : 255;
-        if (newPixel === 0) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-        const err = oldPixel! - newPixel;
-        this.distributeErr(grayscale, width, height, x + 1, y, (err * 8) / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y, (err * 4) / 42);
-        this.distributeErr(grayscale, width, height, x - 2, y + 1, (err * 2) / 42);
-        this.distributeErr(grayscale, width, height, x - 1, y + 1, (err * 4) / 42);
-        this.distributeErr(grayscale, width, height, x, y + 1, (err * 8) / 42);
-        this.distributeErr(grayscale, width, height, x + 1, y + 1, (err * 4) / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y + 1, (err * 2) / 42);
-        this.distributeErr(grayscale, width, height, x - 2, y + 2, (err * 1) / 42);
-        this.distributeErr(grayscale, width, height, x - 1, y + 2, (err * 2) / 42);
-        this.distributeErr(grayscale, width, height, x, y + 2, (err * 4) / 42);
-        this.distributeErr(grayscale, width, height, x + 1, y + 2, (err * 2) / 42);
-        this.distributeErr(grayscale, width, height, x + 2, y + 2, (err * 1) / 42);
-      }
-    }
-  }
-
-  // ─── Simple threshold ────────────────────────────────────────────────────────
-
-  private static applyThreshold(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    bitmap: Uint8Array,
-    bytesPerLine: number,
-    threshold: number
-  ): void {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const pixel = grayscale[idx];
-        if (pixel! < threshold) {
-          const byteIdx = y * bytesPerLine + Math.floor(x / 8);
-          const bitIdx = 7 - (x % 8);
-          bitmap[byteIdx] = bitmap[byteIdx]! | (1 << bitIdx);
-        }
-      }
-    }
-  }
-
-  // ─── Error distribution ──────────────────────────────────────────────────────
-
-  private static distributeErr(
-    grayscale: Float32Array,
-    width: number,
-    height: number,
-    nx: number,
-    ny: number,
-    error: number
-  ): void {
-    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-      const idx = ny * width + nx;
-      const current = grayscale[idx];
-      grayscale[idx] = Math.max(0, Math.min(255, current! + error));
-    }
   }
 
   // ─── Scaling ────────────────────────────────────────────────────────────────

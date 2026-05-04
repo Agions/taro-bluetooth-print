@@ -149,7 +149,7 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   private activeJobs = 0;
   private jobCounter = 0;
   private executor: JobExecutor | null = null;
-  private retryTimerId: ReturnType<typeof setTimeout> | null = null;
+  private retryTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   /**
    * Creates a new PrintQueue instance
@@ -225,6 +225,7 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
 
     job.status = PrintJobStatus.CANCELLED;
     this.removeFromPendingQueue(jobId);
+    this.clearRetryTimer(jobId);
     this.emit('job-cancelled', job);
     this.logger.debug(`Job cancelled: ${jobId}`);
 
@@ -259,11 +260,8 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
    * Clear all pending jobs
    */
   clear(): void {
-    // Cancel pending retry timer if one is active
-    if (this.retryTimerId !== null) {
-      clearTimeout(this.retryTimerId);
-      this.retryTimerId = null;
-    }
+    // Cancel all pending retry timers
+    this.clearAllRetryTimers();
 
     const pendingJobs = [...this.pendingQueue];
     for (const jobId of pendingJobs) {
@@ -411,19 +409,18 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
         this.logger.warn(`Job ${job.id} failed, retrying (${job.retryCount}/${job.maxRetries})`);
         job.status = PrintJobStatus.PENDING;
 
-        // Re-add to queue after delay
-        if (this.retryTimerId !== null) {
-          clearTimeout(this.retryTimerId);
-        }
-        this.retryTimerId = setTimeout(() => {
+        // Re-add to queue after delay (each job gets its own timer)
+        this.clearRetryTimer(job.id);
+        const timerId = setTimeout(() => {
+          this.retryTimers.delete(job.id);
           if (job.status === PrintJobStatus.PENDING) {
             this.insertByPriority(job.id, job.priority);
             if (this.config.autoProcess && !this.isPaused) {
               this.processQueue();
             }
           }
-          this.retryTimerId = null;
         }, this.config.retryDelay);
+        this.retryTimers.set(job.id, timerId);
       } else {
         job.status = PrintJobStatus.FAILED;
         job.completedAt = Date.now();
@@ -437,20 +434,19 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
    * Insert job ID into pending queue by priority
    */
   private insertByPriority(jobId: string, priority: PrintJobPriority): void {
-    // Find insertion point (higher priority first, then FIFO)
-    let insertIndex = this.pendingQueue.length;
-
-    for (let i = 0; i < this.pendingQueue.length; i++) {
-      const existingId = this.pendingQueue[i];
-      if (!existingId) continue;
-      const existingJob = this.jobs.get(existingId);
-      if (existingJob && existingJob.priority < priority) {
-        insertIndex = i;
-        break;
+    // Binary search for insertion point (higher priority first, then FIFO)
+    let low = 0;
+    let high = this.pendingQueue.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      const midJob = this.jobs.get(this.pendingQueue[mid]);
+      if (midJob && midJob.priority >= priority) {
+        low = mid + 1;
+      } else {
+        high = mid;
       }
     }
-
-    this.pendingQueue.splice(insertIndex, 0, jobId);
+    this.pendingQueue.splice(low, 0, jobId);
   }
 
   /**
@@ -469,6 +465,27 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   private generateJobId(): string {
     this.jobCounter++;
     return `job_${Date.now()}_${this.jobCounter}`;
+  }
+
+  /**
+   * Clear retry timer for a specific job
+   */
+  private clearRetryTimer(jobId: string): void {
+    const timer = this.retryTimers.get(jobId);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.retryTimers.delete(jobId);
+    }
+  }
+
+  /**
+   * Clear all retry timers
+   */
+  private clearAllRetryTimers(): void {
+    for (const timer of this.retryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.retryTimers.clear();
   }
 }
 

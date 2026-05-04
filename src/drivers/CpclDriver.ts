@@ -7,6 +7,7 @@
 
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
+import { bitmapToHex } from '@/utils/bitmap';
 
 /**
  * CPCL page size presets
@@ -503,16 +504,11 @@ export class CpclDriver {
     }
 
     // Convert bitmap bytes to hex string (uppercase)
-    const hexData: string[] = [];
-    const limit = Math.min(bitmap.length, totalBytes);
-    for (let i = 0; i < limit; i++) {
-      const byte = bitmap[i]!;
-      hexData.push(byte.toString(16).padStart(2, '0').toUpperCase());
-    }
+    const hexStr = bitmapToHex(bitmap, totalBytes);
 
     // CPCL macro definition with graphic data
     this.commands.push(`! DF ${logoName}`);
-    this.commands.push(`CG ${totalBytes} ${bytesPerRow} ${height} ${hexData.join('')}`);
+    this.commands.push(`CG ${totalBytes} ${bytesPerRow} ${height} ${hexStr}`);
     this.commands.push(`! DF`);
     this.logger.debug(`CPCL logo downloaded: ${logoName} (${width}x${height})`);
     return this;

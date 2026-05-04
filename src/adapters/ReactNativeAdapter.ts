@@ -252,26 +252,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
       this.updateState(PrinterState.DISCONNECTED);
       this.cleanupDevice(deviceId);
 
-      const errorMsg = normalizeError(error).message;
-      if (errorMsg.includes('timeout')) {
-        throw new BluetoothPrintError(
-          ErrorCode.CONNECTION_TIMEOUT,
-          `Connection to device ${deviceId} timed out`,
-          normalizeError(error)
-        );
-      } else if (errorMsg.includes('not found') || errorMsg.includes('not exist')) {
-        throw new BluetoothPrintError(
-          ErrorCode.DEVICE_NOT_FOUND,
-          `Device ${deviceId} not found`,
-          normalizeError(error)
-        );
-      }
-
-      throw new BluetoothPrintError(
-        ErrorCode.CONNECTION_FAILED,
-        `Failed to connect to device ${deviceId}`,
-        normalizeError(error)
-      );
+      throw this.classifyConnectionError(error, deviceId);
     }
   }
 
@@ -399,47 +380,21 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
    * @param device - Connected device object
    */
   private async discoverServices(deviceId: string, _device: RNDevice): Promise<void> {
-    Logger.scope('ReactNativeAdapter').debug('Discovering services for device:', deviceId);
-
-    try {
+    await this.discoverAndCacheServices(deviceId, async () => {
       const servicesResult = await (this.bleManager.discoverAllServicesAndCharacteristicsForDevice(
         deviceId
       ) as Promise<{ services: RNService[] }>);
 
       const services = servicesResult.services || [];
 
-      for (const service of services) {
-        const writeChar = service.characteristics.find(
-          (c: RNCharacteristic) => c.isWritableWithResponse || c.isWritableWithoutResponse
-        );
-
-        if (writeChar) {
-          this.serviceCache.set(deviceId, {
-            serviceId: service.uuid,
-            characteristicId: writeChar.uuid,
-          });
-          Logger.scope('ReactNativeAdapter').info('Found writeable characteristic:', {
-            service: service.uuid,
-            characteristic: writeChar.uuid,
-          });
-          return;
-        }
-      }
-
-      throw new BluetoothPrintError(
-        ErrorCode.CHARACTERISTIC_NOT_FOUND,
-        'No writeable characteristic found. Make sure the device is a supported printer.'
-      );
-    } catch (error) {
-      if (error instanceof BluetoothPrintError) {
-        throw error;
-      }
-      throw new BluetoothPrintError(
-        ErrorCode.SERVICE_DISCOVERY_FAILED,
-        'Failed to discover device services',
-        normalizeError(error)
-      );
-    }
+      return services.map((service) => ({
+        serviceId: service.uuid,
+        characteristics: service.characteristics.map((c: RNCharacteristic) => ({
+          characteristicId: c.uuid,
+          isWritable: c.isWritableWithResponse || c.isWritableWithoutResponse,
+        })),
+      }));
+    });
   }
 
   /**
