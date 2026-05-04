@@ -387,7 +387,7 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
 
       const services = servicesResult.services || [];
 
-      return services.map((service) => ({
+      return services.map(service => ({
         serviceId: service.uuid,
         characteristics: service.characteristics.map((c: RNCharacteristic) => ({
           characteristicId: c.uuid,

@@ -36,7 +36,6 @@ import {
   isKoreanJamo,
   unicodeToShiftJisHiragana,
   unicodeToShiftJisKatakana,
-  isJapaneseKanji,
   ISO2022JP_ESC_ASCII,
   ISO2022JP_ESC_JIS0208,
   requiresJisX0208Escape,
@@ -402,7 +401,7 @@ export class EncodingService {
    * @returns GBK encoded bytes
    */
   private encodeGbk(text: string): Uint8Array {
-    return this.encodeWithStrategy(text, (code) => getGbkBytes(code));
+    return this.encodeWithStrategy(text, code => getGbkBytes(code));
   }
 
   /**
@@ -411,7 +410,7 @@ export class EncodingService {
    * @returns Big5 encoded bytes
    */
   private encodeBig5(text: string): Uint8Array {
-    return this.encodeWithStrategy(text, (code) => {
+    return this.encodeWithStrategy(text, code => {
       const bytes = getBig5Bytes(code);
       if (bytes) return bytes;
       // Fall back to GBK if Big5 doesn't have the character
@@ -442,7 +441,7 @@ export class EncodingService {
       // Fall through to manual encoding
     }
 
-    return this.encodeWithStrategy(text, (code) => {
+    return this.encodeWithStrategy(text, code => {
       // Korean Hangul syllable (가각 same structure)
       if (isKoreanHangul(code)) {
         return encodeHangulSyllable(code);
@@ -467,7 +466,7 @@ export class EncodingService {
    * @returns Shift-JIS encoded bytes
    */
   private encodeShiftJis(text: string): Uint8Array {
-    return this.encodeWithStrategy(text, (code) => {
+    return this.encodeWithStrategy(text, code => {
       // Hiragana: U+3040-309F → Shift-JIS
       const hiraganaBytes = unicodeToShiftJisHiragana(code);
       if (hiraganaBytes) return hiraganaBytes;
@@ -491,7 +490,7 @@ export class EncodingService {
   private encodeIso2022Jp(text: string): Uint8Array {
     return this.encodeWithStrategy(
       text,
-      (code) => {
+      code => {
         // Characters requiring JIS X 0208 (Hiragana, Katakana, Kanji)
         if (requiresJisX0208Escape(code)) {
           // Hiragana
@@ -507,14 +506,14 @@ export class EncodingService {
         return null;
       },
       {
-        init: (r) => r.push(...ISO2022JP_ESC_ASCII),
+        init: r => r.push(...ISO2022JP_ESC_ASCII),
         onSurrogate: (r, fallback) => {
           r.push(...ISO2022JP_ESC_ASCII, fallback);
         },
         onAscii: (r, code) => {
           r.push(...ISO2022JP_ESC_ASCII, code);
         },
-        finalize: (r) => r.push(...ISO2022JP_ESC_ASCII),
+        finalize: r => r.push(...ISO2022JP_ESC_ASCII),
       }
     );
   }

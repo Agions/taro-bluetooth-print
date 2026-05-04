@@ -309,7 +309,7 @@ export abstract class BaseAdapter implements IPrinterAdapter {
       const services = await discoverFn();
 
       for (const service of services) {
-        const writeChar = service.characteristics.find((c) => c.isWritable);
+        const writeChar = service.characteristics.find(c => c.isWritable);
 
         if (writeChar) {
           this.serviceCache.set(deviceId, {
