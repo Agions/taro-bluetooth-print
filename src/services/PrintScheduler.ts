@@ -118,30 +118,123 @@ export function parseCronExpression(cron: string): {
 
 export function getNextCronRun(cron: string, fromTime: number = Date.now()): number {
   const parts = parseCronExpression(cron);
-  const date = new Date(fromTime);
 
+  // Pre-sort for binary search and compute max values
+  const sortedMinutes = [...parts.minutes].sort((a, b) => a - b);
+  const sortedHours = [...parts.hours].sort((a, b) => a - b);
+  const sortedMonths = [...parts.months].sort((a, b) => a - b);
+  const sortedDaysOfMonth = [...parts.daysOfMonth].sort((a, b) => a - b);
+
+  const minMinute = sortedMinutes[0] ?? 0;
+  const minHour = sortedHours[0] ?? 0;
+  const minMonth = sortedMonths[0] ?? 1;
+  const maxDay = sortedDaysOfMonth[sortedDaysOfMonth.length - 1] ?? 31;
+
+  // Convert to Sets for O(1) lookup
+  const minuteSet = new Set(parts.minutes);
+  const hourSet = new Set(parts.hours);
+  const monthSet = new Set(parts.months);
+  const dayOfMonthSet = new Set(parts.daysOfMonth);
+  const dayOfWeekSet = new Set(parts.daysOfWeek);
+
+  /**
+   * Find the next value in a sorted array that is >= the target.
+   * Returns the found value, or null if no such value exists.
+   */
+  const findNextValue = (sortedArr: number[], target: number): number | null => {
+    let lo = 0;
+    let hi = sortedArr.length - 1;
+    let result: number | null = null;
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      const midVal = sortedArr[mid];
+      if (midVal !== undefined && midVal >= target) {
+        result = midVal;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return result;
+  };
+
+  // Smart jump algorithm: instead of iterating minute-by-minute, skip to next valid value at each level
+  const date = new Date(fromTime);
   date.setSeconds(0, 0);
   date.setMinutes(date.getMinutes() + 1);
 
   const maxIterations = 525600;
   for (let i = 0; i < maxIterations; i++) {
-    const minute = date.getMinutes();
-    const hour = date.getHours();
-    const dayOfMonth = date.getDate();
-    const month = date.getMonth() + 1;
-    const dayOfWeek = date.getDay();
+    const currentMonth = date.getMonth() + 1;
 
-    if (
-      parts.minutes.includes(minute) &&
-      parts.hours.includes(hour) &&
-      parts.daysOfMonth.includes(dayOfMonth) &&
-      parts.months.includes(month) &&
-      parts.daysOfWeek.includes(dayOfWeek)
-    ) {
-      return date.getTime();
+    // Skip to next valid month
+    if (!monthSet.has(currentMonth)) {
+      const nextMonth = findNextValue(sortedMonths, currentMonth);
+      if (nextMonth !== null) {
+        date.setMonth(nextMonth - 1, 1);
+        date.setHours(0, 0, 0, 0);
+      } else {
+        // Wrap to next year's first valid month
+        date.setFullYear(date.getFullYear() + 1, minMonth - 1, 1);
+        date.setHours(0, 0, 0, 0);
+      }
+      continue;
     }
 
-    date.setMinutes(date.getMinutes() + 1);
+    const dayOfMonth = date.getDate();
+    const dayOfWeek = date.getDay();
+
+    // Skip to next valid day of month
+    if (!dayOfMonthSet.has(dayOfMonth) || !dayOfWeekSet.has(dayOfWeek)) {
+      if (dayOfMonth > maxDay || (!dayOfWeekSet.has(dayOfWeek) && dayOfMonth >= 28)) {
+        // Past max valid day, move to next month
+        date.setMonth(date.getMonth() + 1, 1);
+        date.setHours(0, 0, 0, 0);
+      } else {
+        date.setDate(date.getDate() + 1);
+        date.setHours(0, 0, 0, 0);
+      }
+      continue;
+    }
+
+    const hour = date.getHours();
+
+    // Skip to next valid hour
+    if (!hourSet.has(hour)) {
+      const nextHour = findNextValue(sortedHours, hour);
+      if (nextHour !== null) {
+        date.setHours(nextHour, 0, 0, 0);
+      } else {
+        // No more valid hours today, move to next day
+        date.setDate(date.getDate() + 1);
+        date.setHours(minHour, 0, 0, 0);
+      }
+      continue;
+    }
+
+    const minute = date.getMinutes();
+
+    // Skip to next valid minute
+    if (!minuteSet.has(minute)) {
+      const nextMinute = findNextValue(sortedMinutes, minute);
+      if (nextMinute !== null) {
+        date.setMinutes(nextMinute, 0, 0);
+      } else {
+        // No more valid minutes this hour, advance to next hour
+        const nextH = findNextValue(sortedHours, hour + 1);
+        if (nextH !== null) {
+          date.setHours(nextH, minMinute, 0, 0);
+        } else {
+          // No more valid hours today, move to next day
+          date.setDate(date.getDate() + 1);
+          date.setHours(minHour, minMinute, 0, 0);
+        }
+      }
+      continue;
+    }
+
+    // All fields match
+    return date.getTime();
   }
 
   throw new BluetoothPrintError(
@@ -160,6 +253,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
   private isRunning: boolean = false;
   private onPrintExecute?: (job: ScheduledPrint) => Promise<void>;
   private persistKey: string = 'print-scheduler-jobs';
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly PERSIST_DEBOUNCE_MS = 500;
 
   constructor() {
     super();
@@ -403,15 +498,23 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
   }
 
   private persistJobs(): void {
-    try {
-      const data = JSON.stringify(Array.from(this.jobs.entries()));
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(this.persistKey, data);
-      }
-    } catch {
-      // Persist errors are non-critical — the in-memory job list remains functional;
-      // persistence is only for crash-recovery convenience across app restarts
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
     }
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      try {
+        const data = JSON.stringify(Array.from(this.jobs.entries()));
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(this.persistKey, data);
+        }
+      } catch {
+        // Persist errors are non-critical — the in-memory job list remains functional;
+        // persistence is only for crash-recovery convenience across app restarts
+      }
+      // If jobs map is now empty, ensure the persisted state reflects that
+      // (handled by the next call or stop())
+    }, PrintScheduler.PERSIST_DEBOUNCE_MS);
   }
 
   private restoreJobs(): void {
@@ -439,7 +542,22 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
   clear(): void {
     this.stop();
     this.jobs.clear();
-    this.persistJobs();
+    this.flushPersist();
+  }
+
+  private flushPersist(): void {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    try {
+      const data = JSON.stringify(Array.from(this.jobs.entries()));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.persistKey, data);
+      }
+    } catch {
+      // Persist errors are non-critical
+    }
   }
 
   getStatus(): {

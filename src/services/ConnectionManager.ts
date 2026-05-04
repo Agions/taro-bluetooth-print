@@ -360,9 +360,13 @@ export class ConnectionManager
     } catch (error) {
       this.connLogger.warn(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
 
+      // Exponential backoff: base * 2^(attempt-1), capped at 30 seconds
+      const baseInterval = this.config.reconnectInterval;
+      const backoffDelay = Math.min(baseInterval * Math.pow(2, this.reconnectAttempts - 1), 30000);
+
       this.reconnectTimer = setTimeout(() => {
         void this.attemptReconnect();
-      }, this.config.reconnectInterval);
+      }, backoffDelay);
     }
   }
 

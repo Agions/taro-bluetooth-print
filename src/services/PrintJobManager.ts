@@ -45,6 +45,27 @@ export class PrintJobManager implements IPrintJobManager {
   /** Static job state store for backward compatibility */
   private static _jobStateStore: Map<string, SavedJobState> = new Map();
 
+  /** Auto-cleanup timer for expired job states */
+  private static _cleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private static readonly CLEANUP_INTERVAL_MS = 300000; // 5 minutes
+  private static readonly DEFAULT_EXPIRY_MS = 3600000; // 1 hour
+
+  /** Start the auto-cleanup timer if not already running */
+  private static ensureCleanupTimer(): void {
+    if (!PrintJobManager._cleanupTimer) {
+      PrintJobManager._cleanupTimer = setInterval(() => {
+        PrintJobManager.cleanupExpiredJobs(PrintJobManager.DEFAULT_EXPIRY_MS);
+      }, PrintJobManager.CLEANUP_INTERVAL_MS);
+      // Allow Node.js to exit even if the timer is active
+      if (
+        typeof PrintJobManager._cleanupTimer === 'object' &&
+        typeof PrintJobManager._cleanupTimer.unref === 'function'
+      ) {
+        PrintJobManager._cleanupTimer.unref();
+      }
+    }
+  }
+
   /**
    * Get the static job state store (for backward compatibility)
    * @deprecated Use instance-level store instead for multi-printer support
@@ -263,6 +284,9 @@ export class PrintJobManager implements IPrintJobManager {
       this.instanceJobStateStore.set(this.jobId, state);
       PrintJobManager.jobStateStore.set(this.jobId, state);
 
+      // Ensure auto-cleanup timer is running
+      PrintJobManager.ensureCleanupTimer();
+
       this.logger.debug(
         `Saved job state for ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
       );
@@ -358,7 +382,23 @@ export class PrintJobManager implements IPrintJobManager {
       }
     }
 
+    // If the store is empty, stop the auto-cleanup timer to avoid unnecessary scheduling
+    if (PrintJobManager.jobStateStore.size === 0 && PrintJobManager._cleanupTimer) {
+      clearInterval(PrintJobManager._cleanupTimer);
+      PrintJobManager._cleanupTimer = null;
+    }
+
     return cleaned;
+  }
+
+  /**
+   * Stop the auto-cleanup timer. Useful for test teardown.
+   */
+  static stopCleanupTimer(): void {
+    if (PrintJobManager._cleanupTimer) {
+      clearInterval(PrintJobManager._cleanupTimer);
+      PrintJobManager._cleanupTimer = null;
+    }
   }
 
   /**

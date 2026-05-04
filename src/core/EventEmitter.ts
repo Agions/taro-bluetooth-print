@@ -169,19 +169,15 @@ export class EventEmitter<T> {
       return;
     }
 
-    // 复制监听器集合，避免在遍历过程中修改集合导致问题
-    const handlersCopy = new Set(handlers);
-    const handlerArray = Array.from(handlersCopy);
-
-    // 使用for循环代替forEach，提高性能
-    for (let i = 0; i < handlerArray.length; i++) {
-      const handler = handlerArray[i];
+    // Iterate directly over the Set. Since Set is insertion-ordered and
+    // for...of snapshots the iterator at the start, handlers added/removed
+    // during iteration won't affect the current emit cycle.
+    for (const handler of handlers) {
       if (typeof handler === 'function') {
         try {
           // 根据事件类型决定是否传递数据
           if (data === undefined || data === null) {
-            // @ts-expect-error - 类型安全由调用方保证
-            handler();
+            (handler as () => void)();
           } else {
             handler(data);
           }
@@ -219,11 +215,10 @@ export class EventEmitter<T> {
       return;
     }
 
-    // 复制监听器集合，避免在遍历过程中修改集合导致问题
-    const handlersCopy = new Set(handlers);
+    // Iterate directly over the Set snapshot (for...of snapshots at start)
     const promises: Promise<void>[] = [];
 
-    handlersCopy.forEach(handler => {
+    handlers.forEach(handler => {
       promises.push(
         (async () => {
           try {

@@ -135,9 +135,17 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
   private readonly jobs: BatchJob[] = [];
   private config: BatchConfig;
   private isProcessing = false;
-  private waitTimer: ReturnType<typeof setTimeout> | null = null;
-  private autoProcessTimer: ReturnType<typeof setInterval> | null = null;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Merged watch timer (replaces waitTimer, flushTimer, autoProcessTimer)
+  private watchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // State flags for one-shot timers within the merged watch timer
+  private waitFired = false;
+  private flushFired = false;
+
+  // Cached total bytes of pending jobs (avoids reduce in shouldProcessImmediately)
+  private pendingBytes = 0;
+
   private stats: BatchStats = {
     totalJobs: 0,
     totalBytes: 0,
@@ -182,31 +190,30 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       metadata,
     };
 
-    this.jobs.push(job);
+    // Optimized: binary search insertion instead of full sort
+    const insertIndex = this.findInsertIndex(priority);
+    this.jobs.splice(insertIndex, 0, job);
+    this.pendingBytes += data.length;
     this.stats.totalJobs++;
     this.lastJobAt = now;
 
-    // Sort by priority (descending)
-    this.jobs.sort((a, b) => b.priority - a.priority);
+    // Reset one-shot timer flags on new job arrival
+    this.waitFired = false;
+    this.flushFired = false;
 
     this.emit('job-added', job);
     this.logger.debug(
       `Job added: ${id} (priority: ${priority}, queue size: ${this.jobs.length}, bytes: ${data.length})`
     );
 
-    // Start/restart wait timer
-    this.startWaitTimer();
-
-    // Restart flush timer (interval timeout auto-flush)
-    this.startFlushTimer();
+    // Restart watch timer (merged from waitTimer, flushTimer, autoProcessTimer)
+    this.restartWatchTimer();
 
     // Check if we should process immediately
     if (this.shouldProcessImmediately()) {
-      this.emit('batch-ready', [...this.jobs]);
+      // Avoid unnecessary array copy - emit reference directly
+      this.emit('batch-ready', this.jobs);
     }
-
-    // Start auto-process if enabled
-    this.startAutoProcess();
 
     return id;
   }
@@ -235,7 +242,10 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       return false;
     }
 
-    this.jobs.splice(index, 1);
+    const removed = this.jobs.splice(index, 1)[0];
+    if (removed) {
+      this.pendingBytes -= removed.data.length;
+    }
     this.logger.debug(`Job cancelled: ${id}`);
     return true;
   }
@@ -246,8 +256,9 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
   cancelAll(): void {
     const count = this.jobs.length;
     this.jobs.length = 0;
+    this.pendingBytes = 0;
     this.lastJobAt = 0;
-    this.clearTimers();
+    this.clearWatchTimer();
     this.logger.info(`Cancelled ${count} jobs`);
   }
 
@@ -306,7 +317,7 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
     }
 
     this.isProcessing = true;
-    this.clearTimers();
+    this.clearWatchTimer();
 
     try {
       // Get jobs for this batch
@@ -337,7 +348,12 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
         (this.stats.avgBatchSize * (this.stats.batchesProcessed - 1) + mergedData.length) /
         this.stats.batchesProcessed;
 
-      // Remove processed jobs
+      // Remove processed jobs and update pendingBytes
+      let removedBytes = 0;
+      for (let i = 0; i < batchJobs.length; i++) {
+        removedBytes += batchJobs[i]!.data.length;
+      }
+      this.pendingBytes -= removedBytes;
       this.jobs.splice(0, batchJobs.length);
 
       this.emit('batch-processed', { jobCount: batchJobs.length, bytes: mergedData.length });
@@ -559,6 +575,7 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
 
   /**
    * Check if we should process immediately
+   * Uses cached pendingBytes instead of reduce()
    */
   private shouldProcessImmediately(): boolean {
     if (this.jobs.length === 0) {
@@ -575,114 +592,142 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       return true;
     }
 
-    // Queue is full
-    const totalSize = this.jobs.reduce((sum, j) => sum + j.data.length, 0);
-    if (totalSize >= this.config.maxBatchSize) {
+    // Queue is full - use cached pendingBytes instead of reduce
+    if (this.pendingBytes >= this.config.maxBatchSize) {
       return true;
     }
 
     return false;
   }
 
-  /**
-   * Start the wait timer
-   */
-  private startWaitTimer(): void {
-    this.clearWaitTimer();
+  // =========================================================================
+  // Merged Watch Timer (replaces waitTimer + flushTimer + autoProcessTimer)
+  // =========================================================================
 
-    if (this.config.maxWaitTime <= 0) {
+  /**
+   * Restart the unified watch timer after a job is added.
+   * Combines the behavior of waitTimer, flushTimer, and autoProcessTimer
+   * into a single timer with dynamic interval recalculation.
+   */
+  private restartWatchTimer(): void {
+    this.clearWatchTimer();
+    this.updateWatchTimer();
+  }
+
+  /**
+   * Recalculate and schedule the next watch timer fire.
+   * Selects the minimum delay among all configured timer sources.
+   * One-shot timers (wait, flush) are skipped once they have fired.
+   */
+  private updateWatchTimer(): void {
+    if (this.jobs.length === 0) {
       return;
     }
 
-    this.waitTimer = setTimeout(() => {
-      this.logger.debug('Wait timer expired, batch ready');
-      this.emit('batch-ready', [...this.jobs]);
-    }, this.config.maxWaitTime);
+    let minDelay: number | null = null;
+
+    // Wait timer: one-shot, fires once after maxWaitTime from now (skip if already fired)
+    if (this.config.maxWaitTime > 0 && !this.waitFired) {
+      minDelay = this.config.maxWaitTime;
+    }
+
+    // Flush timer: one-shot, fires after flushIntervalTimeout from lastJobAt (skip if already fired)
+    if (this.config.flushIntervalTimeout > 0 && !this.flushFired) {
+      const flushDelay = this.config.flushIntervalTimeout - (Date.now() - this.lastJobAt);
+      const clampedFlushDelay = Math.max(flushDelay, 0);
+      minDelay = minDelay === null ? clampedFlushDelay : Math.min(minDelay, clampedFlushDelay);
+    }
+
+    // Auto-process interval: recurring check (used as floor for minDelay)
+    if (this.config.autoProcessInterval > 0) {
+      if (minDelay === null) {
+        // No wait/flush timers - use autoProcessInterval as the sole interval
+        minDelay = this.config.autoProcessInterval;
+      } else {
+        // Cap the delay at autoProcessInterval so we don't miss auto-process checks
+        minDelay = Math.min(minDelay, this.config.autoProcessInterval);
+      }
+    }
+
+    // No timers configured
+    if (minDelay === null || minDelay < 0) {
+      return;
+    }
+
+    this.watchTimer = setTimeout(() => {
+      let shouldReschedule = false;
+
+      // One-shot: wait timer (emit batch-ready once after maxWaitTime)
+      if (this.config.maxWaitTime > 0 && !this.waitFired && this.jobs.length > 0) {
+        this.logger.debug('Wait timer expired, batch ready');
+        this.emit('batch-ready', this.jobs);
+        this.waitFired = true;
+      }
+
+      // One-shot: flush timer (auto-flush once after flushIntervalTimeout)
+      if (this.config.flushIntervalTimeout > 0 && !this.flushFired && this.jobs.length > 0) {
+        const elapsed = Date.now() - this.lastJobAt;
+        if (elapsed >= this.config.flushIntervalTimeout) {
+          this.logger.debug(
+            `Flush interval timeout triggered: ${this.jobs.length} jobs pending, ` +
+              `elapsed: ${elapsed}ms`
+          );
+          this.stats.autoFlushCount++;
+          this.emit('auto-flush', {
+            jobCount: this.jobs.length,
+            bytes: this.pendingBytes,
+          });
+          this.emit('batch-ready', this.jobs);
+          this.flushFired = true;
+        } else {
+          shouldReschedule = true;
+        }
+      }
+
+      // Recurring: auto-process check
+      if (this.config.autoProcessInterval > 0 && this.shouldProcessImmediately()) {
+        this.emit('batch-ready', this.jobs);
+      }
+
+      // Reschedule if there are still pending timers or autoProcess is active
+      if (shouldReschedule || this.config.autoProcessInterval > 0) {
+        this.updateWatchTimer();
+      }
+    }, minDelay);
   }
 
   /**
-   * Clear wait timer
+   * Clear the unified watch timer
    */
-  private clearWaitTimer(): void {
-    if (this.waitTimer) {
-      clearTimeout(this.waitTimer);
-      this.waitTimer = null;
+  private clearWatchTimer(): void {
+    if (this.watchTimer) {
+      clearTimeout(this.watchTimer);
+      this.watchTimer = null;
     }
   }
 
   /**
-   * Start the flush timer (interval timeout auto-flush)
+   * Binary search to find the insertion index for a new job.
+   * Maintains descending priority order (highest priority first).
    *
-   * If no new jobs arrive within flushIntervalTimeout ms, the pending
-   * jobs are automatically flushed via the 'auto-flush' event.
+   * @param priority - Priority of the job to insert
+   * @returns Index where the new job should be inserted
    */
-  private startFlushTimer(): void {
-    this.clearFlushTimer();
+  private findInsertIndex(priority: number): number {
+    let low = 0;
+    let high = this.jobs.length;
 
-    if (this.config.flushIntervalTimeout <= 0 || this.jobs.length === 0) {
-      return;
-    }
-
-    this.flushTimer = setTimeout(() => {
-      const elapsed = Date.now() - this.lastJobAt;
-      if (elapsed >= this.config.flushIntervalTimeout && this.jobs.length > 0) {
-        this.logger.debug(
-          `Flush interval timeout triggered: ${this.jobs.length} jobs pending, ` +
-            `elapsed: ${elapsed}ms`
-        );
-        this.stats.autoFlushCount++;
-        this.emit('auto-flush', {
-          jobCount: this.jobs.length,
-          bytes: this.jobs.reduce((sum, j) => sum + j.data.length, 0),
-        });
-        this.emit('batch-ready', [...this.jobs]);
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      // For descending sort: find rightmost position where priority fits
+      if (this.jobs[mid]!.priority >= priority) {
+        low = mid + 1;
+      } else {
+        high = mid;
       }
-    }, this.config.flushIntervalTimeout);
-  }
-
-  /**
-   * Clear flush timer
-   */
-  private clearFlushTimer(): void {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-  }
-
-  /**
-   * Start auto-process timer
-   */
-  private startAutoProcess(): void {
-    if (this.autoProcessTimer || this.config.autoProcessInterval <= 0) {
-      return;
     }
 
-    this.autoProcessTimer = setInterval(() => {
-      // Check if batch is ready
-      if (this.shouldProcessImmediately()) {
-        this.emit('batch-ready', [...this.jobs]);
-      }
-    }, this.config.autoProcessInterval);
-  }
-
-  /**
-   * Stop auto-process timer
-   */
-  private stopAutoProcess(): void {
-    if (this.autoProcessTimer) {
-      clearInterval(this.autoProcessTimer);
-      this.autoProcessTimer = null;
-    }
-  }
-
-  /**
-   * Clear all timers
-   */
-  private clearTimers(): void {
-    this.clearWaitTimer();
-    this.stopAutoProcess();
-    this.clearFlushTimer();
+    return low;
   }
 
   /**

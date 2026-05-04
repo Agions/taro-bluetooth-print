@@ -97,6 +97,9 @@ export class PrintHistory {
 
   private readonly maxEntries: number;
 
+  /** Ordered index of entry IDs by createdAt (ascending) for fast pruning */
+  private readonly orderedIds: { id: string; createdAt: number }[] = [];
+
   /**
    * Creates a new PrintHistory instance
    * @param maxEntries - Maximum number of entries to keep (default: 1000)
@@ -133,6 +136,11 @@ export class PrintHistory {
     };
 
     this.entries.set(id, entry);
+
+    // Maintain the ordered index: insert at the correct position (ascending by createdAt)
+    const insertIdx = this.findInsertPosition(now);
+    this.orderedIds.splice(insertIdx, 0, { id, createdAt: now });
+
     this.enforceMaxEntries();
 
     this.logger.debug(`History entry added: ${id}`);
@@ -275,6 +283,7 @@ export class PrintHistory {
    */
   clear(): void {
     this.entries.clear();
+    this.orderedIds.length = 0;
     this.logger.info('Print history cleared');
   }
 
@@ -300,6 +309,9 @@ export class PrintHistory {
         }
       }
 
+      // Rebuild the ordered index after bulk import
+      this.rebuildIndex();
+
       this.enforceMaxEntries();
       this.logger.info(`Imported ${imported} history entries`);
       return imported;
@@ -318,24 +330,59 @@ export class PrintHistory {
   }
 
   /**
-   * Enforce maximum entries limit
+   * Enforce maximum entries limit using the ordered index.
+   * Instead of full-sorting, we use the pre-sorted index to find and remove the oldest entries.
    */
   private enforceMaxEntries(): void {
     if (this.entries.size <= this.maxEntries) {
       return;
     }
 
-    // Remove oldest entries
-    const sorted = Array.from(this.entries.entries()).sort(
-      (a, b) => a[1].createdAt - b[1].createdAt
-    );
+    const excess = this.entries.size - this.maxEntries;
 
-    const toRemove = sorted.slice(0, this.entries.size - this.maxEntries);
-    for (const [id] of toRemove) {
-      this.entries.delete(id);
+    // The ordered index is ascending by createdAt, so the first `excess` entries are the oldest
+    for (let i = 0; i < excess; i++) {
+      const item = this.orderedIds[i];
+      if (item) {
+        this.entries.delete(item.id);
+      }
     }
 
-    this.logger.debug(`Pruned ${toRemove.length} old history entries`);
+    // Remove the pruned entries from the ordered index
+    this.orderedIds.splice(0, excess);
+
+    this.logger.debug(`Pruned ${excess} old history entries`);
+  }
+
+  /**
+   * Binary search to find the insertion position for a given timestamp
+   * in the orderedIds array (ascending order).
+   */
+  private findInsertPosition(createdAt: number): number {
+    let lo = 0;
+    let hi = this.orderedIds.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      const midEntry = this.orderedIds[mid];
+      if (midEntry && midEntry.createdAt <= createdAt) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /**
+   * Rebuild the ordered index from the entries map.
+   * Used after bulk operations like import.
+   */
+  private rebuildIndex(): void {
+    this.orderedIds.length = 0;
+    for (const [id, entry] of this.entries) {
+      this.orderedIds.push({ id, createdAt: entry.createdAt });
+    }
+    this.orderedIds.sort((a, b) => a.createdAt - b.createdAt);
   }
 }
 
