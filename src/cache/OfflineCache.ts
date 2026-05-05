@@ -10,6 +10,7 @@
  * - sync() processes all jobs in memory and persists once (O(n) instead of O(n²)).
  * - Uint8Array serialized as Base64 strings instead of number[] (≈3x less storage).
  * - Automatic expired-job cleanup on load and when cache is at capacity.
+ * - **v2.12.0**: LRU eviction policy to prevent unbounded memory growth.
  *
  * @example
  * ```typescript
@@ -180,6 +181,12 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
   /** In-memory cache – null means "not yet loaded from storage" */
   private jobCache: CachedJob[] | null = null;
 
+  /** LRU tracking: job IDs in access order (most recently used at end) */
+  private lruOrder: string[] = [];
+
+  /** Maximum cache entries for LRU eviction (default: 100) */
+  private readonly maxCacheEntries = 100;
+
   /**
    * Creates a new OfflineCache instance
    */
@@ -199,10 +206,14 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
   /**
    * Save a job to cache.
    * Operates on the in-memory cache and persists to storage once.
+   * Includes LRU eviction if cache exceeds max entries.
    */
   save(job: CachedJob): void {
     try {
       const jobs = this.loadJobs();
+
+      // LRU eviction: remove least recently used jobs if at capacity
+      this.evictIfNecessary(jobs);
 
       // Auto-cleanup expired jobs when at capacity
       if (jobs.length >= this.config.maxJobs) {
@@ -219,8 +230,12 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
       const existingIndex = jobs.findIndex(j => j.id === job.id);
       if (existingIndex !== -1) {
         jobs[existingIndex] = job;
+        // Update LRU order: move to end (most recently used)
+        this.updateLRU(job.id);
       } else {
         jobs.push(job);
+        // Add to LRU order
+        this.lruOrder.push(job.id);
       }
 
       this.saveJobs(jobs);
@@ -233,9 +248,15 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
 
   /**
    * Get all cached jobs
+   * Updates LRU order for each job accessed.
    */
   getAll(): CachedJob[] {
-    return this.loadJobs();
+    const jobs = this.loadJobs();
+    // Update LRU order for all accessed jobs
+    for (const job of jobs) {
+      this.updateLRU(job.id);
+    }
+    return jobs;
   }
 
   /**
@@ -486,6 +507,54 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
       lastError: stored.lastError,
       metadata: stored.metadata,
     };
+  }
+
+  // ==========================================================================
+  // LRU (Least Recently Used) Cache Eviction
+  // ==========================================================================
+
+  /**
+   * Evict least recently used jobs if cache exceeds max entries.
+   * Called before adding a new job to prevent unbounded memory growth.
+   */
+  private evictIfNecessary(jobs: CachedJob[]): void {
+    if (jobs.length <= this.maxCacheEntries) {
+      return;
+    }
+
+    // Sort by LRU order (least recently used first)
+    const jobsByLRU = jobs.sort((a, b) => {
+      const aIndex = this.lruOrder.indexOf(a.id);
+      const bIndex = this.lruOrder.indexOf(b.id);
+      return aIndex - bIndex;
+    });
+
+    // Remove least recently used jobs
+    const toRemove = jobsByLRU.slice(0, jobs.length - this.maxCacheEntries);
+    for (const job of toRemove) {
+      const idx = jobs.findIndex(j => j.id === job.id);
+      if (idx !== -1) {
+        jobs.splice(idx, 1);
+      }
+      const lruIdx = this.lruOrder.indexOf(job.id);
+      if (lruIdx !== -1) {
+        this.lruOrder.splice(lruIdx, 1);
+      }
+      this.logger.debug(`LRU eviction: removed job ${job.id}`);
+    }
+  }
+
+  /**
+   * Update LRU order for a job ID (move to end = most recently used).
+   */
+  private updateLRU(jobId: string): void {
+    const idx = this.lruOrder.indexOf(jobId);
+    if (idx !== -1) {
+      // Remove from current position
+      this.lruOrder.splice(idx, 1);
+    }
+    // Add to end (most recently used)
+    this.lruOrder.push(jobId);
   }
 }
 

@@ -389,7 +389,7 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
   }
 
   /**
-   * Merge multiple jobs into a single buffer
+   * Merge multiple jobs into a single buffer.
    *
    * Features:
    * - Consecutive small jobs (< smallJobThreshold bytes) are combined into a single job
@@ -407,7 +407,7 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       let mergedData: Uint8Array;
 
       if (jobs.length === 1 && this.config.unifiedCutCommand) {
-        // Single job with unified cut
+        // Single job with unified cut - use efficient concat
         mergedData = this.concatBuffers([
           (jobs[0] as { data: Uint8Array }).data,
           this.config.unifiedCutCommand,
@@ -431,41 +431,30 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       );
     }
 
-    // Phase 2: Calculate total size for final merge
-    let totalSize = 0;
-    for (const job of mergedAfterSmallJobs) {
-      totalSize += job.data.length;
-    }
+    // Phase 2: Calculate total size for final merge (for logging only)
+    const totalSize = mergedAfterSmallJobs.reduce((sum, job) => sum + job.data.length, 0);
 
     // Add unified cut command size if configured
+    const cutCommandSize = this.config.unifiedCutCommand?.length ?? 0;
+
+    // Phase 3: Concatenate all buffers (including unified cut)
+    const buffersToConcat: Uint8Array[] = mergedAfterSmallJobs.map(j => j.data);
     if (this.config.unifiedCutCommand) {
-      totalSize += this.config.unifiedCutCommand.length;
-    }
-
-    // Phase 3: Concatenate all buffers
-    const result = new Uint8Array(totalSize);
-    let offset = 0;
-
-    for (const job of mergedAfterSmallJobs) {
-      result.set(job.data, offset);
-      offset += job.data.length;
-    }
-
-    // Append unified cut command
-    if (this.config.unifiedCutCommand) {
-      result.set(this.config.unifiedCutCommand, offset);
+      buffersToConcat.push(this.config.unifiedCutCommand);
       this.stats.unifiedCutsApplied++;
       this.logger.debug(
         `Applied unified cut command: ${this.config.unifiedCutCommand.length} bytes`
       );
     }
 
+    const mergedData = this.concatBuffers(buffersToConcat);
+
     this.logger.debug(
       `Merged ${fromCount} jobs into ${toCountAfterSmallMerge} after small-job merge, ` +
-        `final size: ${totalSize} bytes`
+        `final size: ${mergedData.length} bytes (data: ${totalSize}, cut: ${cutCommandSize})`
     );
 
-    return { mergedData: result, fromCount, toCount: toCountAfterSmallMerge };
+    return { mergedData, fromCount, toCount: toCountAfterSmallMerge };
   }
 
   /**
@@ -525,19 +514,8 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
    * @returns Merged BatchJob
    */
   private createMergedJob(buffers: Uint8Array[], priority: number, addedAt: number): BatchJob {
-    // Calculate total size
-    let totalSize = 0;
-    for (const buf of buffers) {
-      totalSize += buf.length;
-    }
-
-    // Merge into single buffer
-    const merged = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const buf of buffers) {
-      merged.set(buf, offset);
-      offset += buf.length;
-    }
+    // Use efficient concatBuffers instead of manual loop
+    const merged = this.concatBuffers(buffers);
 
     return {
       id: `merged_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,

@@ -19,7 +19,6 @@ export interface EventOptions {
   /** 优先级，数字越小优先级越高 */
   priority?: number;
   /** 过滤器 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   filter?: EventFilter<any>;
   /** 是否只监听一次 */
   once?: boolean;
@@ -91,7 +90,6 @@ export class EventBus {
   /**
    * 取消订阅
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   off<T>(event: string | symbol, handler: EventHandler<T>): void {
     const eventKey = String(event);
     const listeners = this.listeners.get(eventKey);
@@ -110,7 +108,6 @@ export class EventBus {
   /**
    * 发布事件
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async emit<T>(event: string | symbol, payload: T): Promise<void> {
     const eventKey = String(event);
     const listeners = this.listeners.get(eventKey);
@@ -168,12 +165,7 @@ export class EventBus {
   /**
    * 等待特定事件
    */
-  waitFor<T>(
-    event: string | symbol,
-    timeout?: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _filter?: EventFilter<T>
-  ): Promise<T> {
+  waitFor<T>(event: string | symbol, timeout?: number, filter?: EventFilter<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       const timer = timeout
         ? setTimeout(() => {
@@ -182,10 +174,14 @@ export class EventBus {
           }, timeout)
         : null;
 
-      const subscription = this.once<T>(event, payload => {
-        if (timer) clearTimeout(timer);
-        resolve(payload);
-      });
+      const subscription = this.once<T>(
+        event,
+        payload => {
+          if (timer) clearTimeout(timer);
+          resolve(payload);
+        },
+        { filter }
+      );
     });
   }
 

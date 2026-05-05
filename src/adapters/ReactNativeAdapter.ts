@@ -352,7 +352,6 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
       try {
         this.bleManager.startDeviceScan(null, { allowDuplicates: false }, (error: unknown) => {
           if (error) {
-            // eslint-disable-next-line @typescript-eslint/no-base-to-string
             reject(normalizeError(error));
           }
         });

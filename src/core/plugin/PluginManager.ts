@@ -1,14 +1,12 @@
 import type { EventBus } from '../event/EventBus';
 import type { Container } from '../di/Container';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface PluginContext {
   /** 事件总线 */
   eventBus: EventBus;
   /** DI容器 */
   container: Container;
   /** 配置 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: Record<string, unknown>;
 }
 
@@ -27,7 +25,6 @@ export interface Plugin {
 
 export interface PluginRegistration {
   plugin: Plugin;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: Record<string, unknown>;
   installed: boolean;
 }
@@ -43,7 +40,6 @@ export class PluginManager {
   /**
    * 注册插件
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register(plugin: Plugin, config: Record<string, unknown> = {}): void {
     if (this.plugins.has(plugin.name)) {
       throw new Error(`Plugin "${plugin.name}" is already registered`);

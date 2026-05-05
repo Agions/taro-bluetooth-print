@@ -5,9 +5,8 @@
 
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
-// Declare ByteDance global for TypeScript
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface ByteDanceGlobal extends MiniProgramBLEApi {}
+// ByteDance global type for TypeScript
+type ByteDanceGlobal = MiniProgramBLEApi;
 
 declare const tt: ByteDanceGlobal;
 

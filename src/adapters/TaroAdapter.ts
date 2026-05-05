@@ -5,9 +5,8 @@
 
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
-// Declare Taro global for TypeScript
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface TaroGlobal extends MiniProgramBLEApi {}
+// Taro global type for TypeScript
+type TaroGlobal = MiniProgramBLEApi;
 
 declare const Taro: TaroGlobal;
 

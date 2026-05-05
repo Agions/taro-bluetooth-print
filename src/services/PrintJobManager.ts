@@ -173,15 +173,13 @@ export class PrintJobManager implements IPrintJobManager {
         this.clearJobState();
       }
 
-      const printError =
-        error instanceof BluetoothPrintError
-          ? error
-          : new BluetoothPrintError(
-              ErrorCode.PRINT_JOB_FAILED,
-              'Print job failed',
-              normalizeError(error)
-            );
-      throw printError;
+      throw error instanceof BluetoothPrintError
+        ? error
+        : new BluetoothPrintError(
+            ErrorCode.PRINT_JOB_FAILED,
+            'Print job failed',
+            normalizeError(error)
+          );
     }
   }
 
@@ -222,15 +220,13 @@ export class PrintJobManager implements IPrintJobManager {
       this.clearJobState();
       this.emitJobState('cancelled');
 
-      const printError =
-        error instanceof BluetoothPrintError
-          ? error
-          : new BluetoothPrintError(
-              ErrorCode.PRINT_JOB_FAILED,
-              'Print job failed',
-              normalizeError(error)
-            );
-      throw printError;
+      throw error instanceof BluetoothPrintError
+        ? error
+        : new BluetoothPrintError(
+            ErrorCode.PRINT_JOB_FAILED,
+            'Print job failed',
+            normalizeError(error)
+          );
     }
   }
 

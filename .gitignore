@@ -29,6 +29,10 @@ pnpm-debug.log*
 # 测试覆盖率
 coverage/
 
+# 本地报告文档（不提交到 git）
+docs/performance-optimization-report.md
+CODE_AUDIT_REPORT.md
+
 # 缓存
 .cache/
 .swc/

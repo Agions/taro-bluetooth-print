@@ -137,27 +137,6 @@ export function getNextCronRun(cron: string, fromTime: number = Date.now()): num
   const dayOfMonthSet = new Set(parts.daysOfMonth);
   const dayOfWeekSet = new Set(parts.daysOfWeek);
 
-  /**
-   * Find the next value in a sorted array that is >= the target.
-   * Returns the found value, or null if no such value exists.
-   */
-  const findNextValue = (sortedArr: number[], target: number): number | null => {
-    let lo = 0;
-    let hi = sortedArr.length - 1;
-    let result: number | null = null;
-    while (lo <= hi) {
-      const mid = (lo + hi) >>> 1;
-      const midVal = sortedArr[mid];
-      if (midVal !== undefined && midVal >= target) {
-        result = midVal;
-        hi = mid - 1;
-      } else {
-        lo = mid + 1;
-      }
-    }
-    return result;
-  };
-
   // Smart jump algorithm: instead of iterating minute-by-minute, skip to next valid value at each level
   const date = new Date(fromTime);
   date.setSeconds(0, 0);
@@ -241,6 +220,27 @@ export function getNextCronRun(cron: string, fromTime: number = Date.now()): num
     ErrorCode.INVALID_CONFIGURATION,
     'Cannot find next run time within one year'
   );
+}
+
+/**
+ * Find the next value in a sorted array that is >= the target.
+ * Returns the found value, or null if no such value exists.
+ */
+function findNextValue(sortedArr: number[], target: number): number | null {
+  let lo = 0;
+  let hi = sortedArr.length - 1;
+  let result: number | null = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const midVal = sortedArr[mid];
+    if (midVal !== undefined && midVal >= target) {
+      result = midVal;
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return result;
 }
 
 export function getNextIntervalRun(interval: number, fromTime: number = Date.now()): number {

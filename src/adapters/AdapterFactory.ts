@@ -25,33 +25,7 @@ export class AdapterFactory {
    * @throws BluetoothPrintError if the platform is not supported
    */
   static create(): IPrinterAdapter {
-    const platform = detectPlatform();
-
-    switch (platform) {
-      case PlatformType.WECHAT:
-        return new TaroAdapter();
-      case PlatformType.ALIPAY:
-        return new AlipayAdapter();
-      case PlatformType.BAIDU:
-        return new BaiduAdapter();
-      case PlatformType.BYTEDANCE:
-        return new ByteDanceAdapter();
-      case PlatformType.QQ:
-        return new QQAdapter();
-      case PlatformType.WEB:
-        if (WebBluetoothAdapter.isSupported()) {
-          return new WebBluetoothAdapter();
-        }
-        throw new BluetoothPrintError(
-          ErrorCode.PLATFORM_NOT_SUPPORTED,
-          'Web Bluetooth API is not supported in this browser. Please use a supported browser (Chrome, Edge, Opera).'
-        );
-      default:
-        throw new BluetoothPrintError(
-          ErrorCode.PLATFORM_NOT_SUPPORTED,
-          `Platform ${platform} is not supported. Please use a supported mini-program platform.`
-        );
-    }
+    return this.createForPlatform(detectPlatform());
   }
 
   /**
@@ -79,12 +53,12 @@ export class AdapterFactory {
         }
         throw new BluetoothPrintError(
           ErrorCode.PLATFORM_NOT_SUPPORTED,
-          'Web Bluetooth API is not supported in this browser.'
+          'Web Bluetooth API is not supported in this browser. Please use a supported browser (Chrome, Edge, Opera).'
         );
       default:
         throw new BluetoothPrintError(
           ErrorCode.PLATFORM_NOT_SUPPORTED,
-          `Platform ${platform} is not supported.`
+          `Platform ${platform} is not supported. Please use a supported mini-program platform.`
         );
     }
   }

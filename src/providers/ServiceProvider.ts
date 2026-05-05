@@ -45,12 +45,10 @@ import type { Container } from '@/core/di/Container';
 /**
  * 服务提供者配置选项
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ServiceProviderOptions {
   /** 是否启用全局事件总线 */
   useGlobalEventBus?: boolean;
   /** 自定义配置 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config?: Record<string, unknown>;
 }
 
@@ -68,7 +66,7 @@ export function registerServices(options: ServiceProviderOptions = {}): void {
 
   // 2. 注册适配器（工厂模式）
   rootContainer.register(ADAPTER_TOKEN, {
-    useFactory: () => AdapterFactory.create(),
+    useFactory: _container => AdapterFactory.create(),
     lifecycle: 'singleton',
   });
 
@@ -152,7 +150,6 @@ export function registerServices(options: ServiceProviderOptions = {}): void {
 
   // 16. 注册插件管理器
   rootContainer.register(PLUGIN_MANAGER_TOKEN, {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unnecessary-type-assertion
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     useFactory: (container: Container) => {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -160,8 +157,7 @@ export function registerServices(options: ServiceProviderOptions = {}): void {
       return new PluginManager({
         eventBus,
         container,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        config: (options.config || {}) as Record<string, any>,
+        config: options.config || {},
       });
     },
     lifecycle: 'singleton',

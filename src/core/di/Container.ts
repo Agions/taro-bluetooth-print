@@ -40,11 +40,9 @@ interface Registration<T> {
 }
 
 export class Container {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private registrations = new Map<string | symbol, Registration<any>[]>();
+  private registrations = new Map<string | symbol, Registration<unknown>[]>();
   private parent?: Container;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private scopedInstances = new Map<string | symbol, any>();
+  private scopedInstances = new Map<string | symbol, unknown>();
 
   constructor(parent?: Container) {
     this.parent = parent;
@@ -62,14 +60,12 @@ export class Container {
    */
   register<T>(
     token: string | symbol | Constructor<T>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     provider: Provider<T> | ServiceProviderConfig<T>,
     options: RegistrationOptions = {}
   ): this {
     const key = this.getTokenKey(token);
 
     // 支持 ServiceProviderConfig 格式
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = provider as ServiceProviderConfig<T>;
 
     // 如果是对象语法（Angular 风格）
@@ -93,7 +89,6 @@ export class Container {
       }
 
       const registration: Registration<T> = {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         provider: actualProvider,
         options: {
           lifecycle: config.lifecycle || 'transient',
@@ -163,8 +158,7 @@ export class Container {
         : registrations[registrations.length - 1];
 
       if (registration) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return this.getOrCreateInstance(registration, key);
+        return this.getOrCreateInstance(registration as Registration<T>, key);
       }
     }
 
@@ -189,12 +183,10 @@ export class Container {
     const results: T[] = [];
 
     // 从当前容器获取
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const registrations = this.registrations.get(key);
     if (registrations) {
       for (const r of registrations) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        results.push(this.getOrCreateInstance(r, key));
+        results.push(this.getOrCreateInstance(r as Registration<T>, key));
       }
     }
 
@@ -226,8 +218,7 @@ export class Container {
    * 创建作用域
    */
   createScope(): Container {
-    const scope = this.createChild();
-    return scope;
+    return this.createChild();
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -256,13 +247,13 @@ export class Container {
       if (registration.instance === undefined) {
         registration.instance = this.createProviderInstance(provider);
       }
-      return registration.instance;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      return registration.instance as T; // 需要断言因为 instance 是 unknown 类型
     }
 
     // 作用域模式
     if (options.lifecycle === 'scoped') {
       if (this.scopedInstances.has(key)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return this.scopedInstances.get(key) as T;
       }
       const instance = this.createProviderInstance(provider);
@@ -290,8 +281,7 @@ export class Container {
   private createInstance<T>(constructor: Constructor<T>): T {
     // 获取构造函数的参数类型（简化实现，实际可能需要反射元数据）
     const paramCount = constructor.length;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const args: any[] = [];
+    const args: unknown[] = [];
 
     for (let i = 0; i < paramCount; i++) {
       // 尝试从容器解析参数
@@ -299,7 +289,6 @@ export class Container {
       args.push(undefined);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return new constructor(...args);
   }
 }

@@ -5,9 +5,8 @@
 
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
-// Declare Alipay global for TypeScript
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface AlipayGlobal extends MiniProgramBLEApi {}
+// Alipay global type for TypeScript
+type AlipayGlobal = MiniProgramBLEApi;
 
 declare const my: AlipayGlobal;
 

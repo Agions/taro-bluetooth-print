@@ -53,8 +53,13 @@ export class TemplateParser {
       const value = this.getNestedValue(data, key);
       if (value === undefined) return '';
       if (typeof value === 'object') return JSON.stringify(value);
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      return String(value);
+      // Ensure value is properly converted to string (avoid [object Object])
+      // Type guard to ensure value is a primitive type
+      if (value == null) return '';
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+      }
+      return '';
     });
   }
 

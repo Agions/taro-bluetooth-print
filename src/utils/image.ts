@@ -397,29 +397,100 @@ export class ImageProcessing {
     threshold: number,
     kernel: ReadonlyArray<ErrorKernelEntry>
   ): void {
+    // Pre-compute kernel length for loop optimization
     const kLen = kernel.length;
+
+    // Process each row
     for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx]!;
-        const newPixel = oldPixel < threshold ? 0 : 255;
-        if (newPixel === 0) {
-          // Bit operations: x>>3 = Math.floor(x/8), 0x80>>(x&7) = 1<<(7-(x%8))
-          const byteIdx = y * bytesPerLine + (x >> 3);
-          bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | (0x80 >> (x & 7));
-        }
-        const err = oldPixel - newPixel;
-        // Inlined error distribution (no function call per neighbor)
-        for (let k = 0; k < kLen; k++) {
-          const e = kernel[k]!;
-          const nx = x + e.dx;
-          const ny = y + e.dy;
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            const nIdx = ny * width + nx;
-            const v = grayscale[nIdx]! + err * e.weight;
-            grayscale[nIdx] = v < 0 ? 0 : v > 255 ? 255 : v;
-          }
-        }
+      this.processErrorDiffusionRow(
+        grayscale,
+        width,
+        height,
+        bitmap,
+        bytesPerLine,
+        y,
+        threshold,
+        kernel,
+        kLen
+      );
+    }
+  }
+
+  /**
+   * Process a single row of error-diffusion dithering.
+   * Extracted to reduce cognitive complexity of the main function.
+   */
+  private static processErrorDiffusionRow(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    bitmap: Uint8Array,
+    bytesPerLine: number,
+    y: number,
+    threshold: number,
+    kernel: ReadonlyArray<ErrorKernelEntry>,
+    kLen: number
+  ): void {
+    const yBaseIdx = y * width;
+    const byteRowOffset = y * bytesPerLine;
+
+    for (let x = 0; x < width; x++) {
+      const idx = yBaseIdx + x;
+      const oldPixel = grayscale[idx]!;
+
+      // Threshold decision
+      const newPixel = oldPixel < threshold ? 0 : 255;
+
+      // Write to bitmap if black pixel
+      if (newPixel === 0) {
+        this.writeBlackPixel(bitmap, byteRowOffset, x);
+      }
+
+      // Calculate quantization error
+      const err = oldPixel - newPixel;
+
+      // Distribute error to neighboring pixels
+      if (err !== 0) {
+        this.distributeError(grayscale, width, height, x, y, err, kernel, kLen);
+      }
+    }
+  }
+
+  /**
+   * Write a black pixel to the bitmap at the given position.
+   * Uses bit operations for efficiency.
+   */
+  private static writeBlackPixel(bitmap: Uint8Array, byteRowOffset: number, x: number): void {
+    const byteIdx = byteRowOffset + (x >> 3);
+    const bitMask = 0x80 >> (x & 7);
+    bitmap[byteIdx] = (bitmap[byteIdx] ?? 0) | bitMask;
+  }
+
+  /**
+   * Distribute quantization error to neighboring pixels according to the kernel.
+   * Clamps values to [0, 255] range.
+   */
+  private static distributeError(
+    grayscale: Float32Array,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+    err: number,
+    kernel: ReadonlyArray<ErrorKernelEntry>,
+    kLen: number
+  ): void {
+    for (let k = 0; k < kLen; k++) {
+      const e = kernel[k]!;
+      const nx = x + e.dx;
+      const ny = y + e.dy;
+
+      // Boundary check
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        const nIdx = ny * width + nx;
+        const newValue = grayscale[nIdx]! + err * e.weight;
+        // Clamp to valid range using ternary (faster than Math.min/max)
+        grayscale[nIdx] = newValue < 0 ? 0 : newValue > 255 ? 255 : newValue;
       }
     }
   }
@@ -586,70 +657,154 @@ export class ImageProcessing {
     }
     const result = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i += 4) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- lut has 256 entries, data[i] is 0-255
-      result[i] = lut[data[i]!]!;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      result[i + 1] = lut[data[i + 1]!]!;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      result[i + 2] = lut[data[i + 2]!]!;
+      // Safe: lut has 256 entries, data[i] is 0-255
+      const rIdx = data[i]!;
+      const gIdx = data[i + 1]!;
+      const bIdx = data[i + 2]!;
+      result[i] = lut[rIdx]!;
+      result[i + 1] = lut[gIdx]!;
+      result[i + 2] = lut[bIdx]!;
       result[i + 3] = data[i + 3]!;
     }
     return result;
   }
 
   private static applyMedianFilter(data: Uint8Array, width: number, height: number): Uint8Array {
+    if (data.length < 4 || width <= 0 || height <= 0) return new Uint8Array(0);
+
     const result = new Uint8Array(data.length);
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const di = (y * width + x) * 4;
-        const window: number[] = [];
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = Math.max(0, Math.min(width - 1, x + dx));
-            const ny2 = Math.max(0, Math.min(height - 1, y + dy));
-            const si = (ny2 * width + nx) * 4;
-            for (let c = 0; c < 4; c++) {
-              window.push(data[si + c]!);
-            }
-          }
-        }
+
+        // Collect pixel values from 3x3 neighborhood
+        const window = this.collectNeighborhoodWindow(data, width, height, x, y);
+
+        // Sort and extract median (index 18 = median of 19 values per channel)
         window.sort((a, b) => a - b);
+
+        // Extract median for each channel
         for (let c = 0; c < 4; c++) {
           result[di + c] = window[18 + c * 9] ?? 128;
         }
       }
     }
+
     return result;
   }
 
+  /**
+   * Collect pixel values from a 3x3 neighborhood around the given position.
+   * Handles boundary conditions by clamping coordinates.
+   * Returns an array of 36 values (9 pixels × 4 channels).
+   */
+  private static collectNeighborhoodWindow(
+    data: Uint8Array,
+    width: number,
+    height: number,
+    x: number,
+    y: number
+  ): number[] {
+    const window: number[] = [];
+    const halfWindow = 1;
+
+    for (let dy = -halfWindow; dy <= halfWindow; dy++) {
+      for (let dx = -halfWindow; dx <= halfWindow; dx++) {
+        // Clamp coordinates to image bounds
+        const nx = this.clampCoordinate(x + dx, width);
+        const ny = this.clampCoordinate(y + dy, height);
+
+        // Read pixel data
+        const si = (ny * width + nx) * 4;
+        for (let c = 0; c < 4; c++) {
+          window.push(data[si + c]!);
+        }
+      }
+    }
+
+    return window;
+  }
+
+  /**
+   * Clamp a coordinate to valid image bounds [0, max - 1].
+   */
+  private static clampCoordinate(value: number, max: number): number {
+    return value < 0 ? 0 : value >= max ? max - 1 : value;
+  }
+
   private static applyUnsharpMask(data: Uint8Array, width: number, height: number): Uint8Array {
-    // Center=3, edges=-0.5
-    const kernel: number[][] = [
+    if (data.length < 4 || width <= 0 || height <= 0) return new Uint8Array(0);
+
+    // Center=3, edges=-0.5 sharpening kernel
+    const kernel = this.getSharpeningKernel();
+    const result = new Uint8Array(data.length);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const di = (y * width + x) * 4;
+
+        // Apply convolution for each channel
+        for (let c = 0; c < 4; c++) {
+          const convolvedValue = this.convolveChannel(data, width, height, x, y, c, kernel);
+          result[di + c] = this.clampToByte(convolvedValue);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get the pre-defined sharpening kernel.
+   * Center weight = 3, edge weights = -0.5, corner weights = -1.0
+   */
+  private static getSharpeningKernel(): number[][] {
+    return [
       [-0.5, -1.0, -0.5],
       [-1.0, 3.0, -1.0],
       [-0.5, -1.0, -0.5],
     ];
-    const kHalf = 1;
-    const result = new Uint8Array(data.length);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const di = (y * width + x) * 4;
-        for (let c = 0; c < 4; c++) {
-          let sum = 0;
-          for (let ky = 0; ky < 3; ky++) {
-            for (let kx = 0; kx < 3; kx++) {
-              const nx = Math.max(0, Math.min(width - 1, x + kx - kHalf));
-              const ny2 = Math.max(0, Math.min(height - 1, y + ky - kHalf));
-              const si = (ny2 * width + nx) * 4 + c;
-              const kv = kernel[ky]?.[kx] ?? 0;
-              sum += data[si]! * kv;
-            }
-          }
-          result[di + c] = Math.max(0, Math.min(255, Math.round(sum)));
-        }
+  }
+
+  /**
+   * Apply convolution for a single channel at the given position.
+   * Handles boundary conditions by clamping coordinates.
+   */
+  private static convolveChannel(
+    data: Uint8Array,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+    channel: number,
+    kernel: number[][]
+  ): number {
+    let sum = 0;
+    const kernelSize = 3;
+    const halfKernel = 1;
+
+    for (let ky = 0; ky < kernelSize; ky++) {
+      for (let kx = 0; kx < kernelSize; kx++) {
+        // Calculate neighbor coordinates with boundary clamping
+        const nx = this.clampCoordinate(x + kx - halfKernel, width);
+        const ny = this.clampCoordinate(y + ky - halfKernel, height);
+
+        // Read and weight the pixel value
+        const si = (ny * width + nx) * 4 + channel;
+        const kernelWeight = kernel[ky]?.[kx] ?? 0;
+        sum += data[si]! * kernelWeight;
       }
     }
-    return result;
+
+    return sum;
+  }
+
+  /**
+   * Clamp a numeric value to valid byte range [0, 255].
+   */
+  private static clampToByte(value: number): number {
+    return Math.max(0, Math.min(255, Math.round(value)));
   }
 
   private static applyPosterization(data: Uint8Array, levels: number): Uint8Array {

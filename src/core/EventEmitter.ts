@@ -31,6 +31,14 @@ export class EventEmitter<T> {
   private debugMode = false;
   protected readonly logger = Logger.scope('EventEmitter');
 
+  /** 确保事件监听器集合存在 */
+  private ensureListeners<K extends keyof T>(event: K): Set<(data: T[keyof T]) => void> {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    return this.listeners.get(event)!;
+  }
+
   /**
    * Subscribe to an event
    *
@@ -39,13 +47,8 @@ export class EventEmitter<T> {
    * @returns Unsubscribe function
    */
   on<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    const existing = this.listeners.get(event);
-    if (existing) {
-      existing.add(handler as (data: T[keyof T]) => void);
-    }
+    const existing = this.ensureListeners(event);
+    existing.add(handler as (data: T[keyof T]) => void);
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Added listener for "${String(event)}"`, {
@@ -80,12 +83,7 @@ export class EventEmitter<T> {
    * @returns Unsubscribe function
    */
   prepend<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-
-    // Create a new set with the new handler first, then add existing handlers
-    const existingHandlers = this.listeners.get(event)!;
+    const existingHandlers = this.ensureListeners(event);
     const newHandlers = new Set<(data: T[keyof T]) => void>();
     newHandlers.add(handler as (data: T[keyof T]) => void);
     existingHandlers.forEach(h => newHandlers.add(h));
@@ -147,25 +145,33 @@ export class EventEmitter<T> {
   /**
    * Emit an event to all subscribers
    *
+  /** 获取事件监听器，如果不存在则返回空 Set */
+  private getHandlers<K extends keyof T>(event: K): Set<(data: T[keyof T]) => void> {
+    return this.listeners.get(event) ?? new Set();
+  }
+
+  /**
+   * Emit an event to all subscribers
+   *
    * @param event - Event name
-   * @param data - Event payload (required for non-void events, optional for void events)
+   * @param data - Event payload
    */
   protected emit<K extends keyof T>(
     event: K,
     ...args: undefined extends T[K] ? [data?: T[K]] : [data: T[K]]
   ): void {
     const data = args[0] as T[K];
+    const handlers = this.getHandlers(event);
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Emitting "${String(event)}"`, {
         data,
-        listenerCount: this.listenerCount(event),
+        listenerCount: handlers.size,
       });
     }
 
-    const handlers = this.listeners.get(event);
     // 如果没有监听器，直接返回，避免不必要的操作
-    if (!handlers || handlers.size === 0) {
+    if (handlers.size === 0) {
       return;
     }
 
@@ -201,17 +207,17 @@ export class EventEmitter<T> {
     ...args: undefined extends T[K] ? [data?: T[K]] : [data: T[K]]
   ): Promise<void> {
     const data = args[0] as T[K];
+    const handlers = this.getHandlers(event);
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Emitting async "${String(event)}"`, {
         data,
-        listenerCount: this.listenerCount(event),
+        listenerCount: handlers.size,
       });
     }
 
-    const handlers = this.listeners.get(event);
     // 如果没有监听器，直接返回，避免不必要的操作
-    if (!handlers || handlers.size === 0) {
+    if (handlers.size === 0) {
       return;
     }
 

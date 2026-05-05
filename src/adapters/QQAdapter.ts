@@ -5,9 +5,8 @@
 
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
-// Declare QQ global for TypeScript
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface QQGlobal extends MiniProgramBLEApi {}
+// QQ global type for TypeScript
+type QQGlobal = MiniProgramBLEApi;
 
 declare const qq: QQGlobal;
 

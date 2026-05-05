@@ -413,9 +413,7 @@ export class WebBluetoothAdapter extends BaseAdapter {
     }
 
     // Use device.id if available, otherwise fall back to generated ID
-    const deviceId = device.id || this.generateFallbackDeviceId(device);
-
-    return deviceId;
+    return device.id || this.generateFallbackDeviceId(device);
   }
 
   /**

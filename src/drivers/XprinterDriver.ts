@@ -42,11 +42,10 @@ export class XprinterDriver extends EscPos {
    * @returns Array of command buffers
    */
   init(): Uint8Array[] {
-    const commands = super.init();
     // 添加芯烨特定初始化
     // ESC @ (0x1B 0x40) - 初始化打印机已在父类实现
     // 这里可以添加芯烨特定的初始化命令
-    return commands;
+    return super.init();
   }
 
   /**

@@ -149,7 +149,11 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   private activeJobs = 0;
   private jobCounter = 0;
   private executor: JobExecutor | null = null;
-  private retryTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+  // 优化：使用单个定时器 + 延迟队列，避免每个失败任务创建独立 setTimeout
+  // 减少定时器数量，降低内存开销和定时器泄漏风险
+  private retryQueue: Array<{ jobId: string; retryAt: number; delay: number }> = [];
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Creates a new PrintQueue instance
@@ -409,18 +413,8 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
         this.logger.warn(`Job ${job.id} failed, retrying (${job.retryCount}/${job.maxRetries})`);
         job.status = PrintJobStatus.PENDING;
 
-        // Re-add to queue after delay (each job gets its own timer)
-        this.clearRetryTimer(job.id);
-        const timerId = setTimeout(() => {
-          this.retryTimers.delete(job.id);
-          if (job.status === PrintJobStatus.PENDING) {
-            this.insertByPriority(job.id, job.priority);
-            if (this.config.autoProcess && !this.isPaused) {
-              this.processQueue();
-            }
-          }
-        }, this.config.retryDelay);
-        this.retryTimers.set(job.id, timerId);
+        // 优化：添加到延迟队列，使用单个定时器调度
+        this.scheduleRetry(job.id, this.config.retryDelay);
       } else {
         job.status = PrintJobStatus.FAILED;
         job.completedAt = Date.now();
@@ -469,24 +463,114 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   }
 
   /**
-   * Clear retry timer for a specific job
+   * Schedule a job retry after the specified delay.
+   * 优化：使用单个定时器 + 延迟队列，避免每个失败任务创建独立 setTimeout
+   *
+   * @param jobId - Job to retry
+   * @param delay - Delay in milliseconds
    */
-  private clearRetryTimer(jobId: string): void {
-    const timer = this.retryTimers.get(jobId);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      this.retryTimers.delete(jobId);
+  private scheduleRetry(jobId: string, delay: number): void {
+    // 从队列中移除该 job（如果已存在）
+    this.removeFromRetryQueue(jobId);
+
+    // 添加到延迟队列
+    const retryAt = Date.now() + delay;
+    this.retryQueue.push({ jobId, retryAt, delay });
+
+    // 按 retryAt 排序（最早到期的在前）
+    this.retryQueue.sort((a, b) => a.retryAt - b.retryAt);
+
+    // 重新调度定时器
+    this.scheduleNextRetry();
+  }
+
+  /**
+   * Remove a job from the retry queue.
+   */
+  private removeFromRetryQueue(jobId: string): void {
+    const index = this.retryQueue.findIndex(r => r.jobId === jobId);
+    if (index !== -1) {
+      this.retryQueue.splice(index, 1);
     }
   }
 
   /**
-   * Clear all retry timers
+   * Schedule the next retry timer.
+   * 使用单个定时器触发所有到期的重试任务。
+   */
+  private scheduleNextRetry(): void {
+    // 清除现有定时器
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+
+    if (this.retryQueue.length === 0) {
+      return;
+    }
+
+    // 计算到下一个到期任务的延迟
+    const next = this.retryQueue[0]!;
+    const delay = Math.max(0, next.retryAt - Date.now());
+
+    this.retryTimer = setTimeout(() => {
+      this.processRetryQueue();
+    }, delay);
+  }
+
+  /**
+   * Process all expired retry tasks.
+   */
+  private processRetryQueue(): void {
+    const now = Date.now();
+    const processed: string[] = [];
+
+    // 处理所有到期的任务
+    while (this.retryQueue.length > 0 && this.retryQueue[0]!.retryAt <= now) {
+      const { jobId } = this.retryQueue.shift()!;
+      processed.push(jobId);
+    }
+
+    // 重新调度定时器（如果还有剩余任务）
+    if (this.retryQueue.length > 0) {
+      this.scheduleNextRetry();
+    }
+
+    // 将到期的 job 重新插入队列
+    for (const jobId of processed) {
+      const job = this.jobs.get(jobId);
+      if (job && job.status === PrintJobStatus.PENDING) {
+        this.insertByPriority(jobId, job.priority);
+        if (this.config.autoProcess && !this.isPaused) {
+          this.processQueue();
+        }
+      }
+    }
+  }
+
+  /**
+   * Clear retry timer for a specific job.
+   * 优化：从延迟队列中移除，不再需要 clearTimeout
+   */
+  private clearRetryTimer(jobId: string): void {
+    this.removeFromRetryQueue(jobId);
+    // 如果队列变空，清除定时器
+    if (this.retryQueue.length === 0 && this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+  }
+
+  /**
+   * Clear all retry timers.
+   * 优化：清空队列并清除单个定时器
    */
   private clearAllRetryTimers(): void {
-    for (const timer of this.retryTimers.values()) {
-      clearTimeout(timer);
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
     }
-    this.retryTimers.clear();
+    this.retryQueue = [];
   }
 }
 

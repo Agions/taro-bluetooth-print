@@ -54,7 +54,7 @@ export interface AdaptiveWriteConfig {
  * Default adaptive write configuration
  */
 export const DEFAULT_ADAPTIVE_CONFIG: AdaptiveWriteConfig = {
-  defaultChunkSize: 20,
+  defaultChunkSize: 50, // 增加初始 chunk size，减少 BLE 通信开销
   defaultDelay: 20,
   defaultRetries: 3,
   minChunkSize: 10,
@@ -62,7 +62,7 @@ export const DEFAULT_ADAPTIVE_CONFIG: AdaptiveWriteConfig = {
   maxDelay: 200,
   successThreshold: 3,
   failureThreshold: 2,
-  connectionCheckInterval: 5,
+  connectionCheckInterval: 10, // 增加连接检查间隔，减少不必要的检查
 };
 
 /**
@@ -169,105 +169,236 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
   ): Promise<void> {
     const data = new Uint8Array(buffer);
 
-    const chunkSize = Math.max(
-      1,
-      Math.min(256, adapterOptions.chunkSize ?? this.config.defaultChunkSize)
-    );
-    const delay = Math.max(10, Math.min(100, adapterOptions.delay ?? this.config.defaultDelay));
-    const retries = Math.max(1, Math.min(10, adapterOptions.retries ?? this.config.defaultRetries));
-
-    const maxChunkSize = this.getMaxChunkSize(context.deviceId);
-
-    let currentChunkSize = chunkSize;
-    let baseDelay = delay;
-    let totalChunks = Math.ceil(data.length / currentChunkSize);
-
-    this.logger.debug(`Writing ${data.length} bytes in ${totalChunks} chunks`);
-
     if (data.length === 0) {
       this.logger.warn('No data to write');
       return;
     }
 
+    // Initialize transmission parameters
+    const params = this.initializeTransmissionParams(data, adapterOptions);
+    const maxChunkSize = this.getMaxChunkSize(context.deviceId);
+
     // Adaptive transmission state
-    let successCount = 0;
-    let consecutiveFailures = 0;
-    const { minChunkSize, maxDelay, successThreshold, failureThreshold, connectionCheckInterval } =
-      this.config;
+    const adaptiveState = {
+      successCount: 0,
+      consecutiveFailures: 0,
+      currentChunkSize: params.chunkSize,
+      baseDelay: params.delay,
+    };
 
-    for (let i = 0; i < data.length; i += currentChunkSize) {
+    this.logger.debug(
+      `Writing ${data.length} bytes with initial chunkSize=${adaptiveState.currentChunkSize}, delay=${adaptiveState.baseDelay}ms`
+    );
+
+    // Main transmission loop
+    for (let i = 0; i < data.length; i += adaptiveState.currentChunkSize) {
       // Periodic connection state check
-      if (i > 0 && Math.floor(i / currentChunkSize) % connectionCheckInterval === 0) {
-        await this.checkConnection(context.deviceId);
+      await this.maybeCheckConnection(i, adaptiveState.currentChunkSize, context.deviceId);
+
+      // Write current chunk with retries
+      const chunkNum = Math.floor(i / adaptiveState.currentChunkSize) + 1;
+      const writeSuccess = await this.writeChunkWithRetries(
+        data,
+        i,
+        adaptiveState.currentChunkSize,
+        context,
+        chunkNum,
+        params.retries,
+        adaptiveState.baseDelay,
+        platformOptions
+      );
+
+      if (!writeSuccess) {
+        // All retries exhausted - error already thrown
+        return;
       }
 
-      const chunk = data.slice(i, i + currentChunkSize);
-      const chunkNum = Math.floor(i / currentChunkSize) + 1;
-      let attempt = 0;
-      let writeSuccess = false;
+      // Adaptive adjustment
+      this.adjustTransmissionParams(
+        adaptiveState,
+        writeSuccess,
+        maxChunkSize,
+        params.minChunkSize,
+        params.maxDelay,
+        params.successThreshold,
+        params.failureThreshold,
+        chunkNum,
+        i,
+        data.length
+      );
 
-      while (attempt <= retries) {
-        const writeResult = await this.writeSingleChunk(chunk, context, platformOptions);
-
-        if (writeResult.success) {
-          this.logger.debug(`Chunk ${chunkNum}/${totalChunks} written successfully`);
-          writeSuccess = true;
-          break;
-        }
-
-        attempt++;
-        if (attempt > retries) {
-          this.logger.error(`Chunk ${chunkNum} failed after ${retries} retries`);
-          throw new BluetoothPrintError(
-            ErrorCode.WRITE_FAILED,
-            `Failed to write chunk ${chunkNum}/${totalChunks}`,
-            writeResult.error ?? new Error('Unknown write error')
-          );
-        }
-
-        this.logger.warn(`Chunk ${chunkNum} write failed, retry ${attempt}/${retries}`);
-
-        const retryDelay = baseDelay * Math.pow(2, attempt - 1);
-        await new Promise(r => setTimeout(r, Math.min(retryDelay, maxDelay)));
-      }
-
-      // Adaptive chunk size and delay adjustment
-      if (writeSuccess) {
-        successCount++;
-        consecutiveFailures = 0;
-
-        if (successCount % successThreshold === 0 && currentChunkSize < maxChunkSize) {
-          currentChunkSize = Math.min(
-            maxChunkSize,
-            currentChunkSize + ChunkWriteStrategy.CHUNK_SIZE_STEP
-          );
-          baseDelay = Math.max(baseDelay / ChunkWriteStrategy.DELAY_RECOVERY_FACTOR, delay);
-          totalChunks =
-            Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
-          this.logger.debug(`Increased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);
-        }
-      } else {
-        consecutiveFailures++;
-
-        if (consecutiveFailures >= failureThreshold && currentChunkSize > minChunkSize) {
-          currentChunkSize = Math.max(
-            minChunkSize,
-            currentChunkSize - ChunkWriteStrategy.CHUNK_SIZE_STEP
-          );
-          baseDelay = Math.min(baseDelay * ChunkWriteStrategy.DELAY_BACKOFF_FACTOR, maxDelay);
-          totalChunks =
-            Math.ceil((data.length - i - currentChunkSize) / currentChunkSize) + chunkNum;
-          this.logger.debug(`Decreased chunk size to ${currentChunkSize}, delay to ${baseDelay}`);
-          consecutiveFailures = 0;
-        }
-      }
-
-      // Inter-chunk delay to prevent BLE congestion
-      if (i + currentChunkSize < data.length) {
-        await new Promise(r => setTimeout(r, baseDelay));
-      }
+      // Inter-chunk delay
+      await this.maybeDelay(
+        i,
+        adaptiveState.currentChunkSize,
+        data.length,
+        adaptiveState.baseDelay
+      );
     }
 
     this.logger.info(`Successfully wrote ${data.length} bytes`);
+  }
+
+  /**
+   * Initialize transmission parameters from adapter options
+   */
+  private initializeTransmissionParams(
+    _data: Uint8Array,
+    options: IAdapterOptions
+  ): {
+    chunkSize: number;
+    delay: number;
+    retries: number;
+    minChunkSize: number;
+    maxDelay: number;
+    successThreshold: number;
+    failureThreshold: number;
+  } {
+    const chunkSize = Math.max(1, Math.min(256, options.chunkSize ?? this.config.defaultChunkSize));
+    const delay = Math.max(10, Math.min(100, options.delay ?? this.config.defaultDelay));
+    const retries = Math.max(1, Math.min(10, options.retries ?? this.config.defaultRetries));
+
+    return {
+      chunkSize,
+      delay,
+      retries,
+      minChunkSize: this.config.minChunkSize,
+      maxDelay: this.config.maxDelay,
+      successThreshold: this.config.successThreshold,
+      failureThreshold: this.config.failureThreshold,
+    };
+  }
+
+  /**
+   * Check connection periodically based on interval
+   */
+  private async maybeCheckConnection(
+    currentIndex: number,
+    chunkSize: number,
+    deviceId: string
+  ): Promise<void> {
+    if (
+      currentIndex > 0 &&
+      Math.floor(currentIndex / chunkSize) % this.config.connectionCheckInterval === 0
+    ) {
+      await this.checkConnection(deviceId);
+    }
+  }
+
+  /**
+   * Write a single chunk with retry logic
+   * @returns true if successful, false if all retries exhausted (error thrown)
+   */
+  private async writeChunkWithRetries(
+    data: Uint8Array,
+    startIndex: number,
+    chunkSize: number,
+    context: ChunkWriteContext,
+    chunkNum: number,
+    maxRetries: number,
+    baseDelay: number,
+    platformOptions?: TOptions
+  ): Promise<boolean> {
+    const chunk = data.slice(startIndex, startIndex + chunkSize);
+    const totalChunks = Math.ceil(data.length / chunkSize);
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const writeResult = await this.writeSingleChunk(chunk, context, platformOptions);
+
+      if (writeResult.success) {
+        this.logger.debug(`Chunk ${chunkNum}/${totalChunks} written successfully`);
+        return true;
+      }
+
+      if (attempt >= maxRetries) {
+        this.logger.error(`Chunk ${chunkNum} failed after ${maxRetries} retries`);
+        throw new BluetoothPrintError(
+          ErrorCode.WRITE_FAILED,
+          `Failed to write chunk ${chunkNum}/${totalChunks}`,
+          writeResult.error ?? new Error('Unknown write error')
+        );
+      }
+
+      this.logger.warn(`Chunk ${chunkNum} write failed, retry ${attempt + 1}/${maxRetries}`);
+
+      // Exponential backoff
+      const retryDelay = baseDelay * Math.pow(2, attempt);
+      await new Promise(r => setTimeout(r, Math.min(retryDelay, this.config.maxDelay)));
+    }
+
+    return false; // Unreachable, but satisfies TypeScript
+  }
+
+  /**
+   * Adjust chunk size and delay based on success/failure
+   */
+  private adjustTransmissionParams(
+    state: {
+      successCount: number;
+      consecutiveFailures: number;
+      currentChunkSize: number;
+      baseDelay: number;
+    },
+    writeSuccess: boolean,
+    maxChunkSize: number,
+    minChunkSize: number,
+    maxDelay: number,
+    successThreshold: number,
+    failureThreshold: number,
+    _chunkNum: number,
+    _currentIndex: number,
+    _totalLength: number
+  ): void {
+    if (writeSuccess) {
+      state.successCount++;
+      state.consecutiveFailures = 0;
+
+      // Increase chunk size on sustained success
+      if (state.successCount % successThreshold === 0 && state.currentChunkSize < maxChunkSize) {
+        state.currentChunkSize = Math.min(
+          maxChunkSize,
+          state.currentChunkSize + ChunkWriteStrategy.CHUNK_SIZE_STEP
+        );
+        state.baseDelay = Math.max(
+          state.baseDelay / ChunkWriteStrategy.DELAY_RECOVERY_FACTOR,
+          this.config.defaultDelay
+        );
+        this.logger.debug(
+          `Increased chunk size to ${state.currentChunkSize}, delay to ${state.baseDelay}ms`
+        );
+      }
+    } else {
+      state.consecutiveFailures++;
+
+      // Decrease chunk size on sustained failure
+      if (state.consecutiveFailures >= failureThreshold && state.currentChunkSize > minChunkSize) {
+        state.currentChunkSize = Math.max(
+          minChunkSize,
+          state.currentChunkSize - ChunkWriteStrategy.CHUNK_SIZE_STEP
+        );
+        state.baseDelay = Math.min(
+          state.baseDelay * ChunkWriteStrategy.DELAY_BACKOFF_FACTOR,
+          maxDelay
+        );
+        this.logger.debug(
+          `Decreased chunk size to ${state.currentChunkSize}, delay to ${state.baseDelay}ms`
+        );
+        state.consecutiveFailures = 0;
+      }
+    }
+  }
+
+  /**
+   * Apply inter-chunk delay to prevent BLE congestion
+   */
+  private async maybeDelay(
+    currentIndex: number,
+    chunkSize: number,
+    totalLength: number,
+    delay: number
+  ): Promise<void> {
+    if (currentIndex + chunkSize < totalLength) {
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
 }

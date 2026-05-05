@@ -491,11 +491,10 @@ export class PrintStatistics {
     const result: Record<string, { completed: number; failed: number }> = {};
     for (const job of jobs) {
       if (!job.driver) continue;
-      let driverStats = result[job.driver];
-      if (!driverStats) {
-        driverStats = { completed: 0, failed: 0 };
-        result[job.driver] = driverStats;
+      if (!result[job.driver]) {
+        result[job.driver] = { completed: 0, failed: 0 };
       }
+      const driverStats = result[job.driver]!;
       if (job.status === 'completed') {
         driverStats.completed++;
       } else if (job.status === 'failed') {

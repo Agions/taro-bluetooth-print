@@ -566,8 +566,7 @@ export class BarcodeGenerator implements IBarcodeGenerator {
    */
   private validateCode39(content: string, errors: ValidationResult['errors']): void {
     // Code 39 supports: 0-9, A-Z, space, - . $ / + %
-    // eslint-disable-next-line no-useless-escape
-    const validChars = /^[0-9A-Z\s\-.$\/+%]+$/;
+    const validChars = /^[0-9A-Z\s\-.$/+%]+$/;
     if (!validChars.test(content.toUpperCase())) {
       errors.push({
         field: 'content',

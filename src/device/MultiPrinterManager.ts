@@ -319,9 +319,8 @@ export class MultiPrinterManager extends EventEmitter<MultiPrinterManagerEvents>
       return results;
     }
 
-    const printPromises = Array.from(this.printers.entries()).map(
-      // eslint-disable-next-line @typescript-eslint/require-await
-      async ([printerId, connection]) => {
+    const printPromises = Array.from(this.printers.entries()).map(([printerId, connection]) => {
+      return new Promise<void>((resolve, reject) => {
         try {
           // Update activity
           connection.lastActivity = Date.now();
@@ -330,16 +329,18 @@ export class MultiPrinterManager extends EventEmitter<MultiPrinterManagerEvents>
           // Note: In real usage, you'd call the actual print method
           this.logger.debug(`Broadcast to "${printerId}": ${data.length} bytes`);
           results.success++;
+          resolve();
         } catch (error) {
           this.logger.error(`Broadcast failed for "${printerId}":`, error);
           results.failed++;
-
           if (!continueOnError) {
-            throw error;
+            reject(error instanceof Error ? error : new Error(String(error)));
+          } else {
+            resolve();
           }
         }
-      }
-    );
+      });
+    });
 
     if (parallel) {
       await Promise.allSettled(printPromises);
