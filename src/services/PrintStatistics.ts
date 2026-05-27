@@ -160,22 +160,7 @@ export class PrintStatistics {
       this.totalBytes += bytes;
       this.totalPrintTime += duration;
 
-      // Update driver breakdown
-      if (record.driver) {
-        let driverStats = this.byDriver[record.driver];
-        if (!driverStats) {
-          driverStats = { completed: 0, failed: 0 };
-          this.byDriver[record.driver] = driverStats;
-        }
-        driverStats.completed++;
-      }
-
-      // Update date breakdown
-      const dateKey = this.formatDateKey(now);
-      if (!this.byDate[dateKey]) {
-        this.byDate[dateKey] = { completed: 0, failed: 0 };
-      }
-      this.byDate[dateKey].completed++;
+      this.incrementBreakdownStats(record, 'completed', now);
 
       this.logger.debug(`Job completed tracked: ${jobId}, ${bytes} bytes, ${duration}ms`);
     }
@@ -211,22 +196,7 @@ export class PrintStatistics {
 
       this.failedJobs++;
 
-      // Update driver breakdown
-      if (record.driver) {
-        let driverStats = this.byDriver[record.driver];
-        if (!driverStats) {
-          driverStats = { completed: 0, failed: 0 };
-          this.byDriver[record.driver] = driverStats;
-        }
-        driverStats.failed++;
-      }
-
-      // Update date breakdown
-      const dateKey = this.formatDateKey(now);
-      if (!this.byDate[dateKey]) {
-        this.byDate[dateKey] = { completed: 0, failed: 0 };
-      }
-      this.byDate[dateKey].failed++;
+      this.incrementBreakdownStats(record, 'failed', now);
 
       this.logger.debug(`Job failure tracked: ${jobId}, error: ${record.error}`);
     }
@@ -470,38 +440,63 @@ export class PrintStatistics {
   private aggregateByDate(
     jobs: JobRecord[]
   ): Record<string, { completed: number; failed: number }> {
-    const result: Record<string, { completed: number; failed: number }> = {};
-    for (const job of jobs) {
-      const dateKey = this.formatDateKey(job.startedAt);
-      if (!result[dateKey]) {
-        result[dateKey] = { completed: 0, failed: 0 };
-      }
-      if (job.status === 'completed') {
-        result[dateKey].completed++;
-      } else if (job.status === 'failed') {
-        result[dateKey].failed++;
-      }
-    }
-    return result;
+    return this.aggregateByKey(jobs, job => this.formatDateKey(job.startedAt));
   }
 
   private aggregateByDriver(
     jobs: JobRecord[]
   ): Record<string, { completed: number; failed: number }> {
+    return this.aggregateByKey(jobs, job => job.driver ?? null);
+  }
+
+  /**
+   * Generic aggregation helper. Groups jobs by a key function and counts
+   * completed/failed per group. Skips jobs whose key is null/undefined.
+   */
+  private aggregateByKey(
+    jobs: JobRecord[],
+    keyFn: (job: JobRecord) => string | null | undefined
+  ): Record<string, { completed: number; failed: number }> {
     const result: Record<string, { completed: number; failed: number }> = {};
     for (const job of jobs) {
-      if (!job.driver) continue;
-      if (!result[job.driver]) {
-        result[job.driver] = { completed: 0, failed: 0 };
+      const key = keyFn(job);
+      if (!key) continue;
+      if (!result[key]) {
+        result[key] = { completed: 0, failed: 0 };
       }
-      const driverStats = result[job.driver]!;
+      const stats = result[key];
       if (job.status === 'completed') {
-        driverStats.completed++;
+        stats.completed++;
       } else if (job.status === 'failed') {
-        driverStats.failed++;
+        stats.failed++;
       }
     }
     return result;
+  }
+
+  /**
+   * Update driver and date breakdown stats for a job record.
+   * Shared by trackJobComplete and trackJobFail.
+   */
+  private incrementBreakdownStats(
+    record: JobRecord,
+    field: 'completed' | 'failed',
+    timestamp: number
+  ): void {
+    if (record.driver) {
+      let driverStats = this.byDriver[record.driver];
+      if (!driverStats) {
+        driverStats = { completed: 0, failed: 0 };
+        this.byDriver[record.driver] = driverStats;
+      }
+      driverStats[field]++;
+    }
+
+    const dateKey = this.formatDateKey(timestamp);
+    if (!this.byDate[dateKey]) {
+      this.byDate[dateKey] = { completed: 0, failed: 0 };
+    }
+    this.byDate[dateKey][field]++;
   }
 }
 

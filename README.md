@@ -51,7 +51,7 @@
 | 定时重试 | `ScheduledRetryManager` 指数退避策略，进程重启后自动恢复调度 |
 | 定时调度 | `PrintScheduler` 支持 cron 表达式 / 一次性 / 间隔重复任务 |
 | 设备发现 | `DiscoveryService` 增强型过滤、排序、RSSI 信号缓存 |
-| 插件系统 | DI 容器 + EventBus 事件总线，可扩展架构 |
+| 插件系统 | Hook-based 插件管理器，支持 beforePrint/afterPrint 等钩子 |
 
 ---
 
@@ -272,9 +272,10 @@ try {
  ┌──────────────────────────────────────────────────┐
  │              Services (服务层)                     │
  │                                                   │
- │  PrintJob · Cache · Queue · History              │
- │  Statistics · Scheduler · Batch                  │
- │  EventBus · DIContainer · PluginSystem           │
+ │  ConnectionManager · PrintJobManager             │
+ │  CommandBuilder · PrintScheduler                 │
+ │  PrintQueue · OfflineCache · PrintHistory        │
+ │  PluginManager (Hook-based)                      │
  └──────────────────────────────────────────────────┘
 ```
 
@@ -284,12 +285,14 @@ try {
 
 | 指标 | 值 |
 |:-----|:---|
-| 包体积（gzip） | **~226 KB**（含全部驱动，无外部依赖） |
+| 包体积（gzip） | **~231 KB**（含全部驱动，无外部依赖） |
 | Tree-shaking | ✅ 支持，按需引入 |
 | 编码懒加载 | ✅ 未用到的字符集不进入产物 |
-| 测试用例 | ✅ **879** 个测试用例，**879** 通过（95.7%），覆盖阈值 70%+ |
-| 架构模式 | Template Method (ChunkWriteStrategy)、EventEmitter 统一、withTimeout 工具函数 |
-| 构建工具 | Vite + Vitest |
+| 测试用例 | ✅ **1,102** 个测试用例，全部通过 |
+| 代码重复率 | ✅ **0%**（jscpd 检测） |
+| 类型安全 | ✅ 零 `any` 暴露，类型断言最小化 |
+| 架构模式 | Template Method (ChunkWriteStrategy)、EventEmitter 类型安全、Mixin 模式 |
+| 构建工具 | Vite + Vitest + TypeScript 严格模式 |
 
 ---
 

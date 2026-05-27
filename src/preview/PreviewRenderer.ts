@@ -347,9 +347,9 @@ export class PreviewRenderer implements IPreviewRenderer {
       }
 
       if (byte === ESC && i + 1 < commands.length) {
-        i += this.handleESC(commands, i, state, [], flushText, newLine);
+        i += this.handleControlSequence(ESC, commands, i, state, [], flushText, newLine);
       } else if (byte === GS && i + 1 < commands.length) {
-        i += this.handleGS(commands, i, state, [], flushText, newLine);
+        i += this.handleControlSequence(GS, commands, i, state, [], flushText, newLine);
       } else if (byte === LF) {
         newLine();
         i++;
@@ -373,10 +373,12 @@ export class PreviewRenderer implements IPreviewRenderer {
   }
 
   /**
-   * Handle ESC (0x1B) command sequences.
+   * Handle ESC (0x1B) or GS (0x1D) command sequences.
+   * @param prefix - ESC or GS prefix byte
    * @returns Number of bytes consumed
    */
-  private handleESC(
+  private handleControlSequence(
+    prefix: number,
     commands: Uint8Array,
     i: number,
     state: RenderState,
@@ -386,77 +388,65 @@ export class PreviewRenderer implements IPreviewRenderer {
   ): number {
     const nextByte = commands[i + 1];
 
-    switch (nextByte) {
-      case 0x40: // ESC @ - Initialize
-        flushText();
-        state.alignment = Alignment.LEFT;
-        state.widthScale = 1;
-        state.heightScale = 1;
-        state.bold = false;
-        state.underline = false;
-        state.inverse = false;
-        return 2;
+    if (prefix === ESC) {
+      switch (nextByte) {
+        case 0x40: // ESC @ - Initialize
+          flushText();
+          state.alignment = Alignment.LEFT;
+          state.widthScale = 1;
+          state.heightScale = 1;
+          state.bold = false;
+          state.underline = false;
+          state.inverse = false;
+          return 2;
 
-      case 0x61: // ESC a - Alignment
-        flushText();
-        if (i + 2 < commands.length) {
-          const alignValue = commands[i + 2];
-          state.alignment =
-            alignValue === Alignment.LEFT ||
-            alignValue === Alignment.CENTER ||
-            alignValue === Alignment.RIGHT
-              ? alignValue
-              : Alignment.LEFT;
-        }
-        return 3;
-
-      case 0x45: // ESC E - Bold
-        flushText();
-        if (i + 2 < commands.length) {
-          state.bold = commands[i + 2] !== 0;
-        }
-        return 3;
-
-      case 0x2d: // ESC - - Underline
-        flushText();
-        if (i + 2 < commands.length) {
-          state.underline = commands[i + 2] !== 0;
-        }
-        return 3;
-
-      case 0x64: // ESC d - Feed lines
-        newLine();
-        if (i + 2 < commands.length) {
-          const feedLines = commands[i + 2] ?? 1;
-          for (let j = 0; j < feedLines - 1; j++) {
-            lines.push({
-              segments: [],
-              alignment: state.alignment,
-              height: state.fontSize * state.lineHeight,
-            });
+        case 0x61: // ESC a - Alignment
+          flushText();
+          if (i + 2 < commands.length) {
+            const alignValue = commands[i + 2];
+            state.alignment =
+              alignValue === Alignment.LEFT ||
+              alignValue === Alignment.CENTER ||
+              alignValue === Alignment.RIGHT
+                ? alignValue
+                : Alignment.LEFT;
           }
-        }
-        return 3;
+          return 3;
 
-      default:
-        return 2;
+        case 0x45: // ESC E - Bold
+          flushText();
+          if (i + 2 < commands.length) {
+            state.bold = commands[i + 2] !== 0;
+          }
+          return 3;
+
+        case 0x2d: // ESC - - Underline
+          flushText();
+          if (i + 2 < commands.length) {
+            state.underline = commands[i + 2] !== 0;
+          }
+          return 3;
+
+        case 0x64: // ESC d - Feed lines
+          newLine();
+          if (i + 2 < commands.length) {
+            const feedLines = commands[i + 2] ?? 1;
+            for (let j = 0; j < feedLines - 1; j++) {
+              lines.push({
+                segments: [],
+                alignment: state.alignment,
+                height: state.fontSize * state.lineHeight,
+              });
+            }
+          }
+          return 3;
+
+        default:
+          return 2;
+      }
     }
-  }
 
-  /**
-   * Handle GS (0x1D) command sequences.
-   * @returns Number of bytes consumed
-   */
-  private handleGS(
-    commands: Uint8Array,
-    i: number,
-    state: RenderState,
-    lines: RenderLine[],
-    flushText: () => void,
-    newLine: () => void
-  ): number {
-    const nextByte = commands[i + 1];
-
+    // GS (0x1D) commands
     switch (nextByte) {
       case 0x21: // GS ! - Character size
         flushText();

@@ -8,6 +8,7 @@
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
 import { bitmapToHex } from '@/utils/bitmap';
+import { applyBarcodeMixins } from './barcode-helpers';
 
 /**
  * CPCL page size presets
@@ -143,6 +144,7 @@ export class CpclDriver {
   constructor(width = 576, height = 0) {
     this.pageWidth = width;
     this.pageHeight = height;
+    applyBarcodeMixins(this, this.barcode.bind(this), { wide: 2, narrow: 1 });
   }
 
   /**
@@ -327,28 +329,6 @@ export class CpclDriver {
     }
 
     return this;
-  }
-
-  /**
-   * Add Code 128 barcode (most common)
-   * @param content - Barcode content
-   * @param x - X position
-   * @param y - Y position
-   * @param height - Barcode height
-   */
-  code128(content: string, x = 0, y = 0, height = 50): this {
-    return this.barcode(content, { x, y, type: '128', height });
-  }
-
-  /**
-   * Add Code 39 barcode
-   * @param content - Barcode content
-   * @param x - X position
-   * @param y - Y position
-   * @param height - Barcode height
-   */
-  code39(content: string, x = 0, y = 0, height = 50): this {
-    return this.barcode(content, { x, y, type: '39', height, wide: 2, narrow: 1 });
   }
 
   /**

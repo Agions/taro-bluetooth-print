@@ -8,6 +8,7 @@
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
 import { bitmapToHex } from '@/utils/bitmap';
+import { applyBarcodeMixins } from './barcode-helpers';
 
 /**
  * ZPL Label size configuration
@@ -124,6 +125,7 @@ export class ZplDriver {
   constructor() {
     // Start with format start
     this.startFormat();
+    applyBarcodeMixins(this, this.barcode.bind(this), { checkDigit: 'Y' });
   }
 
   /**
@@ -309,28 +311,6 @@ export class ZplDriver {
       `^FO${x},${y}^B${type}${showText},${height},${interpretLine},${interpretLineAbove},${checkDigit}^FD${this.escapeField(content)}^FS`
     );
     return this;
-  }
-
-  /**
-   * Add Code 128 barcode
-   * @param content - Barcode content
-   * @param x - X position
-   * @param y - Y position
-   * @param height - Barcode height
-   */
-  code128(content: string, x = 0, y = 0, height = 50): this {
-    return this.barcode(content, { x, y, type: '128', height });
-  }
-
-  /**
-   * Add Code 39 barcode
-   * @param content - Barcode content
-   * @param x - X position
-   * @param y - Y position
-   * @param height - Barcode height
-   */
-  code39(content: string, x = 0, y = 0, height = 50): this {
-    return this.barcode(content, { x, y, type: '39', height, checkDigit: 'Y' });
   }
 
   /**

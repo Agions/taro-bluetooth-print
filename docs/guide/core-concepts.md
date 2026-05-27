@@ -320,11 +320,9 @@ plugins.register(analyticsPlugin);
 
 ---
 
-## 依赖注入容器（DI Container）
+## 实例化方式
 
-### 设计动机
-
-`BluetoothPrinter` 采用**构造函数注入**模式，支持两种实例化方式：
+`BluetoothPrinter` 支持两种实例化方式：
 
 | 方式 | 适用场景 | 说明 |
 |------|---------|------|
@@ -376,7 +374,7 @@ const printer = new BluetoothPrinter(myAdapter);
 
 ---
 
-## EventBus 事件系统
+## 事件系统
 
 `BluetoothPrinter` 继承自 `EventEmitter<PrinterEvents>`，提供类型安全的事件订阅机制。
 

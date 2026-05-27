@@ -139,10 +139,12 @@ export async function createWebBluetoothPrinter(): Promise<BluetoothPrinter> {
 /**
  * Default printer factory instance
  *
- * @deprecated Use the factory functions directly. This export exists
- * for backward compatibility only.
+ * @deprecated Use `createBluetoothPrinter` and `createWebBluetoothPrinter` directly.
+ * This export exists for backward compatibility only and will be removed in v3.0.
  */
 export const PrinterFactory = {
+  /** @deprecated Use `createBluetoothPrinter()` directly */
   create: createBluetoothPrinter,
+  /** @deprecated Use `createWebBluetoothPrinter()` directly */
   createWebBluetooth: createWebBluetoothPrinter,
 };

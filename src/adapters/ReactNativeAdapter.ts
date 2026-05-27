@@ -13,18 +13,21 @@ interface PlatformInterface {
 }
 const Platform = (globalThis as { Platform?: PlatformInterface }).Platform;
 
-import { BaseAdapter } from './BaseAdapter';
-import { IPrinterAdapter, IAdapterOptions, PrinterState } from '@/types';
-import { Logger } from '@/utils/logger';
-import { normalizeError } from '@/utils/normalizeError';
-import { withTimeout } from '@/utils/withTimeout';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
 import {
+  BaseAdapter,
+  type IPrinterAdapter,
+  type IAdapterOptions,
+  PrinterState,
+  Logger,
+  normalizeError,
+  withTimeout,
+  BluetoothPrintError,
+  ErrorCode,
   ChunkWriteStrategy,
   type ChunkWriteContext,
   type ChunkWriteResult,
   DEFAULT_ADAPTIVE_CONFIG,
-} from './ChunkWriteStrategy';
+} from './BaseAdapter';
 
 /**
  * React Native BLE Chunk Write Strategy

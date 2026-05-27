@@ -482,20 +482,12 @@ export class TemplateRenderer {
     if (border.filled) {
       const innerWidth = width - 2 - padding * 2;
       const fillChar = ' ';
-      for (let i = 0; i < padding; i++) {
-        const fillLine = l + fillChar.repeat(width - 2) + r;
-        commands.push(...this.driver.text(fillLine));
-        commands.push(...this.driver.feed(1));
-      }
+      this.renderFillLines(commands, padding, l, fillChar, width - 2, r);
       const contentLine =
         l + fillChar.repeat(padding) + fillChar.repeat(innerWidth) + fillChar.repeat(padding) + r;
       commands.push(...this.driver.text(contentLine));
       commands.push(...this.driver.feed(1));
-      for (let i = 0; i < padding; i++) {
-        const fillLine = l + fillChar.repeat(width - 2) + r;
-        commands.push(...this.driver.text(fillLine));
-        commands.push(...this.driver.feed(1));
-      }
+      this.renderFillLines(commands, padding, l, fillChar, width - 2, r);
     } else if (border.drawLeft || border.drawRight) {
       const middleLine =
         (border.drawLeft !== false ? l : ' ') +
@@ -516,6 +508,52 @@ export class TemplateRenderer {
   }
 
   /**
+   * Render multiple fill lines with the same pattern
+   */
+  private renderFillLines(
+    commands: Uint8Array[],
+    count: number,
+    leftChar: string,
+    fillChar: string,
+    innerWidth: number,
+    rightChar: string
+  ): void {
+    for (let i = 0; i < count; i++) {
+      const line = leftChar + fillChar.repeat(innerWidth) + rightChar;
+      commands.push(...this.driver.text(line));
+      commands.push(...this.driver.feed(1));
+    }
+  }
+
+  /**
+   * Build a separator line for a table
+   */
+  private buildTableSeparatorLine(
+    columns: Array<{ width: number }>,
+    leftChar: string,
+    fillChar: string,
+    rightChar: string
+  ): string {
+    return (
+      leftChar +
+      columns
+        .map(col => {
+          return fillChar.repeat(col.width + 1);
+        })
+        .join('') +
+      rightChar
+    );
+  }
+
+  /**
+   * Push a text line followed by a line feed into the commands array.
+   */
+  private pushTextLine(commands: Uint8Array[], text: string): void {
+    commands.push(...this.driver.text(text));
+    commands.push(...this.driver.feed(1));
+  }
+
+  /**
    * Render a table element
    */
   renderTable(table: TableElement, data: Record<string, unknown>): Uint8Array[] {
@@ -531,17 +569,13 @@ export class TemplateRenderer {
 
     // Draw top border
     if (table.showHeader) {
-      const topLine =
-        style.topLeft +
-        table.columns
-          .map(col => {
-            const width = col.width + 1;
-            return style.top.repeat(width);
-          })
-          .join('') +
-        style.topRight;
-      commands.push(...this.driver.text(topLine));
-      commands.push(...this.driver.feed(1));
+      const topLine = this.buildTableSeparatorLine(
+        table.columns,
+        style.topLeft,
+        style.top,
+        style.topRight
+      );
+      this.pushTextLine(commands, topLine);
     }
 
     // Draw header row
@@ -553,22 +587,18 @@ export class TemplateRenderer {
         headerContent +=
           aligned + (i < table.columns.length - 1 ? style.cross + ' ' : ' ' + style.right);
       });
-      commands.push(...this.driver.text(headerContent));
-      commands.push(...this.driver.feed(1));
+      this.pushTextLine(commands, headerContent);
     }
 
     // Draw separator after header
     if (table.showHeader) {
-      const sepLine =
-        style.cross +
-        table.columns
-          .map(col => {
-            return style.bottom.repeat(col.width + 1);
-          })
-          .join('') +
-        style.cross;
-      commands.push(...this.driver.text(sepLine));
-      commands.push(...this.driver.feed(1));
+      const sepLine = this.buildTableSeparatorLine(
+        table.columns,
+        style.cross,
+        style.bottom,
+        style.cross
+      );
+      this.pushTextLine(commands, sepLine);
     }
 
     // Draw data rows
@@ -584,35 +614,28 @@ export class TemplateRenderer {
           aligned + (colIndex < table.columns.length - 1 ? style.cross + ' ' : ' ' + style.right);
       });
 
-      commands.push(...this.driver.text(rowContent));
-      commands.push(...this.driver.feed(1));
+      this.pushTextLine(commands, rowContent);
 
       // Draw row separator
       if (rowIndex < rows.length - 1) {
-        const sepLine =
-          style.cross +
-          table.columns
-            .map(col => {
-              return style.bottom.repeat(col.width + 1);
-            })
-            .join('') +
-          style.cross;
-        commands.push(...this.driver.text(sepLine));
-        commands.push(...this.driver.feed(1));
+        const sepLine = this.buildTableSeparatorLine(
+          table.columns,
+          style.cross,
+          style.bottom,
+          style.cross
+        );
+        this.pushTextLine(commands, sepLine);
       }
     });
 
     // Draw bottom border
-    const bottomLine =
-      style.bottomLeft +
-      table.columns
-        .map(col => {
-          return style.bottom.repeat(col.width + 1);
-        })
-        .join('') +
-      style.bottomRight;
-    commands.push(...this.driver.text(bottomLine));
-    commands.push(...this.driver.feed(1));
+    const bottomLine = this.buildTableSeparatorLine(
+      table.columns,
+      style.bottomLeft,
+      style.bottom,
+      style.bottomRight
+    );
+    this.pushTextLine(commands, bottomLine);
 
     return commands;
   }

@@ -93,10 +93,15 @@ export interface ScheduledRetryManagerConfig {
   autoRestore: boolean;
 }
 
+/** Default base delay for exponential backoff in milliseconds */
+const DEFAULT_RETRY_BASE_DELAY = 1000;
+/** Default maximum delay for exponential backoff in milliseconds */
+const DEFAULT_RETRY_MAX_DELAY = 60000;
+
 /** Default configuration */
 const DEFAULT_CONFIG: ScheduledRetryManagerConfig = {
-  baseDelay: 1000,
-  maxDelay: 60000,
+  baseDelay: DEFAULT_RETRY_BASE_DELAY,
+  maxDelay: DEFAULT_RETRY_MAX_DELAY,
   maxAttempts: 5,
   persistEnabled: true,
   autoRestore: true,

@@ -156,11 +156,7 @@ export class PrintJobManager implements IPrintJobManager {
         this.saveJobState();
         // Don't reset _isInProgress when paused, so resume() and cancel() can still work
       } else {
-        // Print job completed successfully
-        this.logger.info(`Print job ${this.jobId} completed successfully`);
-        this._isInProgress = false;
-        this.clearJobState();
-        this.emitJobState('completed');
+        this.completeJob();
       }
     } catch (error) {
       this.logger.error(`Print job ${this.jobId} failed:`, error);
@@ -208,11 +204,7 @@ export class PrintJobManager implements IPrintJobManager {
       await this.processJob();
 
       if (!this._isPaused) {
-        // Print job completed successfully
-        this.logger.info(`Print job ${this.jobId} completed successfully`);
-        this._isInProgress = false;
-        this.clearJobState();
-        this.emitJobState('completed');
+        this.completeJob();
       }
     } catch (error) {
       this.logger.error(`Print job ${this.jobId} failed after resume:`, error);
@@ -414,6 +406,17 @@ export class PrintJobManager implements IPrintJobManager {
     if (this.onJobStateChange) {
       this.onJobStateChange(state);
     }
+  }
+
+  /**
+   * Handles job completion: logs, resets state, and emits event.
+   * Shared by start() and resume() code paths.
+   */
+  private completeJob(): void {
+    this.logger.info(`Print job ${this.jobId} completed successfully`);
+    this._isInProgress = false;
+    this.clearJobState();
+    this.emitJobState('completed');
   }
 
   /**

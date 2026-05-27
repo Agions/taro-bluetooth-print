@@ -27,16 +27,16 @@
 import { Logger } from '@/utils/logger';
 
 export class EventEmitter<T> {
-  private listeners: Map<keyof T, Set<(data: T[keyof T]) => void>> = new Map();
+  private listeners: { [K in keyof T]?: Set<(data: T[K]) => void> } = {};
   private debugMode = false;
   protected readonly logger = Logger.scope('EventEmitter');
 
   /** 确保事件监听器集合存在 */
-  private ensureListeners<K extends keyof T>(event: K): Set<(data: T[keyof T]) => void> {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+  private ensureListeners<K extends keyof T>(event: K): Set<(data: T[K]) => void> {
+    if (!this.listeners[event]) {
+      this.listeners[event] = new Set<(data: T[K]) => void>();
     }
-    return this.listeners.get(event)!;
+    return this.listeners[event] as Set<(data: T[K]) => void>;
   }
 
   /**
@@ -48,7 +48,7 @@ export class EventEmitter<T> {
    */
   on<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     const existing = this.ensureListeners(event);
-    existing.add(handler as (data: T[keyof T]) => void);
+    existing.add(handler);
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Added listener for "${String(event)}"`, {
@@ -68,11 +68,8 @@ export class EventEmitter<T> {
    * @returns Unsubscribe function
    */
   once<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
-    const wrappedHandler = (data: T[K]) => {
-      handler(data);
-      this.off(event, wrappedHandler);
-    };
-    return this.on(event, wrappedHandler as (data: T[K]) => void);
+    const wrappedHandler = this.wrapOnceHandler(event, handler);
+    return this.on(event, wrappedHandler);
   }
 
   /**
@@ -84,11 +81,11 @@ export class EventEmitter<T> {
    */
   prepend<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     const existingHandlers = this.ensureListeners(event);
-    const newHandlers = new Set<(data: T[keyof T]) => void>();
-    newHandlers.add(handler as (data: T[keyof T]) => void);
+    const newHandlers = new Set<(data: T[K]) => void>();
+    newHandlers.add(handler);
     existingHandlers.forEach(h => newHandlers.add(h));
 
-    this.listeners.set(event, newHandlers);
+    this.listeners[event] = newHandlers;
 
     if (this.debugMode) {
       this.logger.debug(`EventEmitter: Prepend listener for "${String(event)}"`, {
@@ -107,11 +104,23 @@ export class EventEmitter<T> {
    * @returns Unsubscribe function
    */
   prependOnce<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
+    const wrappedHandler = this.wrapOnceHandler(event, handler);
+    return this.prepend(event, wrappedHandler);
+  }
+
+  /**
+   * Create a one-shot wrapper that auto-removes itself after the first invocation.
+   * Shared by once() and prependOnce().
+   */
+  private wrapOnceHandler<K extends keyof T>(
+    event: K,
+    handler: (data: T[K]) => void
+  ): (data: T[K]) => void {
     const wrappedHandler = (data: T[K]) => {
       handler(data);
       this.off(event, wrappedHandler);
     };
-    return this.prepend(event, wrappedHandler as (data: T[K]) => void);
+    return wrappedHandler;
   }
 
   /**
@@ -121,9 +130,9 @@ export class EventEmitter<T> {
    * @param handler - Event handler function to remove
    */
   off<K extends keyof T>(event: K, handler: (data: T[K]) => void): void {
-    const handlers = this.listeners.get(event);
+    const handlers = this.listeners[event];
     if (handlers) {
-      handlers.delete(handler as (data: T[keyof T]) => void);
+      handlers.delete(handler);
 
       if (this.debugMode) {
         this.logger.debug(`EventEmitter: Removed listener for "${String(event)}"`, {
@@ -133,7 +142,7 @@ export class EventEmitter<T> {
 
       // 当没有监听器时，移除事件以释放内存
       if (handlers.size === 0) {
-        this.listeners.delete(event);
+        delete this.listeners[event];
 
         if (this.debugMode) {
           this.logger.debug(`EventEmitter: Removed event "${String(event)}" (no more listeners)`);
@@ -142,12 +151,9 @@ export class EventEmitter<T> {
     }
   }
 
-  /**
-   * Emit an event to all subscribers
-   *
   /** 获取事件监听器，如果不存在则返回空 Set */
-  private getHandlers<K extends keyof T>(event: K): Set<(data: T[keyof T]) => void> {
-    return this.listeners.get(event) ?? new Set();
+  private getHandlers<K extends keyof T>(event: K): Set<(data: T[K]) => void> {
+    return this.listeners[event] ?? new Set();
   }
 
   /**
@@ -181,12 +187,7 @@ export class EventEmitter<T> {
     for (const handler of handlers) {
       if (typeof handler === 'function') {
         try {
-          // 根据事件类型决定是否传递数据
-          if (data === undefined || data === null) {
-            (handler as () => void)();
-          } else {
-            handler(data);
-          }
+          handler(data);
         } catch (error) {
           // 捕获并处理事件处理程序中的错误，避免影响其他监听器
           this.logger.error(`Error in event handler for "${String(event)}":`, error);
@@ -228,17 +229,10 @@ export class EventEmitter<T> {
       promises.push(
         (async () => {
           try {
-            // 根据事件类型决定是否传递数据
-            let result: unknown;
-            if (data === undefined || data === null) {
-              // @ts-expect-error - 类型安全由调用方保证
-              result = handler();
-            } else {
-              result = handler(data);
-            }
+            const result = handler(data);
             // 等待异步 handler 完成
-            if (result instanceof Promise) {
-              await result;
+            if (result != null && typeof (result as Promise<void>).then === 'function') {
+              await (result as Promise<void>);
             }
           } catch (error) {
             // 捕获并处理事件处理程序中的错误，避免影响其他监听器
@@ -263,7 +257,7 @@ export class EventEmitter<T> {
     if (event) {
       // 移除特定事件的所有监听器
       const listenerCount = this.listenerCount(event);
-      this.listeners.delete(event);
+      delete this.listeners[event];
 
       if (this.debugMode) {
         this.logger.debug(
@@ -272,8 +266,8 @@ export class EventEmitter<T> {
       }
     } else {
       // 移除所有事件的监听器
-      const eventCount = this.listeners.size;
-      this.listeners.clear();
+      const eventCount = Object.keys(this.listeners).length;
+      this.listeners = {};
 
       if (this.debugMode) {
         this.logger.debug(`EventEmitter: Removed all ${eventCount} events and their listeners`);
@@ -288,7 +282,7 @@ export class EventEmitter<T> {
    * @returns Number of listeners
    */
   listenerCount<K extends keyof T>(event: K): number {
-    return this.listeners.get(event)?.size ?? 0;
+    return this.listeners[event]?.size ?? 0;
   }
 
   /**
@@ -298,11 +292,11 @@ export class EventEmitter<T> {
    * @returns Array of event handlers
    */
   getListeners<K extends keyof T>(event: K): Array<(data: T[K]) => void> {
-    const handlers = this.listeners.get(event);
+    const handlers = this.listeners[event];
     if (!handlers) {
       return [];
     }
-    return Array.from(handlers) as Array<(data: T[K]) => void>;
+    return Array.from(handlers);
   }
 
   /**
@@ -311,7 +305,7 @@ export class EventEmitter<T> {
    * @returns Array of event names
    */
   eventNames(): Array<keyof T> {
-    return Array.from(this.listeners.keys());
+    return Object.keys(this.listeners) as Array<keyof T>;
   }
 
   /**
@@ -349,7 +343,7 @@ export class EventEmitter<T> {
    * @returns Total number of events
    */
   getTotalEvents(): number {
-    return this.listeners.size;
+    return Object.keys(this.listeners).length;
   }
 
   /**
@@ -359,8 +353,8 @@ export class EventEmitter<T> {
    */
   getTotalListeners(): number {
     let total = 0;
-    for (const handlers of this.listeners.values()) {
-      total += handlers.size;
+    for (const key of Object.keys(this.listeners) as Array<keyof T>) {
+      total += this.listeners[key]?.size ?? 0;
     }
     return total;
   }

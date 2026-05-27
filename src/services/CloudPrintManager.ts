@@ -90,6 +90,13 @@ export type CloudPrintEvent = keyof CloudPrintEvents;
  *
  * 通过 WebSocket 连接到云端服务器，实现远程打印任务下发
  */
+/** Default reconnect interval in milliseconds */
+const DEFAULT_RECONNECT_INTERVAL = 5000;
+/** Default heartbeat interval in milliseconds */
+const DEFAULT_HEARTBEAT_INTERVAL = 30000;
+/** Default connection timeout in milliseconds */
+const DEFAULT_CONNECT_TIMEOUT = 10000;
+
 export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
   private readonly log = Logger.scope('CloudPrintManager');
   private options: Required<CloudPrintOptions>;
@@ -105,9 +112,9 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
     super();
     this.options = {
       reconnect: true,
-      reconnectInterval: 5000,
-      heartbeatInterval: 30000,
-      connectTimeout: 10000,
+      reconnectInterval: DEFAULT_RECONNECT_INTERVAL,
+      heartbeatInterval: DEFAULT_HEARTBEAT_INTERVAL,
+      connectTimeout: DEFAULT_CONNECT_TIMEOUT,
       apiKey: undefined,
       ...options,
     } as Required<CloudPrintOptions>;
@@ -340,8 +347,9 @@ export class CloudPrintManager extends EventEmitter<CloudPrintEvents> {
     this.log.debug(`Scheduling reconnect in ${this.options.reconnectInterval}ms`);
     this.reconnectTimer = setTimeout(() => {
       this.log.info('Attempting to reconnect...');
-      this.connect().catch(() => {
+      this.connect().catch(error => {
         // Reconnect failed, will be rescheduled by onclose handler
+        this.log.warn('Reconnect attempt failed:', error);
       });
     }, this.options.reconnectInterval);
   }

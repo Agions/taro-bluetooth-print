@@ -217,8 +217,9 @@ export class PrinterStatus {
     try {
       const status = await this.getStatus(writeFunc, readFunc);
       return status.paper !== PaperStatus.OUT && !status.cutterError && !status.motorError;
-    } catch {
+    } catch (error) {
       // Return false gracefully if status query fails (e.g., device disconnected)
+      this.logger.warn('Failed to check printer readiness:', error);
       return false;
     }
   }

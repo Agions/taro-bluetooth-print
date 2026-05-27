@@ -7,6 +7,10 @@ import { EventEmitter } from '../core/EventEmitter';
 import { generateUUID } from '../utils/uuid';
 import { normalizeError } from '../utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { Logger } from '@/utils/logger';
+
+/** Maximum value for setTimeout (2^31 - 1, i.e. MAX_INT32) */
+const MAX_TIMEOUT_MS = 2147483647;
 
 export interface ScheduledPrint {
   id: string;
@@ -261,6 +265,8 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
     this.restoreJobs();
   }
 
+  private readonly schedulerLogger = Logger.scope('PrintScheduler');
+
   setPrintExecutor(executor: (job: ScheduledPrint) => Promise<void>): void {
     this.onPrintExecute = executor;
   }
@@ -449,7 +455,7 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
       () => {
         void this.executeJob(nextJob);
       },
-      Math.min(delay, 2147483647)
+      Math.min(delay, MAX_TIMEOUT_MS)
     );
   }
 
@@ -508,9 +514,10 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(this.persistKey, data);
         }
-      } catch {
+      } catch (error) {
         // Persist errors are non-critical — the in-memory job list remains functional;
         // persistence is only for crash-recovery convenience across app restarts
+        this.schedulerLogger.warn('Failed to persist scheduled jobs:', error);
       }
       // If jobs map is now empty, ensure the persisted state reflects that
       // (handled by the next call or stop())
@@ -533,9 +540,10 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
           this.jobs.set(id, job);
         }
       }
-    } catch {
+    } catch (error) {
       // Restore errors from corrupted/missing localStorage are non-critical;
       // the system initializes with an empty job list and continues normally — no data loss
+      this.schedulerLogger.warn('Failed to restore scheduled jobs:', error);
     }
   }
 
@@ -555,8 +563,9 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(this.persistKey, data);
       }
-    } catch {
+    } catch (error) {
       // Persist errors are non-critical
+      this.schedulerLogger.warn('Failed to flush persist:', error);
     }
   }
 

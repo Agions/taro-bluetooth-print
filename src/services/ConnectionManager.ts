@@ -54,13 +54,20 @@ export interface ConnectionManagerEvents {
   error: BluetoothPrintError;
 }
 
+/** Default heartbeat interval in milliseconds */
+const DEFAULT_HEARTBEAT_INTERVAL = 5000;
+/** Default reconnect interval in milliseconds */
+const DEFAULT_RECONNECT_INTERVAL = 2000;
+/** Default connection timeout in milliseconds */
+const DEFAULT_CONNECTION_TIMEOUT = 10000;
+
 const DEFAULT_CONFIG: Required<ConnectionManagerConfig> = {
   heartbeatEnabled: true,
-  heartbeatInterval: 5000,
+  heartbeatInterval: DEFAULT_HEARTBEAT_INTERVAL,
   autoReconnect: true,
   maxReconnectAttempts: 3,
-  reconnectInterval: 2000,
-  connectionTimeout: 10000,
+  reconnectInterval: DEFAULT_RECONNECT_INTERVAL,
+  connectionTimeout: DEFAULT_CONNECTION_TIMEOUT,
 };
 
 /**

@@ -76,10 +76,13 @@ const SUNMI_JSON_PATTERN = /^\{"name"\s*:\s*"([^"]+)"\s*,\s*"mac"\s*:\s*"([^"]+)
  */
 const SUNMI_PIPE_PATTERN = /^([^|]+)\|([0-9A-Fa-f:]+)\|([^|]+)$/;
 
+import { Logger } from '@/utils/logger';
+
 /**
  * 二维码发现服务
  */
 export class QRCodeDiscoveryService {
+  private readonly logger = Logger.scope('QRCodeDiscoveryService');
   private options: QRCodeDiscoveryOptions;
 
   constructor(options: QRCodeDiscoveryOptions) {
@@ -215,8 +218,9 @@ export class QRCodeDiscoveryService {
       }
 
       return null;
-    } catch {
+    } catch (error) {
       // Invalid JSON or no matching fields — not an error, just not a parseable QR code
+      this.logger.debug('Not a valid Sunmi JSON QR code:', error);
       return null;
     }
   }
@@ -399,9 +403,10 @@ export class QRCodeDiscoveryService {
           metadata[key] = typeof value === 'string' ? value : JSON.stringify(value);
         }
       }
-    } catch {
+    } catch (error) {
       // Parse errors here are benign — metadata extraction from QR codes is supplementary
       // information; a failure should not block the discovery process
+      this.logger.debug('Failed to extract JSON metadata:', error);
     }
     return metadata;
   }

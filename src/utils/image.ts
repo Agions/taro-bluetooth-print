@@ -594,20 +594,19 @@ export class ImageProcessing {
     destWidth: number,
     destHeight: number
   ): void {
-    const sx = srcWidth / destWidth;
-    const sy = srcHeight / destHeight;
-    for (let y = 0; y < destHeight; y++) {
-      for (let x = 0; x < destWidth; x++) {
-        const sjx = Math.min(srcWidth - 1, Math.round(x * sx));
-        const sjy = Math.min(srcHeight - 1, Math.round(y * sy));
-        const si = (sjy * srcWidth + sjx) * 4;
-        const di = (y * destWidth + x) * 4;
-        destData[di] = srcData[si]!;
-        destData[di + 1] = srcData[si + 1]!;
-        destData[di + 2] = srcData[si + 2]!;
-        destData[di + 3] = srcData[si + 3]!;
+    this.resampleImage(
+      srcWidth,
+      srcHeight,
+      destWidth,
+      destHeight,
+      (_x, _y, srcX, srcY, destIdx) => {
+        const srcIdx = (srcY * srcWidth + srcX) * 4;
+        destData[destIdx] = srcData[srcIdx]!;
+        destData[destIdx + 1] = srcData[srcIdx + 1]!;
+        destData[destIdx + 2] = srcData[srcIdx + 2]!;
+        destData[destIdx + 3] = srcData[srcIdx + 3]!;
       }
-    }
+    );
   }
 
   private static applyBilinearInterpolation(
@@ -618,12 +617,14 @@ export class ImageProcessing {
     destWidth: number,
     destHeight: number
   ): void {
-    const sx = srcWidth / destWidth;
-    const sy = srcHeight / destHeight;
-    for (let y = 0; y < destHeight; y++) {
-      for (let x = 0; x < destWidth; x++) {
-        const fx = Math.min(srcWidth - 1, x * sx);
-        const fy = Math.min(srcHeight - 1, y * sy);
+    this.resampleImage(
+      srcWidth,
+      srcHeight,
+      destWidth,
+      destHeight,
+      (x, y, _srcX, _srcY, destIdx) => {
+        const fx = Math.min(srcWidth - 1, x * (srcWidth / destWidth));
+        const fy = Math.min(srcHeight - 1, y * (srcHeight / destHeight));
         const x1 = Math.floor(fx);
         const y1 = Math.floor(fy);
         const x2 = Math.min(x1 + 1, srcWidth - 1);
@@ -641,8 +642,27 @@ export class ImageProcessing {
           const ii4 = (y2 * srcWidth + x2) * 4 + c;
           const v =
             srcData[ii1]! * w1 + srcData[ii2]! * w2 + srcData[ii3]! * w3 + srcData[ii4]! * w4;
-          destData[(y * destWidth + x) * 4 + c] = Math.round(v);
+          destData[destIdx + c] = Math.round(v);
         }
+      }
+    );
+  }
+
+  private static resampleImage(
+    srcWidth: number,
+    srcHeight: number,
+    destWidth: number,
+    destHeight: number,
+    samplePixel: (x: number, y: number, srcX: number, srcY: number, destIdx: number) => void
+  ): void {
+    const scaleX = srcWidth / destWidth;
+    const scaleY = srcHeight / destHeight;
+    for (let y = 0; y < destHeight; y++) {
+      for (let x = 0; x < destWidth; x++) {
+        const srcX = Math.min(srcWidth - 1, Math.round(x * scaleX));
+        const srcY = Math.min(srcHeight - 1, Math.round(y * scaleY));
+        const destIdx = (y * destWidth + x) * 4;
+        samplePixel(x, y, srcX, srcY, destIdx);
       }
     }
   }
@@ -669,29 +689,30 @@ export class ImageProcessing {
     return result;
   }
 
-  private static applyMedianFilter(data: Uint8Array, width: number, height: number): Uint8Array {
+  private static processPixels(
+    data: Uint8Array,
+    width: number,
+    height: number,
+    processor: (result: Uint8Array, x: number, y: number, destIdx: number) => void
+  ): Uint8Array {
     if (data.length < 4 || width <= 0 || height <= 0) return new Uint8Array(0);
-
     const result = new Uint8Array(data.length);
-
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const di = (y * width + x) * 4;
-
-        // Collect pixel values from 3x3 neighborhood
-        const window = this.collectNeighborhoodWindow(data, width, height, x, y);
-
-        // Sort and extract median (index 18 = median of 19 values per channel)
-        window.sort((a, b) => a - b);
-
-        // Extract median for each channel
-        for (let c = 0; c < 4; c++) {
-          result[di + c] = window[18 + c * 9] ?? 128;
-        }
+        processor(result, x, y, (y * width + x) * 4);
       }
     }
-
     return result;
+  }
+
+  private static applyMedianFilter(data: Uint8Array, width: number, height: number): Uint8Array {
+    return this.processPixels(data, width, height, (result, x, y, di) => {
+      const window = this.collectNeighborhoodWindow(data, width, height, x, y);
+      window.sort((a, b) => a - b);
+      for (let c = 0; c < 4; c++) {
+        result[di + c] = window[18 + c * 9] ?? 128;
+      }
+    });
   }
 
   /**
@@ -734,25 +755,13 @@ export class ImageProcessing {
   }
 
   private static applyUnsharpMask(data: Uint8Array, width: number, height: number): Uint8Array {
-    if (data.length < 4 || width <= 0 || height <= 0) return new Uint8Array(0);
-
-    // Center=3, edges=-0.5 sharpening kernel
     const kernel = this.getSharpeningKernel();
-    const result = new Uint8Array(data.length);
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const di = (y * width + x) * 4;
-
-        // Apply convolution for each channel
-        for (let c = 0; c < 4; c++) {
-          const convolvedValue = this.convolveChannel(data, width, height, x, y, c, kernel);
-          result[di + c] = this.clampToByte(convolvedValue);
-        }
+    return this.processPixels(data, width, height, (result, x, y, di) => {
+      for (let c = 0; c < 4; c++) {
+        const convolvedValue = this.convolveChannel(data, width, height, x, y, c, kernel);
+        result[di + c] = this.clampToByte(convolvedValue);
       }
-    }
-
-    return result;
+    });
   }
 
   /**
