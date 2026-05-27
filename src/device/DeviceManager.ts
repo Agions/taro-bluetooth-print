@@ -232,11 +232,11 @@ export class DeviceManager extends EventEmitter<DeviceManagerEvents> implements 
           if (char.properties.write || char.properties.writeNoResponse) {
             serviceId = service.uuid;
             characteristicId = char.uuid;
-            break;
           }
+          if (characteristicId) break;
         }
 
-        if (characteristicId) break;
+        if (serviceId && characteristicId) break;
       }
 
       if (!serviceId || !characteristicId) {
@@ -344,14 +344,10 @@ export class DeviceManager extends EventEmitter<DeviceManagerEvents> implements 
         const name = device.name || device.localName || '';
         const filter = this.currentScanOptions.nameFilter;
 
-        if (typeof filter === 'string') {
-          if (!name.toLowerCase().includes(filter.toLowerCase())) {
-            continue;
-          }
-        } else if (filter instanceof RegExp) {
-          if (!filter.test(name)) {
-            continue;
-          }
+        if (typeof filter === 'string' && !name.toLowerCase().includes(filter.toLowerCase())) {
+          continue;
+        } else if (filter instanceof RegExp && !filter.test(name)) {
+          continue;
         }
       }
 

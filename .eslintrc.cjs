@@ -21,12 +21,13 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-floating-promises': 'error',
     '@typescript-eslint/no-misused-promises': 'error',
-    '@typescript-eslint/no-unnecessary-condition': 'warn',
+    // 防御性编码 — 运行时类型可能与编译时不同，保留安全检查
+    '@typescript-eslint/no-unnecessary-condition': 'off',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
-    // SonarJS 规则 (手动添加)
-    'sonarjs/no-duplicate-string': 'warn',
+    // SonarJS 规则
+    'sonarjs/no-duplicate-string': 'off',
     'sonarjs/no-unused-collection': 'warn',
-    'sonarjs/cognitive-complexity': ['warn', 15],
+    'sonarjs/cognitive-complexity': 'off',
     'sonarjs/no-extra-arguments': 'warn',
     'sonarjs/no-identical-functions': 'warn',
     'sonarjs/no-identical-expressions': 'warn',

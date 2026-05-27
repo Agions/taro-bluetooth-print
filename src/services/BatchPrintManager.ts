@@ -374,11 +374,12 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
 
     for (const job of this.jobs) {
       // Check if adding this job would exceed max batch size
-      if (batch.length > 0 && totalSize + job.data.length > this.config.maxBatchSize) {
-        // Don't add if it would exceed, and we already have some jobs
-        if (batch.length >= this.config.minBatchSize) {
-          break;
-        }
+      if (
+        batch.length > 0 &&
+        totalSize + job.data.length > this.config.maxBatchSize &&
+        batch.length >= this.config.minBatchSize
+      ) {
+        break;
       }
 
       batch.push(job);

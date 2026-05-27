@@ -29,9 +29,8 @@ export class PluginManager {
       );
     }
 
-    this.logger.info(
-      `Registering plugin: ${plugin.name}${plugin.version ? ` v${plugin.version}` : ''}`
-    );
+    const versionSuffix = plugin.version ? ` v${plugin.version}` : '';
+    this.logger.info(`Registering plugin: ${plugin.name}${versionSuffix}`);
 
     if (plugin.init) {
       await plugin.init(options);

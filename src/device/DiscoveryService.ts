@@ -98,10 +98,12 @@ function matchesFilter(device: DiscoveredDevice, filter: DeviceFilter): boolean 
   }
 
   // 外观过滤
-  if (filter.appearance && device.appearance !== undefined) {
-    if (!filter.appearance.includes(device.appearance)) {
-      return false;
-    }
+  if (
+    filter.appearance &&
+    device.appearance !== undefined &&
+    !filter.appearance.includes(device.appearance)
+  ) {
+    return false;
   }
 
   return true;

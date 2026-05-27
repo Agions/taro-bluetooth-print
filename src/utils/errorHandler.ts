@@ -132,7 +132,7 @@ export function handleConnectionError(error: unknown, deviceId?: string): Error 
   const context = deviceId ? { deviceId } : {};
   return handleError(error, {
     severity: 'error',
-    defaultMessage: `Connection error${deviceId ? ` for device ${deviceId}` : ''}`,
+    defaultMessage: deviceId ? `Connection error for device ${deviceId}` : 'Connection error',
     context,
   })!;
 }
@@ -144,7 +144,7 @@ export function handlePrintError(error: unknown, jobId?: string): Error {
   const context = jobId ? { jobId } : {};
   return handleError(error, {
     severity: 'error',
-    defaultMessage: `Print error${jobId ? ` for job ${jobId}` : ''}`,
+    defaultMessage: jobId ? `Print error for job ${jobId}` : 'Print error',
     context,
   })!;
 }
@@ -156,7 +156,7 @@ export function handleQueueError(error: unknown, queueName?: string): Error {
   const context = queueName ? { queueName } : {};
   return handleError(error, {
     severity: 'warn',
-    defaultMessage: `Queue error${queueName ? ` in ${queueName}` : ''}`,
+    defaultMessage: queueName ? `Queue error in ${queueName}` : 'Queue error',
     context,
   })!;
 }
@@ -168,7 +168,7 @@ export function handleCacheError(error: unknown, cacheName?: string): Error {
   const context = cacheName ? { cacheName } : {};
   return handleError(error, {
     severity: 'warn',
-    defaultMessage: `Cache error${cacheName ? ` in ${cacheName}` : ''}`,
+    defaultMessage: cacheName ? `Cache error in ${cacheName}` : 'Cache error',
     context,
   })!;
 }
