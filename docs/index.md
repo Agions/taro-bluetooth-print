@@ -25,7 +25,7 @@ features:
     details: 内置 ESC/POS、TSPL、ZPL、CPCL、STAR、GPrinter、Xprinter、SPRT 八大驱动，覆盖佳博、芯烨、TSC、Zebra、STAR 等主流品牌打印机。
   - icon: ⛓️
     title: 链式 API
-    details: 优雅的链式调用构建打印内容，支持 .text()、.qrcode()、.barcode()、.image()、.cut() 等丰富的指令方法。TypeScript 严格模式提供完整的类型提示。
+    details: 优雅的链式调用构建打印内容，支持 .text()、.qr()、.barcode()、.image()、.cut() 等丰富的指令方法。TypeScript 严格模式提供完整的类型提示。
   - icon: 📝
     title: 模板引擎
     details: 灵活的模板语法支持 loop 循环、condition 条件、border 边框、table 表格等高级特性，复杂小票和标签布局也能轻松渲染。

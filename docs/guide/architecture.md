@@ -237,46 +237,67 @@ src/
 |-- index.ts                    # 主入口，导出所有公开 API
 |-- types.ts                    # 核心类型定义（PrinterState, IPrinterAdapter 等）
 |
-|-- core/
+|-- core/                       # 核心引擎
 |   |-- BluetoothPrinter.ts     # 主入口类
-|   |-- EventEmitter.ts         # 事件发射器
-|   |-- BatchPrintManager.ts    # 批量打印管理
+|   +-- EventEmitter.ts         # 类型安全事件发射器
+|
+|-- services/                   # 服务层（连接 / 任务 / 队列 / 调度）
 |   |-- CommandBuilder.ts       # 指令构建器
-|   |-- ConnectionManager.ts    # 连接管理
-|   |-- PrinterStatus.ts        # 状态查询
+|   |-- ConnectionManager.ts    # 连接管理（心跳 + 自动重连）
+|   |-- PrintJobManager.ts      # 打印任务管理（暂停 / 恢复 / 取消）
+|   |-- BatchPrintManager.ts    # 批量打印管理
+|   |-- CloudPrintManager.ts    # 云打印管理
 |   |-- PrintHistory.ts         # 打印历史
-|   |-- PrintJobManager.ts      # 打印任务管理
+|   |-- PrintScheduler.ts       # 打印调度（cron / 一次性 / 间隔）
 |   |-- PrintStatistics.ts      # 统计服务
-|   +-- ScheduledRetryManager.ts# 定时重试
+|   |-- PrinterStatus.ts        # 状态查询
+|   |-- QRCodeDiscoveryService.ts
+|   |-- QRCodeParser.ts
+|   |-- ScheduledRetryManager.ts# 定时重试（指数退避）
+|   +-- interfaces/             # 服务接口契约（I 前缀）
+|       |-- ICommandBuilder.ts
+|       |-- IConnectionManager.ts
+|       +-- IPrintJobManager.ts
 |
 |-- adapters/                   # 平台适配器
-|   |-- BaseAdapter.ts          # 基础适配器
-|   |-- TaroAdapter.ts          # Taro 框架适配器
-|   |-- WebBluetoothAdapter.ts  # Web Bluetooth
+|   |-- BaseAdapter.ts          # 基础适配器（含 MiniProgramAdapter 子类）
+|   |-- ChunkWriteStrategy.ts   # 自适应 chunk 写入策略
+|   |-- TaroAdapter.ts          # Taro / 微信小程序
 |   |-- AlipayAdapter.ts        # 支付宝小程序
 |   |-- BaiduAdapter.ts         # 百度小程序
 |   |-- ByteDanceAdapter.ts     # 字节跳动小程序
 |   |-- QQAdapter.ts            # QQ 小程序
-|   |-- ReactNativeAdapter.ts   # React Native
-|   +-- AdapterFactory.ts       # 适配器工厂
+|   |-- ReactNativeAdapter.ts   # React Native（react-native-ble-plx）
+|   |-- WebBluetoothAdapter.ts  # Web Bluetooth（H5）
+|   +-- AdapterFactory.ts       # 适配器工厂（平台自动检测）
 |
 |-- drivers/                    # 打印机驱动
-|   |-- EscPos.ts               # ESC/POS 热敏票据
+|   |-- EscPosDriver.ts         # ESC/POS 热敏票据（默认）
 |   |-- TsplDriver.ts           # TSPL 标签机
 |   |-- ZplDriver.ts            # ZPL Zebra 工业机
-|   |-- CpclDriver.ts           # CPCL HP/霍尼韦尔
+|   |-- CpclDriver.ts           # CPCL HP / 霍尼韦尔
 |   |-- StarPrinter.ts          # STAR TSP 系列
-|   +-- GPrinterDriver.ts       # 佳博 GP 系列
+|   |-- GPrinterDriver.ts       # 佳博 GP 系列
+|   |-- XprinterDriver.ts       # 芯烨 X 系列
+|   |-- SprtDriver.ts           # 思普瑞特
+|   +-- BarcodeHelpers.ts       # 条码便捷方法 mixin
 |
-|-- plugins/
+|-- plugins/                    # 插件系统
 |   |-- PluginManager.ts        # 插件管理器
-|   +-- types.ts                # 插件类型定义
+|   |-- PluginTypes.ts          # 插件类型定义
+|   +-- builtin/                # 内置插件
+|       |-- LoggingPlugin.ts    # 日志插件
+|       +-- RetryPlugin.ts      # 重试插件
 |
-|-- template/
-|   +-- TemplateEngine.ts       # 模板引擎（支持 loop/condition/border/table）
+|-- template/                   # 模板引擎
+|   |-- TemplateEngine.ts       # 模板引擎（loop / condition / border / table）
+|   |-- engines/
+|   |   +-- TemplateRenderer.ts # 渲染器
+|   +-- parsers/
+|       +-- TemplateParser.ts   # 解析器
 |
 |-- barcode/
-|   +-- BarcodeGenerator.ts     # 条码生成器（含 QR/PDF417）
+|   +-- BarcodeGenerator.ts     # 条码生成器（QR / PDF417）
 |
 |-- cache/
 |   +-- OfflineCache.ts         # 离线缓存
@@ -291,24 +312,49 @@ src/
 |   +-- PreviewRenderer.ts      # 打印预览
 |
 |-- encoding/
-|   +-- EncodingService.ts     # 编码服务
+|   |-- EncodingService.ts      # 编码服务
+|   |-- GbkTable.ts             # GBK 完整编码表
+|   |-- GbkLite.ts              # GBK 精简编码表（106 条）
+|   |-- GbkData.ts              # GBK / Big5 全量数据
+|   +-- KoreanJapanese.ts       # 韩文 / 日文编码
 |
 |-- device/
 |   |-- DeviceManager.ts        # 设备扫描管理
-|   +-- MultiPrinterManager.ts # 多打印机管理
+|   |-- DiscoveryService.ts     # 增强型设备发现
+|   +-- MultiPrinterManager.ts  # 多打印机管理
+|
+|-- factory/
+|   +-- PrinterFactory.ts       # 工厂模式入口
 |
 |-- config/
 |   |-- PrinterConfig.ts        # 配置定义
 |   +-- PrinterConfigManager.ts # 配置管理
 |
-|-- errors/
-|   +-- BluetoothError.ts       # 错误类型
+|-- errors/                     # 错误类型（PascalCase 文件名）
+|   |-- BaseError.ts            # BluetoothPrintError 基类 + ErrorCode enum
+|   |-- ConnectionError.ts
+|   |-- CommandBuildError.ts
+|   +-- PrintJobError.ts
 |
-+-- utils/
-    |-- encoding.ts            # 编码工具
-    |-- image.ts               # 图像工具
-    |-- logger.ts              # 日志工具
+|-- constants/
+|   +-- strings.ts              # 公共字符串常量
+|
++-- utils/                      # 通用工具
+    |-- encoding.ts             # 编码工具
+    |-- image.ts                # 图像工具
+    |-- logger.ts               # 日志工具
     |-- platform.ts             # 平台检测
-    |-- uuid.ts                # UUID 工具
-    +-- validation.ts          # 验证工具
+    |-- uuid.ts                 # UUID 工具
+    |-- bitmap.ts               # 位图工具
+    |-- normalizeError.ts       # 错误标准化
+    |-- errorHandler.ts         # 错误处理
+    |-- outputLimiter.ts        # 输出限制器
+    +-- withTimeout.ts          # 超时辅助
 ```
+
+> **命名规范**（v2.14.0 冻结）：
+> - 类文件 PascalCase：`BluetoothPrinter.ts`、`BaseError.ts`、`EscPosDriver.ts`
+> - 工具 / 常量 / 数据文件 camelCase：`encoding.ts`、`uuid.ts`、`strings.ts`、`GbkData.ts`
+> - 接口 `I` 前缀：`IPrinterAdapter`、`IConnectionManager`、`ICommandBuilder`
+> - 类成员无下划线前缀：`isPaused`（非 `_isPaused`）
+> - 事件名 kebab-case：`state-change`、`print-complete`
