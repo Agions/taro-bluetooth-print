@@ -12,7 +12,7 @@ import { PrintJobManager } from '@/services/PrintJobManager';
 import { CommandBuilder } from '@/services/CommandBuilder';
 import type { IPrinterAdapter } from '@/types';
 import type { IConnectionManager, IPrintJobManager, ICommandBuilder } from '@/services/interfaces';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
 /**
  * Options for creating a BluetoothPrinter via the factory

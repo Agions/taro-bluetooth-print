@@ -11,7 +11,7 @@
  * - 小票据打印优化
  */
 
-import { EscPos, type EscPosOptions } from './escPosDriver';
+import { EscPos, type EscPosOptions } from './EscPosDriver';
 
 /**
  * SprtDriver options (same as EscPosOptions)

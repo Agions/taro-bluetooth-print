@@ -11,7 +11,7 @@
  * - 部分型号有特殊初始化序列
  */
 
-import { EscPos, type EscPosOptions } from './escPosDriver';
+import { EscPos, type EscPosOptions } from './EscPosDriver';
 
 /**
  * Xprinter options (same as EscPosOptions)

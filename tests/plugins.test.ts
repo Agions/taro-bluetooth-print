@@ -3,7 +3,7 @@ import { TsplDriver } from '../src/drivers/TsplDriver';
 import { PluginManager } from '../src/plugins/PluginManager';
 import { createLoggingPlugin, createRetryPlugin } from '../src/plugins';
 import { PrinterState } from '../src/types';
-import { BluetoothPrintError, ErrorCode } from '../src/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '../src/errors/BaseError';
 
 describe('TsplDriver', () => {
   let driver: TsplDriver;

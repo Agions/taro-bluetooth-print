@@ -4,7 +4,7 @@
  * Tests for all custom error classes in the library
  */
 import { describe, it, expect } from 'vitest';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { ConnectionError, ConnectionErrorCode } from '@/errors/ConnectionError';
 import { PrintJobError, PrintJobErrorCode } from '@/errors/PrintJobError';
 import { CommandBuildError, CommandBuildErrorCode } from '@/errors/CommandBuildError';

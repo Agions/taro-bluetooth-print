@@ -3,7 +3,7 @@ import { describe, test, expect } from 'vitest';
  * Unit tests for BluetoothPrintError
  */
 
-import { BluetoothPrintError, ErrorCode } from '../src/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '../src/errors/BaseError';
 
 describe('BluetoothPrintError', () => {
   describe('constructor', () => {

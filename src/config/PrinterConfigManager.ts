@@ -29,7 +29,7 @@
  */
 
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
 /**
  * Print configuration for a device

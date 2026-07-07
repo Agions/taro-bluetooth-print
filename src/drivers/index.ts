@@ -3,7 +3,7 @@
  * 打印机驱动模块 - 支持多种打印机协议
  */
 
-export { EscPos, type EscPosOptions } from './escPosDriver';
+export { EscPos, type EscPosOptions } from './EscPosDriver';
 
 export { GPrinterDriver, type GPrinterOptions } from './GPrinterDriver';
 

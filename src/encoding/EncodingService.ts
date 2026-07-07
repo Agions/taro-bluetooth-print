@@ -28,7 +28,7 @@ import {
   isAscii,
   isCjk,
   isChinesePunctuation,
-} from './gbk-table';
+} from './GbkTable';
 import {
   encodeHangulSyllable,
   isKoreanHangul,
@@ -39,7 +39,7 @@ import {
   ISO2022JP_ESC_ASCII,
   ISO2022JP_ESC_JIS0208,
   requiresJisX0208Escape,
-} from './korean-japanese';
+} from './KoreanJapanese';
 
 /**
  * Supported encoding types

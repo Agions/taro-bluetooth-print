@@ -22,7 +22,7 @@ export {
   isAscii,
   isCjk,
   isChinesePunctuation,
-} from './gbk-table';
+} from './GbkTable';
 
 export {
   encodeHangulSyllable,
@@ -38,4 +38,4 @@ export {
   ISO2022JP_ESC_JIS0208,
   requiresJisX0208Escape,
   isJisX0201Katakana,
-} from './korean-japanese';
+} from './KoreanJapanese';

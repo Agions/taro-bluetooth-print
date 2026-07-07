@@ -5,7 +5,7 @@
  * Supports multiple dithering algorithms and image preprocessing.
  */
 
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
 /** Entry in an error-diffusion kernel: relative position + fractional weight. */
 interface ErrorKernelEntry {

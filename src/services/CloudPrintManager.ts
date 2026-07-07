@@ -12,7 +12,7 @@
 
 import { EventEmitter } from '@/core/EventEmitter';
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { normalizeError } from '@/utils/normalizeError';
 
 export interface CloudPrintOptions {

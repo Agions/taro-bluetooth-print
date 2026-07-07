@@ -8,7 +8,7 @@
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
 import { bitmapToHex } from '@/utils/bitmap';
-import { applyBarcodeMixins } from './barcode-helpers';
+import { applyBarcodeMixins } from './BarcodeHelpers';
 
 /**
  * ZPL Label size configuration

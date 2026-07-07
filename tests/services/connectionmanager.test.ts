@@ -3,7 +3,7 @@ import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { ConnectionManager } from '../../src/services/ConnectionManager';
 import { PrinterState } from '../../src/types';
 import type { IPrinterAdapter } from '../../src/types';
-import { BluetoothPrintError, ErrorCode } from '../../src/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '../../src/errors/BaseError';
 
 describe('ConnectionManager', () => {
   let mockAdapter: IPrinterAdapter;

@@ -6,7 +6,7 @@
 import { EventEmitter } from '../core/EventEmitter';
 import { generateUUID } from '../utils/uuid';
 import { normalizeError } from '../utils/normalizeError';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { Logger } from '@/utils/logger';
 
 /** Maximum value for setTimeout (2^31 - 1, i.e. MAX_INT32) */

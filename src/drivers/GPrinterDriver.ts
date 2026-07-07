@@ -5,7 +5,7 @@
  * 大部分命令与标准 ESC/POS 兼容，部分特殊命令需要额外处理
  */
 
-import { EscPos, type EscPosOptions } from './escPosDriver';
+import { EscPos, type EscPosOptions } from './EscPosDriver';
 
 /**
  * GPrinter Driver for GiaoBao (佳博) thermal printers

@@ -13,7 +13,7 @@
  */
 
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { normalizeError } from '@/utils/normalizeError';
 import { EventEmitter } from '@/core/EventEmitter';
 
