@@ -1,61 +1,60 @@
 <div align="center">
 
-# 🖨️ Taro Bluetooth Print
+<img src="docs/public/logo.svg" alt="taro-bluetooth-print" width="120" />
 
-**轻量级、高性能的 Taro 跨端蓝牙打印库 — 覆盖 7 大平台、8 种打印协议，开箱即用**
+# taro-bluetooth-print
 
-[![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&color=4338ca)](https://www.npmjs.com/package/taro-bluetooth-print)
-[![downloads](https://img.shields.io/npm/dm/taro-bluetooth-print?style=flat-square&color=4338ca)](https://www.npmjs.com/package/taro-bluetooth-print)
-[![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&color=4338ca)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
-[![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square)](https://github.com/agions/taro-bluetooth-print)
-[![forks](https://img.shields.io/github/forks/agions/taro-bluetooth-print?style=flat-square)](https://github.com/agions/taro-bluetooth-print)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/taro-bluetooth-print?style=flat-square)](https://bundlephobia.com/package/taro-bluetooth-print)
+**轻量级、高性能的 Taro 跨端蓝牙打印库**
+
+*一套代码，七大平台全覆盖；八种打印协议，开箱即用。*
+
+[![npm version](https://img.shields.io/npm/v/taro-bluetooth-print?style=flat-square&color=4338ca&labelColor=1e1b4b)](https://www.npmjs.com/package/taro-bluetooth-print)
+[![downloads](https://img.shields.io/npm/dm/taro-bluetooth-print?style=flat-square&color=6366f1&labelColor=1e1b4b)](https://www.npmjs.com/package/taro-bluetooth-print)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/taro-bluetooth-print?style=flat-square&color=0891b2&labelColor=1e1b4b)](https://bundlephobia.com/package/taro-bluetooth-print)
+[![license](https://img.shields.io/npm/l/taro-bluetooth-print?style=flat-square&color=4338ca&labelColor=1e1b4b)](https://github.com/agions/taro-bluetooth-print/blob/main/LICENSE)
+[![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&label=⭐+Stars)](https://github.com/agions/taro-bluetooth-print)
+[![CI](https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?style=flat-square&label=CI)](https://github.com/agions/taro-bluetooth-print/actions)
+
+[🚀 快速开始](#-快速开始) · [📖 完整文档](https://agions.github.io/taro-bluetooth-print/) · [🧩 在线示例](https://github.com/Agions/taro-bluetooth-print/tree/main/examples) · [💬 讨论](https://github.com/Agions/taro-bluetooth-print/discussions)
 
 </div>
 
 ---
 
-## ✨ 特性总览
+## ✨ 为什么选择 taro-bluetooth-print
 
-### 📡 基础能力
+> 一个库，一套 API，覆盖**所有主流蓝牙打印机**与**所有 Taro 目标平台**。
+> 零运行时依赖 · TypeScript 严格模式 · 完整类型定义 · 全栈分层架构。
 
-| 能力 | 说明 |
-|:-----|:-----|
-| 多平台适配 | 微信 / 支付宝 / 百度 / 字节跳动 / QQ 小程序，H5 WebBluetooth，React Native |
-| 多协议驱动 | ESC/POS（热敏）、TSPL / ZPL / CPCL（标签）、STAR / 佳博 / 芯烨 / 思普瑞特 |
-| 链式调用 API | `printer.text(...).feed().qr(...).cut().print()` — IDE 全自动补全 |
-| TypeScript 严格模式 | 完整类型定义，零 `any` 暴露，无外部运行时依赖 |
-| 多编码支持 | GBK / GB2312 / Big5 / UTF-8 / EUC-KR / Shift-JIS / ISO-2022-JP |
-| 零运行时依赖 | 生产包无第三方运行时依赖，体积可控 |
+### 🛰️ **跨七平台、一处编写到处打印**
 
-### 🖨️ 高级打印
+不再为每个小程序平台写一份蓝牙适配代码——`TaroAdapter` / `AlipayAdapter` / `BaiduAdapter` / `ByteDanceAdapter` / `QQAdapter` / `WebBluetoothAdapter` / `ReactNativeAdapter` 共享统一 API，统统由 `AdapterFactory.create()` 自动 dispatch。
 
-| 能力 | 说明 |
-|:-----|:-----|
-| 图片打印 | Floyd-Steinberg 抖动算法，6 种抖动模式，RGBA → 黑白位图自适应转换，ESC/POS/ZPL/TSPL/STAR 全驱动支持 |
-| ZPL 图像编码 | `ZplDriver.image()` — ^GFA 命令，位图 → 十六进制编码，支持 ZD420 等 Zebra 标签机 |
-| CPCL Logo 下载 | `CpclDriver.downloadLogo()` — CG 压缩图形命令，宏定义存储，支持 HP 等移动打印机 |
-| 二维码 / 条码 | 原生指令支持 Code128 / EAN / UPC / QR / PDF417 等 10+ 格式 |
-| 模板引擎 | 支持 `loop` 循环 / `condition` 条件 / `border` 边框 / `table` 表格，小票标签一键渲染 |
-| 任务生命周期 | 完整的打印任务暂停 / 恢复 / 取消控制 |
-| 打印预览 | ESC/POS 命令实时渲染为 Canvas 图像，调试所见即所得 |
+### 🖨️ **八大驱动协议、商米到 Zebra 全场景**
 
-### ⚙️ 运维管理
+| 协议 | 驱动类 | 适用机型 |
+|:---:|:---|:---|
+| **ESC/POS** | `EscPos` | 佳博、芯烨、商米、汉印、思普瑞特 |
+| **TSPL** | `TsplDriver` | TSC ME240 / TA210 / TTP-244 等标签机 |
+| **ZPL** | `ZplDriver` | Zebra ZD420 / GT800 / ZM400（含 ^GFA 图像） |
+| **CPCL** | `CpclDriver` | HP IR3222、霍尼韦尔移动机（含 CG Logo 下载） |
+| **STAR** | `StarPrinter` | STAR TSP100 / TSP700 / TSP800 |
 
-| 能力 | 说明 |
-|:-----|:-----|
-| 离线缓存 | 断网自动缓存，恢复网络自动同步，零任务丢失 |
-| 打印队列 | 优先级排序、失败自动重试、死链自动剔除 |
-| 多打印机管理 | `MultiPrinterManager` 多设备并发，支持负载均衡 |
-| 打印历史 | `PrintHistory` 完整记录，含耗时 / 字节数 / 成功率统计 |
-| 定时重试 | `ScheduledRetryManager` 指数退避策略，进程重启后自动恢复调度 |
-| 定时调度 | `PrintScheduler` 支持 cron 表达式 / 一次性 / 间隔重复任务 |
-| 设备发现 | `DiscoveryService` 增强型过滤、排序、RSSI 信号缓存 |
-| 插件系统 | Hook-based 插件管理器，支持 beforePrint/afterPrint 等钩子 |
+### 🧠 **完备的业务能力栈**
+
+`PrintQueue` 优先级调度 → `PrintJobManager` 状态机 → `OfflineCache` LRU + Base64 持久化 → `ScheduledRetryManager` 指数退避 → `PrintScheduler` Cron 调度 → `PrintHistory` 全链路统计 → `PluginManager` Hook 系统——把企业级打印场景抽象成可组合的 primitive。
+
+### 💎 **TypeScript 严格模式 · 零运行时依赖**
+
+- ✅ 整个库 **0 个生产依赖**（仅 peerDep `@tarojs/taro ^3.6.22`）
+- ✅ 严格类型契约 (`IPrinterDriver` / `IPrinterAdapter`)，IDE 自动补全
+- ✅ **1,102 个测试**全绿 · **jscpd 0 重复** · **零 dead code**
 
 ---
 
-## 📦 安装
+## 🚀 快速开始
+
+### 📦 安装
 
 ```bash
 # npm
@@ -70,284 +69,232 @@ yarn add taro-bluetooth-print
 
 > **前置依赖**：项目需安装 `@tarojs/taro ^3.6.22` 及以上版本。
 
----
-
-## 🚀 快速开始
+### ⚡ 30 秒打印一张小票
 
 ```typescript
-import {
-  createBluetoothPrinter,
-  DeviceManager,
-  WebBluetoothAdapter
-} from 'taro-bluetooth-print';
+import { createBluetoothPrinter, WebBluetoothAdapter } from 'taro-bluetooth-print';
 
-async function printReceipt() {
-  // ① 扫描蓝牙设备
-  const manager = new DeviceManager();
-  await manager.startScan({ timeout: 10000 });
-  const devices = manager.getDiscoveredDevices();
+// ① 创建打印机（自动 dispatch 当前平台适配器）
+const printer = createBluetoothPrinter({
+  adapter: new WebBluetoothAdapter(),
+});
 
-  if (devices.length === 0) {
-    console.warn('未发现蓝牙设备');
-    return;
-  }
+// ② 连接 BLE 设备
+await printer.connect('device-id-xxx');
 
-  // ② 创建打印机实例并连接
-  const printer = createBluetoothPrinter({
-    adapter: new WebBluetoothAdapter()
-  });
+// ③ 链式 API 构建小票
+await printer
+  .text('=== 欢迎光临 ===', 'GBK')
+  .feed()
+  .text('商品A     x1    ¥10.00', 'GBK')
+  .text('商品B     x2    ¥20.00', 'GBK')
+  .feed()
+  .text('------------------------')
+  .text('合计：            ¥30.00', 'GBK')
+  .feed(2)
+  .qr('https://example.com', { size: 6 })
+  .feed(2)
+  .cut()
+  .print();
 
-  await printer.connect(devices[0].deviceId);
-
-  // ③ 链式调用 — 构建并打印小票
-  await printer
-    .text('=== 欢迎光临 ===', 'GBK')
-    .feed()
-    .text('商品A     x1    ¥10.00', 'GBK')
-    .text('商品B     x2    ¥20.00', 'GBK')
-    .feed()
-    .text('------------------------')
-    .text('合计：            ¥30.00', 'GBK')
-    .feed(2)
-    .qr('https://example.com', { size: 6 })
-    .feed(2)
-    .cut()
-    .print();
-
-  // ④ 断开连接
-  await printer.disconnect();
-}
+// ④ 断开
+await printer.disconnect();
 ```
+
+---
+
+## 🏗️ 架构设计
+
+一个清晰的 6 层架构，每层只对相邻层有依赖，**严格遵循依赖倒置**：
+
+```mermaid
+flowchart TB
+    App(["👤 应用代码<br/>(小票 / 标签)"])
+    subgraph Factory["🏭 Factory Layer"]
+        F1["createBluetoothPrinter()"]
+    end
+    subgraph Core["🎛️ Core Layer"]
+        BP["BluetoothPrinter<br/>(façade)"]
+    end
+    subgraph Services["⚙️ Service Layer"]
+        CM["ConnectionManager"]
+        JM["PrintJobManager"]
+        CB["CommandBuilder"]
+    end
+    subgraph Drivers["🖨️ Driver Layer"]
+        E1["EscPos"]
+        E2["TsplDriver"]
+        E3["ZplDriver"]
+        E4["CpclDriver"]
+    end
+    subgraph Adapters["📡 Adapter Layer"]
+        A1["TaroAdapter"]
+        A2["WebBluetoothAdapter"]
+        A3["ReactNativeAdapter"]
+    end
+    subgraph Errors["🛡️ Error Layer"]
+        ER["BluetoothPrintError"]
+    end
+    App --> F1 --> BP
+    BP --> Services
+    Services --> Drivers
+    Services --> Adapters
+    BP -.throws.-> ER
+```
+
+> 💡 每一层都可独立测试、独立替换。`PluginManager` 通过 hook 横切所有层。
 
 ---
 
 ## 📱 平台支持
 
-| 平台 | 适配器类 | 状态 |
-|:-----|:---------|:----:|
+| 平台 | 适配器 | 状态 |
+|:---|:---|:---:|
 | 微信小程序 | `TaroAdapter` | ✅ |
 | 支付宝小程序 | `AlipayAdapter` | ✅ |
-| 百度小程序 | `BaiduAdapter` | ✅ |
+| 百度智能小程序 | `BaiduAdapter` | ✅ |
 | 字节跳动小程序 | `ByteDanceAdapter` | ✅ |
 | QQ 小程序 | `QQAdapter` | ✅ |
-| H5 (Web Bluetooth) | `WebBluetoothAdapter` | ✅ |
+| H5（Web Bluetooth） | `WebBluetoothAdapter` | ✅ |
 | React Native | `ReactNativeAdapter` | ✅ |
-
-> 💡 **提示**：鸿蒙 HarmonyOS 可通过 `TaroAdapter` 适配使用。
-
-## 🖨️ 打印机驱动
-
-| 驱动 | 协议 | 典型品牌 / 型号 | 功能状态 |
-|:-----|:-----|:---------------|:--------|
-| `EscPos` | ESC/POS | 佳博、芯烨、商米、汉印 | ✅ 全功能 |
-| `TsplDriver` | TSPL | TSC ME240、TA210、TTP-244 | ✅ 全功能 |
-| `ZplDriver` | ZPL | Zebra ZD420、GT800、ZM400 | ✅ 含图像打印 (^GFA) |
-| `CpclDriver` | CPCL | HP IR3222、霍尼韦尔移动打印机 | ✅ 含 Logo 下载 (CG) |
-| `StarPrinter` | STAR | STAR TSP100、TSP700、TSP800 | ✅ 全功能 |
-| `GPrinterDriver` | 佳博自定义 | 佳博 GP-5890X 系列 | ✅ 全功能 |
-| `XprinterDriver` | ESC/POS | 芯烨 XP-58 系列 | ✅ 全功能 |
-| `SprtDriver` | ESC/POS | 思普瑞特系列 | ✅ 全功能 |
+| 鸿蒙 HarmonyOS | `TaroAdapter` | ✅ |
 
 ---
 
-## ⚙️ 配置与事件
+## ⚙️ 传输参数 & 事件
 
-### 传输参数配置
+### 传输调优
 
 ```typescript
-const printer = createBluetoothPrinter();
-
-// 调整蓝牙传输参数（适配不同打印机的吞吐能力）
 printer.setOptions({
-  chunkSize: 20,   // 单次写入分片大小（byte），默认 20
-  delay: 20,       // 分片写入间隔（ms），默认 20
-  retries: 3,      // 写入失败重试次数，默认 3
+  chunkSize: 20,   // 单次 BLE 写入分片（默认 20）
+  delay: 20,       // 分片间隔 ms（默认 20）
+  retries: 3,      // 失败重试（默认 3）
 });
 ```
 
-### 事件监听
+### 事件订阅
 
 ```typescript
-// 打印进度
 printer.on('progress', ({ sent, total }) => {
-  console.log(`打印进度: ${(sent / total * 100).toFixed(1)}%`);
+  console.log(`打印进度 ${((sent / total) * 100).toFixed(1)}%`);
 });
-
-// 错误事件
-printer.on('error', (error) => {
-  console.error('打印错误:', error.code, error.message);
-});
-
-// 打印完成
-printer.on('print-complete', () => {
-  console.log('✅ 打印任务完成');
-});
+printer.on('error', err => console.error('打印错误:', err.code, err.message));
+printer.on('print-complete', () => console.log('✅ 打印完成'));
 ```
 
 ---
 
-## 🛡️ 错误处理
-
-库提供完整的类型化错误层次结构，支持精确的错误捕获与处理：
+## 🛡️ 类型化错误处理
 
 ```typescript
 import {
-  BluetoothPrintError,
-  ConnectionError,
-  PrintJobError,
-  CommandBuildError,
-  ErrorCode
+  BluetoothPrintError, ConnectionError, PrintJobError,
+  CommandBuildError, ErrorCode,
 } from 'taro-bluetooth-print';
 
-// 方式一：统一错误基类捕获
-try {
-  await printer.print();
-} catch (err) {
-  if (err instanceof BluetoothPrintError) {
-    console.error(`[${err.code}] ${err.message}`);
-  }
-}
-
-// 方式二：按错误类型精确处理（推荐）
 try {
   await printer.connect(deviceId);
 } catch (err) {
   if (ConnectionError.isConnectionError(err)) {
-    // 连接失败 — 可提示用户重试
-    console.warn('连接错误:', err.message);
-  }
-}
-
-try {
-  // ... 打印操作
-} catch (err) {
-  if (PrintJobError.isPrintJobError(err)) {
-    // 打印任务失败 — 可重新加入队列
-    console.warn('任务错误:', err.message);
-  }
-}
-
-try {
-  printer.text('测试', 'UNSUPPORTED_ENCODING');
-} catch (err) {
-  if (CommandBuildError.isCommandBuildError(err)) {
-    // 指令构建失败 — 参数校验问题
-    console.warn('指令错误:', err.message);
+    // 连接层 — 提示用户重试 / 切换设备
+  } else if (PrintJobError.isPrintJobError(err)) {
+    // 任务层 — 重新入队
+  } else if (CommandBuildError.isCommandBuildError(err)) {
+    // 指令层 — 检查参数
+  } else if (err instanceof BluetoothPrintError) {
+    // 兜底 — 任意已封装错误
   }
 }
 ```
 
 ---
 
-## 🏗️ 架构概览
+## 🔌 插件系统
 
-```
- ┌──────────────────────────────────────────────────┐
- │              PrinterFactory (工厂层)                │
- │   createBluetoothPrinter · createWebBluetooth     │
- └─────────────────────┬────────────────────────────┘
-                       │
-                       ▼
- ┌──────────────────────────────────────────────────┐
- │            BluetoothPrinter (核心层)              │
- │   text() · feed() · qr() · cut() · image()       │
- │   print() · setOptions() · on() / off()          │
- └──────────┬───────────────────────┬───────────────┘
-            │                       │
-   ┌────────▼────────┐     ┌───────▼────────┐
-   │   Drivers (驱动) │     │  Adapters (适配) │
-   │                 │     │                 │
-   │  EscPos        │     │  TaroAdapter    │
-   │  TsplDriver    │     │  WebBluetooth   │
-   │  ZplDriver     │     │  ReactNative    │
-   │  CpclDriver    │     │  AlipayAdapter  │
-   │  StarPrinter   │     │  BaiduAdapter   │
-   │  GPrinter      │     │  ByteDance      │
-   │  Xprinter      │     │  QQAdapter      │
-   │  SprtDriver    │     │                 │
-   └────────┬────────┘     └───────┬────────┘
-            │                       │
-            └───────────┬───────────┘
-                        ▼
- ┌──────────────────────────────────────────────────┐
- │              Services (服务层)                     │
- │                                                   │
- │  ConnectionManager · PrintJobManager             │
- │  CommandBuilder · PrintScheduler                 │
- │  PrintQueue · OfflineCache · PrintHistory        │
- │  PluginManager (Hook-based)                      │
- └──────────────────────────────────────────────────┘
+无需侵入核心代码即可横切打印生命周期：
+
+```typescript
+import { PrinterFactory, createLoggingPlugin, createRetryPlugin } from 'taro-bluetooth-print';
+
+const printer = createBluetoothPrinter({ adapter: new WebBluetoothAdapter() });
+
+printer.use(createLoggingPlugin({ level: 3 }));
+printer.use(createRetryPlugin({ maxRetries: 3, backoffMultiplier: 2 }));
+
+// Also built-in:
+// · Logger plugin  · Retry plugin
+// · Or roll your own — see PluginManager docs
 ```
 
----
-
-## 📊 性能指标
-
-| 指标 | 值 |
-|:-----|:---|
-| 包体积（gzip） | **~231 KB**（含全部驱动，无外部依赖） |
-| Tree-shaking | ✅ 支持，按需引入 |
-| 编码懒加载 | ✅ 未用到的字符集不进入产物 |
-| 测试用例 | ✅ **1,102** 个测试用例，全部通过 |
-| 代码重复率 | ✅ **0%**（jscpd 检测） |
-| 类型安全 | ✅ 零 `any` 暴露，类型断言最小化 |
-| 架构模式 | Template Method (ChunkWriteStrategy)、EventEmitter 类型安全、Mixin 模式 |
-| 构建工具 | Vite + Vitest + TypeScript 严格模式 |
+钩子集：`beforeConnect` · `afterConnect` · `beforeDisconnect` · `afterDisconnect` · `beforePrint` · `afterPrint` · `onError` · `onStateChange` · `onProgress`
 
 ---
 
-## 📂 示例项目
+## 📊 项目指标
 
-| 示例 | 路径 |
-|:-----|:-----|
-| 微信小程序 | [examples/weapp](./examples/weapp) |
-| H5 | [examples/h5](./examples/h5) |
-| 鸿蒙 HarmonyOS | [examples/harmonyos](./examples/harmonyos) |
-| React Native | [examples/react-native](./examples/react-native) |
-
----
-
-## 📖 文档
-
-| 文档 | 说明 |
-|:-----|:-----|
-| [快速开始](https://agions.github.io/taro-bluetooth-print/guide/getting-started) | 5 分钟入门教程 |
-| [功能特性](https://agions.github.io/taro-bluetooth-print/guide/features) | 全部功能详解 |
-| [驱动支持](https://agions.github.io/taro-bluetooth-print/guide/drivers) | ESC/POS、TSPL、ZPL 驱动说明 |
-| [核心概念](https://agions.github.io/taro-bluetooth-print/guide/core-concepts) | 架构设计与核心概念 |
-| [API 参考](https://agions.github.io/taro-bluetooth-print/api) | 完整 API 文档 |
-| [常见问题](https://agions.github.io/taro-bluetooth-print/guide/faq) | FAQ |
+| 维度 | 数值 |
+|:---|:---|
+| 包体积（minzip） | **~231 KB** —— 零运行时依赖 |
+| 测试用例 | **1,102** 个，全绿 |
+| 代码重复 | **jscpd 0 clones** |
+| 死代码 | **0 行** |
+| TypeScript any 暴露 | **0 处** |
+| 架构模式 | Template Method · Mixin · Facade · Strategy · EventEmitter |
+| 模块数 | 14 个清晰分层 |
+| API 公开方法 | 100+ 全部类型化 |
 
 ---
 
-## 🛠️ 开发
+## 📖 完整文档
+
+| 入口 | 链接 |
+|:---|:---|
+| 快速开始 | [agions.github.io/taro-bluetooth-print/guide/getting-started](https://agions.github.io/taro-bluetooth-print/guide/getting-started) |
+| 功能详解 | [/guide/features](https://agions.github.io/taro-bluetooth-print/guide/features) |
+| 驱动支持 | [/guide/drivers](https://agions.github.io/taro-bluetooth-print/guide/drivers) |
+| 架构设计 | [/guide/architecture](https://agions.github.io/taro-bluetooth-print/guide/architecture) |
+| API 参考 | [/api/](https://agions.github.io/taro-bluetooth-print/api/) |
+| FAQ | [/guide/faq](https://agions.github.io/taro-bluetooth-print/guide/faq) |
+
+---
+
+## 🧪 示例项目
+
+| 平台 | 路径 |
+|:---|:---|
+| 微信小程序 | [`examples/weapp`](./examples/weapp) |
+| H5 | [`examples/h5`](./examples/h5) |
+| React Native | [`examples/react-native`](./examples/react-native) |
+| 鸿蒙 HarmonyOS | [`examples/harmonyos`](./examples/harmonyos) |
+
+---
+
+## 🛠️ 开发 & 贡献
 
 ```bash
-# 克隆仓库
 git clone https://github.com/Agions/taro-bluetooth-print.git
 cd taro-bluetooth-print
-
-# 安装依赖
 pnpm install
-
-# 运行测试
-pnpm test
-
-# 代码检查
-pnpm lint
-
-# TypeScript 类型检查
-pnpm type-check
-
-# 构建产物
-pnpm build
-
-# 本地文档开发
-pnpm docs:dev
+pnpm test          # 1102 测试
+pnpm lint          # ESLint
+pnpm type-check    # tsc --noEmit
+pnpm build         # 产物输出到 dist/
+pnpm docs:dev      # 本地 VitePress 文档
 ```
+
+欢迎 PR 与 Issue！请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md) · 提交前确保 `pnpm test && pnpm lint && pnpm type-check` 全绿 ✨
 
 ---
 
 ## 📄 许可证
 
 [MIT](./LICENSE) · Copyright © 2024-present [Agions](https://github.com/Agions)
+
+<div align="center">
+
+**⭐ 觉得好用？给个 Star 支持一下开发喵～ ⭐**
+
+[Star on GitHub →](https://github.com/Agions/taro-bluetooth-print)
+
+</div>

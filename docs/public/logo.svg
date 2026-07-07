@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  taro-bluetooth-print · primary logo
+  Concept: a thermal-printer receipt roll rising into a Bluetooth radio waveform,
+  overlaid with a clean monogram "BP". Geometric, technical, readable at any size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img"
+     aria-label="taro-bluetooth-print logo">
+  <defs>
+    <!-- Brand gradient: indigo → cyan → teal, evokes wireless signal + cool tech -->
+    <linearGradient id="bp-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#4338ca"/>
+      <stop offset="55%"  stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </linearGradient>
+
+    <!-- Subtle inner glow used by the receipt paper -->
+    <linearGradient id="bp-paper" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+
+    <!-- Soft drop shadow -->
+    <filter id="bp-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square plate -->
+  <rect x="8" y="8" width="224" height="224" rx="48" fill="url(#bp-grad)"/>
+  <rect x="8" y="8" width="224" height="224" rx="48" fill="none"
+        stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+  <!-- Bluetooth radio-wave arcs (top-right corner) -->
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-opacity="0.55">
+    <path d="M 168 36 Q 196 36 196 64" stroke-width="4"/>
+    <path d="M 160 24 Q 208 24 208 72" stroke-width="4" stroke-opacity="0.35"/>
+    <circle cx="178" cy="50" r="4" fill="#ffffff" stroke="none"/>
+  </g>
+
+  <!-- Thermal printer receipt (curved top, hole at bottom) -->
+  <g filter="url(#bp-shadow)" transform="translate(46, 56)">
+    <!-- Receipt body (white card with rounded top, slight curl) -->
+    <path d="M 4 0
+             C 4 0, 8 -6, 14 -6
+             L 134 -6
+             C 140 -6, 144 0, 144 0
+             L 144 144
+             L 4 144 Z"
+          fill="url(#bp-paper)"/>
+
+    <!-- Top perforation dashes -->
+    <g fill="#94a3b8">
+      <rect x="22"  y="-1" width="6" height="4" rx="2"/>
+      <rect x="40"  y="-1" width="6" height="4" rx="2"/>
+      <rect x="58"  y="-1" width="6" height="4" rx="2"/>
+      <rect x="76"  y="-1" width="6" height="4" rx="2"/>
+      <rect x="94"  y="-1" width="6" height="4" rx="2"/>
+      <rect x="112" y="-1" width="6" height="4" rx="2"/>
+      <rect x="130" y="-1" width="6" height="4" rx="2"/>
+    </g>
+
+    <!-- Header line (bold) -->
+    <rect x="20" y="18" width="108" height="12" rx="2" fill="#1e293b"/>
+    <!-- Body lines -->
+    <rect x="20" y="40" width="108" height="6" rx="2" fill="#475569"/>
+    <rect x="20" y="52" width="84"  height="6" rx="2" fill="#475569"/>
+    <rect x="20" y="64" width="96"  height="6" rx="2" fill="#475569"/>
+    <!-- QR-code-ish 7x7 grid (printer matrix illustration) -->
+    <g fill="#0f172a">
+      <rect x="20"  y="78"  width="10" height="10"/>
+      <rect x="34"  y="78"  width="10" height="10"/>
+      <rect x="48"  y="78"  width="10" height="10"/>
+      <rect x="74"  y="78"  width="10" height="10"/>
+      <rect x="98"  y="78"  width="10" height="10"/>
+      <rect x="20"  y="92"  width="10" height="10"/>
+      <rect x="62"  y="92"  width="10" height="10"/>
+      <rect x="98"  y="92"  width="10" height="10"/>
+      <rect x="34"  y="106" width="10" height="10"/>
+      <rect x="48"  y="106" width="10" height="10"/>
+      <rect x="74"  y="106" width="10" height="10"/>
+      <rect x="20"  y="120" width="10" height="10"/>
+      <rect x="62"  y="120" width="10" height="10"/>
+      <rect x="86"  y="120" width="10" height="10"/>
+      <rect x="110" y="120" width="10" height="10"/>
+      <rect x="34"  y="134" width="10" height="10"/>
+      <rect x="48"  y="134" width="10" height="10"/>
+      <rect x="74"  y="134" width="10" height="10"/>
+      <rect x="98"  y="134" width="10" height="10"/>
+    </g>
+  </g>
+</svg>

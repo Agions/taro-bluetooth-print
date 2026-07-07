@@ -6,72 +6,152 @@
 
 `taro-bluetooth-print` 采用**分层 + 插件化**的架构设计，核心原则是：
 
-1. **适配器层** — 屏蔽不同平台的蓝牙 API 差异
-2. **驱动层** — 屏蔽不同打印机指令集的差异
-3. **核心服务层** — 提供打印队列、缓存、统计等高级能力
-4. **插件层** — 通过 Hook 机制扩展核心功能
+1. **适配器层（Adapter Layer）** — 屏蔽不同平台的蓝牙 API 差异
+2. **驱动层（Driver Layer）** — 屏蔽不同打印机指令集的差异
+3. **核心服务层（Service Layer）** — 提供打印队列、缓存、统计等高级能力
+4. **插件层（Plugin Layer）** — 通过 Hook 机制横切扩展核心功能
+5. **错误层（Error Layer）** — 类型化错误层次结构，精确处理
 
+```mermaid
+flowchart TB
+    %% Top: Application
+    subgraph App["👤 应用层 (Application)"]
+        CODE["业务代码<br/>(小票 / 标签 / 模板)"]
+    end
+
+    %% Factory
+    subgraph FactoryLayer["🏭 Factory 层"]
+        PF["createBluetoothPrinter()<br/>PrinterFactory"]
+    end
+
+    %% Core
+    subgraph CoreLayer["🎛️ Core 层 (Core)"]
+        BP["BluetoothPrinter<br/><b>façade / 状态聚合</b><br/>text()·feed()·qr()·cut()·print()"]
+    end
+
+    %% Services (larger cluster)
+    subgraph ServiceLayer["⚙️ Service 层 (Services)"]
+        direction TB
+        CM["ConnectionManager<br/>heartbeat + reconnect"]
+        JM["PrintJobManager<br/>pause / resume / cancel"]
+        CB["CommandBuilder<br/>driver + formatter"]
+        DM["DeviceManager / MultiPrinterManager<br/>扫描 / 多设备"]
+        Store["PrintQueue / OfflineCache / PrintHistory"]
+        Sched["PrintScheduler / ScheduledRetryManager<br/>cron + retry"]
+        PM["PluginManager<br/>9 hook callbacks"]
+    end
+
+    %% Drivers
+    subgraph DriverLayer["🖨️ Driver 层 (Drivers)"]
+        direction LR
+        ESC["EscPos"]
+        TSP["TsplDriver"]
+        ZPL["ZplDriver"]
+        CPCL["CpclDriver"]
+        STAR["StarPrinter / SPRT /<br/>GPrinter / Xprinter"]
+    end
+
+    %% Adapters
+    subgraph AdapterLayer["📡 Adapter 层 (Adapters)"]
+        direction TB
+        TaroA["Taro/Alipay/Baidu/<br/>ByteDance/QQ Adapter"]
+        WBA["WebBluetoothAdapter"]
+        RNA["ReactNativeAdapter"]
+    end
+
+    %% Errors
+    subgraph ErrorLayer["🛡️ Error 层 (Errors)"]
+        BPE["BluetoothPrintError<br/>+ ConnectionError<br/>+ PrintJobError<br/>+ CommandBuildError"]
+    end
+
+    %% Edges
+    CODE --> PF --> BP
+    BP --> ServiceLayer
+    ServiceLayer --> DriverLayer
+    ServiceLayer --> AdapterLayer
+    BP -.throws.-> ErrorLayer
+    ServiceLayer -.throws.-> ErrorLayer
 ```
-+------------------------------------------------------------+
-|                         应用层                              |
-|                  BluetoothPrinter                          |
-|         PrinterEvents / PrinterState                      |
-+----------------------------+-------------------------------+
-                            |
-+---------------------------+---------------------------+
-|                           |                           |
-|        驱动层              |        适配器层            |
-|                          |                           |
-|  EscPos                  |  TaroAdapter             |
-|  TsplDriver              |  WebBluetoothAdapter     |
-|  ZplDriver               |  ReactNativeAdapter      |
-|  CpclDriver              |  AlipayAdapter           |
-|  StarPrinter             |  BaiduAdapter            |
-|  GPrinterDriver          |  ByteDanceAdapter        |
-+-----------+-------------+-------------+-------------+
-            |                           |
-+-----------+---------------------------+-------------+
-|                      核心服务层                        |
-|                                                         |
-|  ConnectionManager  |  PrintJobManager  |  CommandBuilder    |
-|  DeviceManager      |  PrintQueue        |  OfflineCache      |
-|  MultiPrinterManager|  PrintStatistics  |  PrinterStatus     |
-|  PrintHistory       |  ScheduledRetryManager | BatchPrintManager|
-+-----------+---------------------------+-------------+
-            |
-+-----------+----------------------------------------------------+
-|                        工具层                                |
-|  Encoding  |  ImageProcessing  |  Logger  |  uuid  |  validation|
-+------------------------------------------------------------+
-```
+
+### 1.1 各层职责一览
+
+| 层 | 入口 / 抽象 | 职责 |
+|:---|:---|:---|
+| **Factory** | `PrinterFactory.createBluetoothPrinter()` | 接收用户配置 + 自动 dispatch 平台适配器 |
+| **Core** | `BluetoothPrinter` | 单一对外 façade · 状态聚合 · 链式 API |
+| **Services** | 13 个 Manager | 连接 / 任务 / 队列 / 缓存 / 重试 / 调度 / 历史 / 插件 等 |
+| **Drivers** | `IPrinterDriver` | 9 种打印机协议字节序生成 |
+| **Adapters** | `IPrinterAdapter` | 7 种平台 BLE API 适配 |
+| **Errors** | `BluetoothPrintError` 体系 | 类型化错误层次 + `ErrorCode` enum |
 
 ## 2. 核心数据流
 
 ### 2.1 设备连接流程
 
-```
-App -> ConnectionManager.connect(deviceId)
-  -> Adapter.connect(deviceId)
-  -> BLE.createConnection
-  -> BLE.discoverServices
-  -> BLE.discoverCharacteristics
-  -> 缓存可写特征
-  -> 连接成功回调
+```mermaid
+sequenceDiagram
+    participant App as 应用代码
+    participant BP as BluetoothPrinter
+    participant CM as ConnectionManager
+    participant A as TaroAdapter
+    participant BLE as Taro BLE API
+
+    App->>BP: connect(deviceId)
+    BP->>CM: connect(deviceId)
+    CM->>A: createBLEConnection({deviceId})
+    A->>BLE: writeBLECharacteristicValue
+    BLE-->>A: success
+    A-->>CM: resolved
+    CM->>A: getBLEDeviceServices()
+    A-->>CM: services[]
+    loop for each service
+        CM->>A: getBLEDeviceCharacteristics()
+        A-->>CM: characteristics[]
+    end
+    CM->>CM: cache writeable characteristic
+    CM-->>BP: connected
+    BP->>BP: updateState(CONNECTED)
+    BP-->>App: resolved
 ```
 
 ### 2.2 打印流程
 
+```mermaid
+sequenceDiagram
+    participant App as 应用代码
+    participant BP as BluetoothPrinter
+    participant CB as CommandBuilder
+    participant D as Driver (EscPos/ZPL/...)
+    participant JM as PrintJobManager
+    participant CM as ConnectionManager
+    participant BLE as Platform BLE
+
+    App->>BP: text("Hello")
+    BP->>CB: text("Hello")
+    CB->>D: text(...) → 字节数组
+    CB->>CB: push + invalidate cache
+
+    App->>BP: qr("url")
+    BP->>CB: qr("url")
+    CB->>D: qr(...) → QR 命令序列
+
+    App->>BP: print()
+    BP->>CB: getBuffer()
+    CB-->>BP: Uint8Array (full command stream)
+    BP->>JM: start(buffer)
+    JM->>JM: save state for resume
+    loop chunk-by-chunk
+        JM->>CM: write(chunk)
+        CM->>BLE: writeBLECharacteristicValue
+        BLE-->>CM: progress
+        CM-->>JM: progress
+        JM-->>BP: emit 'progress'
+    end
+    JM-->>BP: emit 'print-complete'
+    BP-->>App: resolved
 ```
-App.text("Hello") -> CommandBuilder -> Driver.text -> 指令数组缓存
-App.qr("url")     -> CommandBuilder -> Driver.qr    -> 指令数组缓存
-App.print()       -> CommandBuilder.getBuffer()
-  -> 分片处理 (chunkSize 字节/片)
-  -> ConnectionManager.write(buffer)
-  -> Adapter.write() -> BLE.write
-  -> emit('progress', { sent, total })
-  -> 重复直到全部发送完成
-  -> emit('print-complete')
-```
+
+> 💡 关键观察：**所有 DSL 方法（text/qr/cut/image）纯同步 & 无 IO**，只有 `print()` 触发真正的异步 IO。这允许批量构建后再一次性发送，IO 次数最少化。
 
 ---
 

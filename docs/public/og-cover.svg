@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OG / Twitter card cover image (1200×630) — for social share previews.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img"
+     aria-label="taro-bluetooth-print social cover">
+  <defs>
+    <linearGradient id="og-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1e1b4b"/>
+      <stop offset="55%"  stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#164e63"/>
+    </linearGradient>
+    <linearGradient id="og-accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#a5b4fc"/>
+      <stop offset="100%" stop-color="#67e8f9"/>
+    </linearGradient>
+    <radialGradient id="og-glow" cx="20%" cy="30%" r="60%">
+      <stop offset="0%"   stop-color="#6366f1" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#og-bg)"/>
+  <rect width="1200" height="630" fill="url(#og-glow)"/>
+
+  <!-- Decorative grid -->
+  <g stroke="#ffffff" stroke-opacity="0.06">
+    <line x1="0" y1="125" x2="1200" y2="125"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="505" x2="1200" y2="505"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+  </g>
+
+  <!-- Brand mark (large) -->
+  <g transform="translate(80, 100)">
+    <rect width="280" height="280" rx="60" fill="url(#og-accent)"/>
+    <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="6" stroke-opacity="0.7">
+      <path d="M 215 50 Q 235 50 235 70"/>
+      <path d="M 205 36 Q 250 36 250 80" stroke-opacity="0.4"/>
+    </g>
+    <circle cx="222" cy="62" r="5" fill="#ffffff"/>
+    <rect x="60" y="78" width="160" height="170" rx="14" fill="#f8fafc"/>
+    <g fill="#1e293b">
+      <rect x="76" y="98"  width="128" height="16" rx="3"/>
+      <rect x="76" y="124" width="116" height="6"  rx="2"/>
+      <rect x="76" y="136" width="92"  height="6"  rx="2"/>
+      <rect x="76" y="148" width="106" height="6"  rx="2"/>
+    </g>
+    <g fill="#0f172a">
+      <rect x="76" y="168" width="14" height="14"/>
+      <rect x="94" y="168" width="14" height="14"/>
+      <rect x="112" y="168" width="14" height="14"/>
+      <rect x="148" y="168" width="14" height="14"/>
+      <rect x="184" y="168" width="14" height="14"/>
+      <rect x="76" y="186" width="14" height="14"/>
+      <rect x="130" y="186" width="14" height="14"/>
+      <rect x="184" y="186" width="14" height="14"/>
+      <rect x="94" y="204" width="14" height="14"/>
+      <rect x="112" y="204" width="14" height="14"/>
+      <rect x="148" y="204" width="14" height="14"/>
+      <rect x="76" y="222" width="14" height="14"/>
+      <rect x="130" y="222" width="14" height="14"/>
+      <rect x="164" y="222" width="14" height="14"/>
+      <rect x="194" y="222" width="14" height="14"/>
+    </g>
+  </g>
+
+  <!-- Title block -->
+  <g transform="translate(420, 0)" fill="#ffffff">
+    <text x="0" y="200" font-family="ui-sans-serif, system-ui, sans-serif"
+          font-weight="800" font-size="76" letter-spacing="-2">taro·bluetooth·print</text>
+    <text x="0" y="270" font-family="ui-sans-serif, system-ui, sans-serif"
+          font-weight="500" font-size="28" fill="#cbd5e1">
+      Taro 跨端蓝牙打印库
+    </text>
+    <text x="0" y="305" font-family="ui-sans-serif, system-ui, sans-serif"
+          font-weight="500" font-size="22" fill="#a5b4fc">
+      七大平台 · 八种协议 · 零运行时依赖 · 1,102 测试全绿
+    </text>
+
+    <!-- Pill row -->
+    <g transform="translate(0, 380)" font-family="ui-monospace, monospace">
+      <g>
+        <rect width="160" height="44" rx="22" fill="#ffffff" fill-opacity="0.1" stroke="#a5b4fc" stroke-opacity="0.7"/>
+        <text x="80" y="29" text-anchor="middle" font-size="18" fill="#e0e7ff" font-weight="600">ESC/POS</text>
+      </g>
+      <g transform="translate(176, 0)">
+        <rect width="120" height="44" rx="22" fill="#ffffff" fill-opacity="0.1" stroke="#a5b4fc" stroke-opacity="0.7"/>
+        <text x="60" y="29" text-anchor="middle" font-size="18" fill="#e0e7ff" font-weight="600">TSPL</text>
+      </g>
+      <g transform="translate(312, 0)">
+        <rect width="100" height="44" rx="22" fill="#ffffff" fill-opacity="0.1" stroke="#a5b4fc" stroke-opacity="0.7"/>
+        <text x="50" y="29" text-anchor="middle" font-size="18" fill="#e0e7ff" font-weight="600">ZPL</text>
+      </g>
+      <g transform="translate(428, 0)">
+        <rect width="110" height="44" rx="22" fill="#ffffff" fill-opacity="0.1" stroke="#a5b4fc" stroke-opacity="0.7"/>
+        <text x="55" y="29" text-anchor="middle" font-size="18" fill="#e0e7ff" font-weight="600">CPCL</text>
+      </g>
+      <g transform="translate(554, 0)">
+        <rect width="120" height="44" rx="22" fill="#ffffff" fill-opacity="0.1" stroke="#a5b4fc" stroke-opacity="0.7"/>
+        <text x="60" y="29" text-anchor="middle" font-size="18" fill="#e0e7ff" font-weight="600">STAR</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="585" text-anchor="middle"
+        font-family="ui-monospace, monospace" font-size="18" fill="#67e8f9"
+        letter-spacing="2">
+    github.com/Agions/taro-bluetooth-print
+  </text>
+</svg>
