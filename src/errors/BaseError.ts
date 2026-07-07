@@ -42,6 +42,15 @@ export enum ErrorCode {
 }
 
 /**
+ * True when `code` matches a base `ErrorCode` enum value.
+ * Used by `ConnectionError` / `PrintJobError` / `CommandBuildError` to
+ * safely cast their typed enum values to `ErrorCode`.
+ */
+export function isBaseCode(code: string): code is ErrorCode {
+  return (Object.values(ErrorCode) as string[]).includes(code);
+}
+
+/**
  * Custom error class for Bluetooth printing operations
  *
  * @example

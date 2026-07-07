@@ -8,7 +8,7 @@
  * (defensive guard) falls back to `ErrorCode.CONNECTION_FAILED`.
  */
 
-import { BluetoothPrintError, ErrorCode } from './BaseError';
+import { BluetoothPrintError, ErrorCode, isBaseCode } from './BaseError';
 
 /** Connection-related error codes (mirror ErrorCode connection entries). */
 export enum ConnectionErrorCode {
@@ -20,11 +20,6 @@ export enum ConnectionErrorCode {
   CHARACTERISTIC_NOT_FOUND = 'CHARACTERISTIC_NOT_FOUND',
   DISCOVERY_FAILED = 'SERVICE_DISCOVERY_FAILED',
   PLATFORM_UNSUPPORTED = 'PLATFORM_NOT_SUPPORTED',
-}
-
-/** True when `code` matches a base `ErrorCode` value. */
-function isBaseCode(code: string): code is ErrorCode {
-  return (Object.values(ErrorCode) as string[]).includes(code);
 }
 
 /**

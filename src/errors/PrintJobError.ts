@@ -8,7 +8,7 @@
  * `ErrorCode.PRINT_JOB_FAILED` for unknown codes (defensive guard).
  */
 
-import { BluetoothPrintError, ErrorCode } from './BaseError';
+import { BluetoothPrintError, ErrorCode, isBaseCode } from './BaseError';
 
 export enum PrintJobErrorCode {
   FAILED = 'PRINT_JOB_FAILED',
@@ -17,11 +17,6 @@ export enum PrintJobErrorCode {
   INVALID_DATA = 'INVALID_IMAGE_DATA',
   WRITE_FAILED = 'WRITE_FAILED',
   WRITE_TIMEOUT = 'WRITE_TIMEOUT',
-}
-
-/** True when `code` matches a base `ErrorCode` value. */
-function isBaseCode(code: string): code is ErrorCode {
-  return (Object.values(ErrorCode) as string[]).includes(code);
 }
 
 /**
