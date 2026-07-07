@@ -5,28 +5,14 @@
  * Supports job state persistence for resume capability.
  */
 
-import type { IPrinterAdapter } from '@/types';
-import { IAdapterOptions } from '@/types';
+import type { IPrinterAdapter, IAdapterOptions } from '@/types';
 import { IPrintJobManager, IConnectionManager } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
-/**
- * Creates a no-op adapter for backward compatibility with mock objects in tests.
- * Each method logs a warning and resolves (or throws for write if called unexpectedly).
- */
-function createNoOpAdapter(): IPrinterAdapter {
-  return {
-    connect: () => Promise.resolve(),
-    disconnect: () => Promise.resolve(),
-    write: () => Promise.resolve(),
-  };
-}
+export type JobState = 'in-progress' | 'paused' | 'completed' | 'cancelled';
 
-/**
- * Saved job state structure
- */
 interface SavedJobState {
   jobId: string;
   jobBuffer: number[];
@@ -36,113 +22,80 @@ interface SavedJobState {
 }
 
 /**
- * Print Job Manager implementation
+ * No-op adapter used when the connection manager has no getAdapter() method
+ * (legacy mock objects in tests). write() throws if unexpectedly invoked.
  */
+function createNoOpAdapter(): IPrinterAdapter {
+  return {
+    connect: () => Promise.resolve(),
+    disconnect: () => Promise.resolve(),
+    write: () => {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'No adapter available for print job write'
+      );
+    },
+  };
+}
+
+const CLEANUP_INTERVAL_MS = 300_000; // 5 minutes
+const DEFAULT_EXPIRY_MS = 3_600_000; // 1 hour
+
 export class PrintJobManager implements IPrintJobManager {
-  /** Instance-level job state storage (per-printer support) */
-  private instanceJobStateStore: Map<string, SavedJobState> = new Map();
+  private readonly instanceJobStateStore: Map<string, SavedJobState> = new Map();
+  private static staticJobStateStore: Map<string, SavedJobState> = new Map();
+  private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Static job state store for backward compatibility */
-  private static _jobStateStore: Map<string, SavedJobState> = new Map();
-
-  /** Auto-cleanup timer for expired job states */
-  private static _cleanupTimer: ReturnType<typeof setInterval> | null = null;
-  private static readonly CLEANUP_INTERVAL_MS = 300000; // 5 minutes
-  private static readonly DEFAULT_EXPIRY_MS = 3600000; // 1 hour
-
-  /** Start the auto-cleanup timer if not already running */
-  private static ensureCleanupTimer(): void {
-    if (!PrintJobManager._cleanupTimer) {
-      PrintJobManager._cleanupTimer = setInterval(() => {
-        PrintJobManager.cleanupExpiredJobs(PrintJobManager.DEFAULT_EXPIRY_MS);
-      }, PrintJobManager.CLEANUP_INTERVAL_MS);
-      // Allow Node.js to exit even if the timer is active
-      if (
-        typeof PrintJobManager._cleanupTimer === 'object' &&
-        typeof PrintJobManager._cleanupTimer.unref === 'function'
-      ) {
-        PrintJobManager._cleanupTimer.unref();
-      }
-    }
-  }
-
-  /**
-   * Get the static job state store (for backward compatibility)
-   * @deprecated Use instance-level store instead for multi-printer support
-   */
-  private static get jobStateStore(): Map<string, SavedJobState> {
-    return PrintJobManager._jobStateStore;
-  }
-  private adapter: IPrinterAdapter;
-  private connectionManager: IConnectionManager;
+  private readonly connectionManager: IConnectionManager;
+  private readonly adapter: IPrinterAdapter;
   private jobBuffer: Uint8Array | null = null;
   private jobOffset = 0;
-  private _isPaused = false;
-  private _isInProgress = false;
+  private paused = false;
+  private inProgress = false;
   private adapterOptions: IAdapterOptions = {};
-  private readonly logger = Logger.scope('PrintJobManager');
-  private onProgress?: (sent: number, total: number) => void;
   private jobId: string | null = null;
-  private onJobStateChange?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void;
+  private onProgress?: (sent: number, total: number) => void;
+  private onJobStateChange?: (state: JobState) => void;
+  private readonly logger = Logger.scope('PrintJobManager');
 
-  /**
-   * Sets the progress callback
-   *
-   * @param callback - Progress callback function
-   */
+  constructor(connectionManager: IConnectionManager) {
+    this.connectionManager = connectionManager;
+    this.adapter =
+      typeof connectionManager.getAdapter === 'function'
+        ? connectionManager.getAdapter()
+        : createNoOpAdapter();
+  }
+
   setProgressCallback(callback?: (sent: number, total: number) => void): void {
     this.onProgress = callback;
   }
 
-  /**
-   * Sets the job state change callback
-   *
-   * @param callback - Job state change callback function
-   */
-  setJobStateCallback(
-    callback?: (state: 'in-progress' | 'paused' | 'completed' | 'cancelled') => void
-  ): void {
+  setJobStateCallback(callback?: (state: JobState) => void): void {
     this.onJobStateChange = callback;
   }
 
   /**
-   * Creates a new PrintJobManager instance
-   *
-   * @param connectionManager - Connection manager instance
+   * Wraps a raw error as BluetoothPrintError if it isn't already one.
    */
-  constructor(connectionManager: IConnectionManager) {
-    this.connectionManager = connectionManager;
-
-    // Check if connectionManager has getAdapter method
-    if (typeof connectionManager.getAdapter === 'function') {
-      this.adapter = connectionManager.getAdapter();
-    } else {
-      // For backward compatibility with mock objects in tests.
-      // Creates a no-op adapter that throws descriptive errors on unexpected usage.
-      this.adapter = createNoOpAdapter();
-    }
+  private wrapError(error: unknown, code: ErrorCode, message: string): BluetoothPrintError {
+    return error instanceof BluetoothPrintError
+      ? error
+      : new BluetoothPrintError(code, message, normalizeError(error));
   }
 
-  /**
-   * Starts a print job
-   *
-   * @param buffer - Print data buffer
-   * @param options - Print job options
-   * @returns Promise<void>
-   */
   async start(buffer: Uint8Array, options?: { jobId?: string }): Promise<void> {
-    if (this._isInProgress) {
+    if (this.inProgress) {
       throw new BluetoothPrintError(
         ErrorCode.PRINT_JOB_IN_PROGRESS,
         'A print job is already in progress. Wait for completion or cancel it.'
       );
     }
 
-    this.jobId = options?.jobId || this.generateJobId();
+    this.jobId = options?.jobId ?? this.generateJobId();
     this.jobBuffer = buffer;
     this.jobOffset = 0;
-    this._isPaused = false;
-    this._isInProgress = true;
+    this.paused = false;
+    this.inProgress = true;
 
     this.logger.info(`Starting print job ${this.jobId}: ${buffer.length} bytes`);
     this.emitJobState('in-progress');
@@ -150,44 +103,26 @@ export class PrintJobManager implements IPrintJobManager {
     try {
       await this.processJob();
 
-      // Check if the job was paused
-      if (this._isPaused) {
+      if (this.paused) {
         this.logger.info(`Print job ${this.jobId} paused`);
         this.saveJobState();
-        // Don't reset _isInProgress when paused, so resume() and cancel() can still work
       } else {
         this.completeJob();
       }
     } catch (error) {
       this.logger.error(`Print job ${this.jobId} failed:`, error);
-      this._isInProgress = false;
-
-      // Save job state for resume later if needed
-      if (this._isPaused) {
+      this.inProgress = false;
+      if (this.paused) {
         this.saveJobState();
       } else {
         this.clearJobState();
       }
-
-      throw error instanceof BluetoothPrintError
-        ? error
-        : new BluetoothPrintError(
-            ErrorCode.PRINT_JOB_FAILED,
-            'Print job failed',
-            normalizeError(error)
-          );
+      throw this.wrapError(error, ErrorCode.PRINT_JOB_FAILED, 'Print job failed');
     }
   }
 
-  /**
-   * Resumes a paused print job
-   *
-   * @param jobId - Job ID to resume (optional)
-   * @returns Promise<void>
-   */
   async resume(jobId?: string): Promise<void> {
-    if (!this._isInProgress || !this._isPaused) {
-      // Try to load paused job if jobId is provided
+    if (!this.inProgress || !this.paused) {
       if (jobId) {
         this.loadJobState(jobId);
       } else {
@@ -196,69 +131,81 @@ export class PrintJobManager implements IPrintJobManager {
       }
     }
 
-    this._isPaused = false;
+    this.paused = false;
     this.logger.info(`Resuming print job ${this.jobId}`);
     this.emitJobState('in-progress');
 
     try {
       await this.processJob();
-
-      if (!this._isPaused) {
+      if (!this.paused) {
         this.completeJob();
       }
     } catch (error) {
       this.logger.error(`Print job ${this.jobId} failed after resume:`, error);
-      this._isInProgress = false;
+      this.inProgress = false;
       this.clearJobState();
       this.emitJobState('cancelled');
-
-      throw error instanceof BluetoothPrintError
-        ? error
-        : new BluetoothPrintError(
-            ErrorCode.PRINT_JOB_FAILED,
-            'Print job failed',
-            normalizeError(error)
-          );
+      throw this.wrapError(error, ErrorCode.PRINT_JOB_FAILED, 'Print job failed');
     }
   }
 
-  /**
-   * Cancels the current print job
-   */
   cancel(): void {
-    if (!this._isInProgress) {
+    if (!this.inProgress) {
       this.logger.warn('Cancel called but no print job in progress');
       return;
     }
-
     this.logger.info(`Cancelling print job ${this.jobId}`);
-    this._isPaused = false;
-    this._isInProgress = false;
+    this.paused = false;
+    this.inProgress = false;
     this.clearJobState();
     this.emitJobState('cancelled');
     this.logger.info(`Print job ${this.jobId} cancelled`);
   }
 
-  /**
-   * Generates a unique job ID
-   *
-   * @returns string - Unique job ID
-   */
-  private generateJobId(): string {
-    return `job-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  }
-
-  /**
-   * Saves the current job state for resume later.
-   *
-   * Uses instance-level storage by default. Falls back to static store
-   * for backward compatibility.
-   */
-  private saveJobState(): void {
-    if (!this.jobBuffer || !this.jobId) {
+  pause(): void {
+    if (!this.inProgress) {
+      this.logger.warn('Pause called but no print job in progress');
       return;
     }
+    this.paused = true;
+    this.logger.info('Print job paused');
+  }
 
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  isInProgress(): boolean {
+    return this.inProgress;
+  }
+
+  remaining(): number {
+    return this.jobBuffer ? this.jobBuffer.length - this.jobOffset : 0;
+  }
+
+  setOptions(options: IAdapterOptions): void {
+    this.adapterOptions = { ...this.adapterOptions, ...options };
+    this.logger.debug('Adapter options updated:', this.adapterOptions);
+  }
+
+  destroy(): void {
+    this.cancel();
+    this.instanceJobStateStore.clear();
+    this.onProgress = undefined;
+    this.onJobStateChange = undefined;
+    this.logger.info('PrintJobManager destroyed');
+  }
+
+  // ============================================
+  // Job state persistence
+  // ============================================
+
+  private generateJobId(): string {
+    return `job-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  private saveJobState(): void {
+    if (!this.jobBuffer || !this.jobId) return;
     try {
       const state: SavedJobState = {
         jobId: this.jobId,
@@ -267,14 +214,9 @@ export class PrintJobManager implements IPrintJobManager {
         adapterOptions: { ...this.adapterOptions },
         timestamp: Date.now(),
       };
-
-      // Save to both instance and static store for backward compatibility
       this.instanceJobStateStore.set(this.jobId, state);
-      PrintJobManager.jobStateStore.set(this.jobId, state);
-
-      // Ensure auto-cleanup timer is running
+      PrintJobManager.staticJobStateStore.set(this.jobId, state);
       PrintJobManager.ensureCleanupTimer();
-
       this.logger.debug(
         `Saved job state for ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
       );
@@ -283,37 +225,26 @@ export class PrintJobManager implements IPrintJobManager {
     }
   }
 
-  /**
-   * Loads a saved job state
-   *
-   * @param jobId - Job ID to load
-   */
   private loadJobState(jobId: string): void {
     try {
       this.logger.debug(`Loading job state for ${jobId}`);
-
-      // Try instance store first, then fall back to static store
-      let savedState = this.instanceJobStateStore.get(jobId);
+      const savedState =
+        this.instanceJobStateStore.get(jobId) ?? PrintJobManager.staticJobStateStore.get(jobId);
       if (!savedState) {
-        savedState = PrintJobManager.jobStateStore.get(jobId);
-      }
-
-      if (savedState) {
-        this.jobId = savedState.jobId;
-        this.jobBuffer = new Uint8Array(savedState.jobBuffer);
-        this.jobOffset = savedState.jobOffset;
-        this.adapterOptions = { ...savedState.adapterOptions };
-        this._isPaused = true;
-        this._isInProgress = true;
-        this.logger.info(
-          `Loaded job ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
-        );
-      } else {
         throw new BluetoothPrintError(
           ErrorCode.QUEUE_JOB_NOT_FOUND,
           `Job state not found for ${jobId}`
         );
       }
+      this.jobId = savedState.jobId;
+      this.jobBuffer = new Uint8Array(savedState.jobBuffer);
+      this.jobOffset = savedState.jobOffset;
+      this.adapterOptions = { ...savedState.adapterOptions };
+      this.paused = true;
+      this.inProgress = true;
+      this.logger.info(
+        `Loaded job ${this.jobId}: offset=${this.jobOffset}/${this.jobBuffer.length}`
+      );
     } catch (error) {
       this.logger.error(`Failed to load job state for ${jobId}:`, error);
       throw new BluetoothPrintError(
@@ -324,17 +255,12 @@ export class PrintJobManager implements IPrintJobManager {
     }
   }
 
-  /**
-   * Clears the current job state
-   */
   private clearJobState(): void {
     if (this.jobId) {
       this.logger.debug(`Clearing job state for ${this.jobId}`);
-      // Clear from both stores
       this.instanceJobStateStore.delete(this.jobId);
-      PrintJobManager.jobStateStore.delete(this.jobId);
+      PrintJobManager.staticJobStateStore.delete(this.jobId);
     }
-
     this.jobBuffer = null;
     this.jobOffset = 0;
     this.jobId = null;
@@ -342,149 +268,59 @@ export class PrintJobManager implements IPrintJobManager {
   }
 
   /**
-   * Cleanup resources and clear all job state.
-   * Call this when the printer is no longer needed.
+   * Lazily start the auto-cleanup timer for the static store. The Node.js
+   * `unref()` call lets the process exit even if the timer is still scheduled.
    */
-  destroy(): void {
-    this.cancel();
-    this.instanceJobStateStore.clear();
-    this.onProgress = undefined;
-    this.onJobStateChange = undefined;
-    this.logger.info('PrintJobManager destroyed');
+  private static ensureCleanupTimer(): void {
+    if (PrintJobManager.cleanupTimer) return;
+    PrintJobManager.cleanupTimer = setInterval(() => {
+      PrintJobManager.cleanupExpiredJobs();
+    }, CLEANUP_INTERVAL_MS);
+    if (typeof PrintJobManager.cleanupTimer.unref === 'function') {
+      PrintJobManager.cleanupTimer.unref();
+    }
   }
 
-  /**
-   * Clean up expired job states from static store.
-   * Call this periodically to prevent memory leaks.
-   *
-   * @param maxAge - Maximum age in ms (default: 1 hour)
-   */
-  static cleanupExpiredJobs(maxAge = 3600000): number {
+  static cleanupExpiredJobs(maxAge = DEFAULT_EXPIRY_MS): number {
     const now = Date.now();
     let cleaned = 0;
-
-    for (const [jobId, state] of PrintJobManager.jobStateStore.entries()) {
+    for (const [jobId, state] of PrintJobManager.staticJobStateStore.entries()) {
       if (now - state.timestamp > maxAge) {
-        PrintJobManager.jobStateStore.delete(jobId);
+        PrintJobManager.staticJobStateStore.delete(jobId);
         cleaned++;
       }
     }
-
-    // If the store is empty, stop the auto-cleanup timer to avoid unnecessary scheduling
-    if (PrintJobManager.jobStateStore.size === 0 && PrintJobManager._cleanupTimer) {
-      clearInterval(PrintJobManager._cleanupTimer);
-      PrintJobManager._cleanupTimer = null;
+    if (PrintJobManager.staticJobStateStore.size === 0 && PrintJobManager.cleanupTimer) {
+      clearInterval(PrintJobManager.cleanupTimer);
+      PrintJobManager.cleanupTimer = null;
     }
-
     return cleaned;
   }
 
-  /**
-   * Stop the auto-cleanup timer. Useful for test teardown.
-   */
   static stopCleanupTimer(): void {
-    if (PrintJobManager._cleanupTimer) {
-      clearInterval(PrintJobManager._cleanupTimer);
-      PrintJobManager._cleanupTimer = null;
+    if (PrintJobManager.cleanupTimer) {
+      clearInterval(PrintJobManager.cleanupTimer);
+      PrintJobManager.cleanupTimer = null;
     }
   }
 
-  /**
-   * Get count of pending job states in static store.
-   * Useful for debugging memory usage.
-   */
   static getStaticStoreSize(): number {
-    return PrintJobManager.jobStateStore.size;
+    return PrintJobManager.staticJobStateStore.size;
   }
 
-  /**
-   * Emits job state change event
-   *
-   * @param state - New job state
-   */
-  private emitJobState(state: 'in-progress' | 'paused' | 'completed' | 'cancelled'): void {
-    if (this.onJobStateChange) {
-      this.onJobStateChange(state);
-    }
-  }
-
-  /**
-   * Handles job completion: logs, resets state, and emits event.
-   * Shared by start() and resume() code paths.
-   */
   private completeJob(): void {
     this.logger.info(`Print job ${this.jobId} completed successfully`);
-    this._isInProgress = false;
+    this.inProgress = false;
     this.clearJobState();
     this.emitJobState('completed');
   }
 
-  /**
-   * Pauses the current print job
-   */
-  pause(): void {
-    if (!this._isInProgress) {
-      this.logger.warn('Pause called but no print job in progress');
-      return;
-    }
-
-    this._isPaused = true;
-    this.logger.info('Print job paused');
+  private emitJobState(state: JobState): void {
+    this.onJobStateChange?.(state);
   }
 
-  /**
-   * Gets the number of bytes remaining to print
-   *
-   * @returns number - Bytes remaining
-   */
-  remaining(): number {
-    if (this.jobBuffer) {
-      return this.jobBuffer.length - this.jobOffset;
-    }
-    return 0;
-  }
-
-  /**
-   * Checks if the print job is paused
-   *
-   * @returns boolean - True if paused, false otherwise
-   */
-  isPaused(): boolean {
-    return this._isPaused;
-  }
-
-  /**
-   * Checks if a print job is in progress
-   *
-   * @returns boolean - True if in progress, false otherwise
-   */
-  isInProgress(): boolean {
-    return this._isInProgress;
-  }
-
-  /**
-   * Sets adapter options for write operations
-   *
-   * @param options - Adapter options
-   */
-  setOptions(options: IAdapterOptions): void {
-    this.adapterOptions = { ...this.adapterOptions, ...options };
-    this.logger.debug('Adapter options updated:', this.adapterOptions);
-  }
-
-  /**
-   * Processes the print job in chunks
-   * Supports pause/resume functionality
-   *
-   * @returns Promise<void>
-   */
   private async processJob(): Promise<void> {
-    if (!this.jobBuffer) {
-      return;
-    }
-
-    // Check if adapter has write method
-    if (!this.adapter || typeof this.adapter.write !== 'function') {
+    if (!this.jobBuffer || typeof this.adapter.write !== 'function') {
       throw new BluetoothPrintError(
         ErrorCode.INVALID_CONFIGURATION,
         'Printer adapter does not support write operation'
@@ -492,43 +328,24 @@ export class PrintJobManager implements IPrintJobManager {
     }
 
     const { chunkSize = 512 } = this.adapterOptions;
-    const total = this.jobBuffer.length;
     const jobBuffer = this.jobBuffer;
+    const total = jobBuffer.length;
     const deviceId = this.getDeviceId();
 
-    try {
-      while (this.jobOffset < jobBuffer.length) {
-        if (this._isPaused) {
-          this.logger.debug('Job paused at offset:', this.jobOffset);
-          return;
-        }
-
-        const end = Math.min(this.jobOffset + chunkSize, jobBuffer.length);
-        const chunk = jobBuffer.slice(this.jobOffset, end);
-
-        await this.adapter.write(deviceId, chunk.buffer, this.adapterOptions);
-
-        this.jobOffset = end;
-
-        this.logger.debug(`Processed ${this.jobOffset}/${total} bytes`);
-
-        // Send progress event
-        if (this.onProgress) {
-          this.onProgress(this.jobOffset, total);
-        }
+    while (this.jobOffset < jobBuffer.length) {
+      if (this.paused) {
+        this.logger.debug('Job paused at offset:', this.jobOffset);
+        return;
       }
-    } catch (error) {
-      this.logger.error('Error processing job:', error);
-      throw error;
+      const end = Math.min(this.jobOffset + chunkSize, jobBuffer.length);
+      const chunk = jobBuffer.slice(this.jobOffset, end);
+      await this.adapter.write(deviceId, chunk.buffer, this.adapterOptions);
+      this.jobOffset = end;
+      this.logger.debug(`Processed ${this.jobOffset}/${total} bytes`);
+      this.onProgress?.(this.jobOffset, total);
     }
   }
 
-  /**
-   * Gets the current device ID from the connection manager
-   *
-   * @returns string - Device ID
-   * @throws BluetoothPrintError if no device is connected
-   */
   private getDeviceId(): string {
     const deviceId = this.connectionManager.getDeviceId();
     if (!deviceId) {
