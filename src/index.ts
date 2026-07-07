@@ -18,6 +18,7 @@ export { TaroAdapter } from './adapters/TaroAdapter';
 export { AlipayAdapter } from './adapters/AlipayAdapter';
 export { BaiduAdapter } from './adapters/BaiduAdapter';
 export { ByteDanceAdapter } from './adapters/ByteDanceAdapter';
+export { QQAdapter } from './adapters/QQAdapter';
 export { WebBluetoothAdapter } from './adapters/WebBluetoothAdapter';
 export { AdapterFactory } from './adapters/AdapterFactory';
 export { BaseAdapter } from './adapters/BaseAdapter';
@@ -94,7 +95,7 @@ export {
 export type { TruncateOptions } from './utils/outputLimiter';
 
 // Error handling - 错误处理
-export { BluetoothPrintError, ErrorCode } from './errors/baseError';
+export { BluetoothPrintError, ErrorCode } from './errors/BaseError';
 export { ConnectionError, ConnectionErrorCode } from './errors/ConnectionError';
 export { PrintJobError, PrintJobErrorCode } from './errors/PrintJobError';
 export { CommandBuildError, CommandBuildErrorCode } from './errors/CommandBuildError';
@@ -121,7 +122,7 @@ export type { SavedPrinter, GlobalConfig, IConfigStorage } from './config/Printe
 
 // Plugin System - 插件系统
 export { createLoggingPlugin, createRetryPlugin } from './plugins';
-export type { Plugin, PluginHooks, PluginOptions, PluginFactory } from './plugins/types';
+export type { Plugin, PluginHooks, PluginOptions, PluginFactory } from './plugins/PluginTypes';
 
 // Types - 类型定义
 export * from './types';

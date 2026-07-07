@@ -3,8 +3,8 @@
  * Manages plugin lifecycle and hook execution
  */
 
-import { Plugin, PluginHooks, PluginOptions } from './types';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { Plugin, PluginHooks, PluginOptions } from './PluginTypes';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { PrinterState } from '@/types';
 import { Logger } from '@/utils/logger';
 
@@ -101,13 +101,15 @@ export class PluginManager {
       const hook = plugin.hooks[hookName];
       if (hook) {
         try {
-          // @ts-expect-error - TypeScript can't infer the correct types here
-          const hookResult = await hook(...args);
+          // The variadic spread + generic K inference causes TS to lose specific arg types.
+          // We accept a narrow `unknown[]` cast since the plugin contract enforces signatures
+          // at runtime via PluginHooks[K] above.
+          const hookResult = await (hook as (...a: unknown[]) => unknown)(...args);
           if (hookResult !== undefined) {
             result = hookResult;
           }
         } catch (error) {
-          this.logger.error(`Plugin "${name}" hook "${hookName}" failed:`, error);
+          this.logger.error(`Plugin "${name}" hook "${String(hookName)}" failed:`, error);
           // Continue to next plugin
         }
       }

@@ -3,9 +3,9 @@
  * Provides automatic retry with exponential backoff for failed operations
  */
 
-import { Plugin, PluginFactory, PluginOptions } from '../types';
+import { Plugin, PluginFactory, PluginOptions } from '../PluginTypes';
 import { Logger } from '@/utils/logger';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
 export interface RetryPluginOptions extends PluginOptions {
   /** Maximum retry attempts (default: 3) */
