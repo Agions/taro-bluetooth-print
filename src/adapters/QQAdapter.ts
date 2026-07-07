@@ -1,34 +1,12 @@
 /**
- * QQ Mini Program Bluetooth Adapter
- * Implements the IPrinterAdapter interface for QQ Mini Program
+ * QQ Mini Program Bluetooth Adapter — wraps the `qq.*` BLE API.
+ * All behavior inherited from {@link MiniProgramAdapter}.
  */
-
 import { MiniProgramAdapter, MiniProgramBLEApi } from './BaseAdapter';
 
-// QQ global type for TypeScript
-type QQGlobal = MiniProgramBLEApi;
+declare const qq: MiniProgramBLEApi;
 
-declare const qq: QQGlobal;
-
-/**
- * QQ Mini Program Bluetooth Low Energy adapter
- *
- * Uses the QQ mini-program's BLE APIs (qq.xxx).
- * All connection, write, and service discovery logic is inherited from MiniProgramAdapter.
- *
- * @example
- * ```typescript
- * const adapter = new QQAdapter();
- * await adapter.connect('device-id-123');
- * await adapter.write('device-id-123', buffer);
- * await adapter.disconnect('device-id-123');
- * ```
- */
 export class QQAdapter extends MiniProgramAdapter {
-  /**
-   * Returns the QQ mini-program BLE API object
-   * @returns The qq global object providing BLE capabilities
-   */
   protected getApi(): MiniProgramBLEApi {
     return qq;
   }

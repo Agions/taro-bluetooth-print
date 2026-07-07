@@ -3,26 +3,27 @@
  * Provides common functionality for all platform-specific adapters
  */
 
-import { IPrinterAdapter, IAdapterOptions, PrinterState } from '@/types';
-
-// Re-export shared dependencies for subclasses
-export type { IPrinterAdapter, IAdapterOptions } from '@/types';
-export { PrinterState } from '@/types';
-export { Logger } from '@/utils/logger';
-export { normalizeError } from '@/utils/normalizeError';
-export { withTimeout } from '@/utils/withTimeout';
-export { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
-export {
+import { PrinterState } from '@/types';
+import { Logger } from '@/utils/logger';
+import { normalizeError } from '@/utils/normalizeError';
+import { withTimeout } from '@/utils/withTimeout';
+import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
+import {
   ChunkWriteStrategy,
   type ChunkWriteContext,
   type ChunkWriteResult,
   DEFAULT_ADAPTIVE_CONFIG,
 } from './ChunkWriteStrategy';
-import { Logger } from '@/utils/logger';
-import { normalizeError } from '@/utils/normalizeError';
-import { withTimeout } from '@/utils/withTimeout';
-import { BluetoothPrintError, ErrorCode } from '@/errors/baseError';
-import {
+import type { IPrinterAdapter, IAdapterOptions } from '@/types';
+
+// Single canonical re-export surface for subclasses
+export type { IPrinterAdapter, IAdapterOptions } from '@/types';
+export { PrinterState } from '@/types';
+export { Logger } from '@/utils/logger';
+export { normalizeError } from '@/utils/normalizeError';
+export { withTimeout } from '@/utils/withTimeout';
+export { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
+export {
   ChunkWriteStrategy,
   type ChunkWriteContext,
   type ChunkWriteResult,
