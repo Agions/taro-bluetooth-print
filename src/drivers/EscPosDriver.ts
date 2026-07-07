@@ -66,6 +66,18 @@ export class EscPos implements IPrinterDriver {
   }
 
   /**
+   * Encode text using the configured encoding service, falling back to
+   * the legacy encoder when the requested encoding is unsupported.
+   * Centralised so ESC/POS text + QR strings share one path.
+   */
+  private encodeText(content: string, encoding: string): Uint8Array {
+    if (this.useEncodingService && this.encodingService.isSupported(encoding)) {
+      return this.encodingService.encode(content, encoding);
+    }
+    return Encoding.encode(content, encoding);
+  }
+
+  /**
    * Generates text print command
    *
    * @param content - Text content to print
@@ -81,16 +93,7 @@ export class EscPos implements IPrinterDriver {
     if (!content || typeof content !== 'string') {
       return [];
     }
-
-    // Use new EncodingService for better GBK/GB2312/Big5 support
-    if (this.useEncodingService && this.encodingService.isSupported(encoding)) {
-      const encoded = this.encodingService.encode(content, encoding);
-      return [encoded];
-    }
-
-    // Fall back to legacy encoding for backward compatibility
-    const encoded = Encoding.encode(content, encoding);
-    return [encoded];
+    return [this.encodeText(content, encoding)];
   }
 
   /**
@@ -214,11 +217,7 @@ export class EscPos implements IPrinterDriver {
     // 4. Store Data (Function 180)
     // GS ( k pL pH 31 50 30 d1...dk
     // pL, pH: length of data + 3
-    // Use new EncodingService for better GBK support
-    const data =
-      this.useEncodingService && this.encodingService.isSupported('GBK')
-        ? this.encodingService.encode(content, 'GBK')
-        : Encoding.encode(content, 'GBK');
+    const data = this.encodeText(content, 'GBK');
     const len = data.length + 3;
     const pL = len % 256;
     const pH = Math.floor(len / 256);

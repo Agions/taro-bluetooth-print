@@ -287,17 +287,19 @@ export class ReactNativeAdapter extends BaseAdapter implements IPrinterAdapter {
     this.updateState(PrinterState.DISCONNECTING);
     Logger.scope('ReactNativeAdapter').debug('Disconnecting from device:', deviceId);
 
-    try {
-      await (this.bleManager.disconnectFromDevice(deviceId, true) as Promise<void>);
+    const finalize = () => {
       this.cleanupDevice(deviceId);
       this.deviceCache.delete(deviceId);
       this.updateState(PrinterState.DISCONNECTED);
       Logger.scope('ReactNativeAdapter').info('Device disconnected successfully');
+    };
+
+    try {
+      await (this.bleManager.disconnectFromDevice(deviceId, true) as Promise<void>);
+      finalize();
     } catch (error) {
       Logger.scope('ReactNativeAdapter').warn('Disconnect error (ignored):', error);
-      this.cleanupDevice(deviceId);
-      this.deviceCache.delete(deviceId);
-      this.updateState(PrinterState.DISCONNECTED);
+      finalize();
     }
   }
 

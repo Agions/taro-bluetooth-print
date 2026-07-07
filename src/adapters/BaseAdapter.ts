@@ -445,6 +445,17 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
    *
    * @param deviceId - Bluetooth device ID
    */
+  /**
+   * Finalize a disconnect by always cleaning up device state and logging.
+   * Used by subclasses in the success/finally branches so the cleanup
+   * sequence (cleanupDevice + updateState + success log) lives in one place.
+   */
+  protected finalizeDisconnect(deviceId: string): void {
+    this.cleanupDevice(deviceId);
+    this.updateState(PrinterState.DISCONNECTED);
+    this.logger.info('Device disconnected successfully');
+  }
+
   async disconnect(deviceId: string): Promise<void> {
     this.validateDeviceId(deviceId);
     this.updateState(PrinterState.DISCONNECTING);
@@ -452,13 +463,10 @@ export abstract class MiniProgramAdapter extends BaseAdapter {
 
     try {
       await this.getApi().closeBLEConnection({ deviceId });
-      this.cleanupDevice(deviceId);
-      this.updateState(PrinterState.DISCONNECTED);
-      this.logger.info('Device disconnected successfully');
+      this.finalizeDisconnect(deviceId);
     } catch (error) {
       this.logger.warn('Disconnect error (ignored):', error);
-      this.cleanupDevice(deviceId);
-      this.updateState(PrinterState.DISCONNECTED);
+      this.finalizeDisconnect(deviceId);
     }
   }
 
