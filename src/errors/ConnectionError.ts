@@ -1,35 +1,34 @@
 /**
  * Connection Error
  *
- * Specialized error for connection-related failures
+ * Specialized error for connection-related failures.
+ *
+ * All `ConnectionErrorCode` entries have string values identical to the
+ * corresponding `ErrorCode` entries, so we cast directly. An unknown code
+ * (defensive guard) falls back to `ErrorCode.CONNECTION_FAILED`.
  */
 
-import { BluetoothPrintError, ErrorCode } from './baseError';
+import { BluetoothPrintError, ErrorCode } from './BaseError';
 
-/**
- * Connection-related error codes
- */
+/** Connection-related error codes (mirror ErrorCode connection entries). */
 export enum ConnectionErrorCode {
-  /** Failed to establish connection */
   FAILED = 'CONNECTION_FAILED',
-  /** Connection attempt timed out */
   TIMEOUT = 'CONNECTION_TIMEOUT',
-  /** Device not found during discovery */
   NOT_FOUND = 'DEVICE_NOT_FOUND',
-  /** Device disconnected unexpectedly */
   DISCONNECTED = 'DEVICE_DISCONNECTED',
-  /** Bluetooth service not found on device */
   SERVICE_NOT_FOUND = 'SERVICE_NOT_FOUND',
-  /** Bluetooth characteristic not found */
   CHARACTERISTIC_NOT_FOUND = 'CHARACTERISTIC_NOT_FOUND',
-  /** Service discovery failed */
   DISCOVERY_FAILED = 'SERVICE_DISCOVERY_FAILED',
-  /** Platform doesn't support Bluetooth */
   PLATFORM_UNSUPPORTED = 'PLATFORM_NOT_SUPPORTED',
 }
 
+/** True when `code` matches a base `ErrorCode` value. */
+function isBaseCode(code: string): code is ErrorCode {
+  return (Object.values(ErrorCode) as string[]).includes(code);
+}
+
 /**
- * ConnectionError - Specialized error for connection-related failures
+ * ConnectionError - Specialized error for connection-related failures.
  *
  * @example
  * ```typescript
@@ -42,36 +41,14 @@ export enum ConnectionErrorCode {
  */
 export class ConnectionError extends BluetoothPrintError {
   constructor(code: ConnectionErrorCode, message: string, originalError?: Error) {
-    // Map our codes to the base ErrorCode enum
-    const baseCode = ConnectionError._toBaseCode(code);
+    const baseCode: ErrorCode = isBaseCode(code) ? code : ErrorCode.CONNECTION_FAILED;
     super(baseCode, message, originalError);
     this.name = 'ConnectionError';
-
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, ConnectionError);
     }
   }
 
-  /**
-   * Converts ConnectionErrorCode to base ErrorCode
-   */
-  private static _toBaseCode(code: ConnectionErrorCode): ErrorCode {
-    const mapping: Partial<Record<ConnectionErrorCode, ErrorCode>> = {
-      [ConnectionErrorCode.FAILED]: ErrorCode.CONNECTION_FAILED,
-      [ConnectionErrorCode.TIMEOUT]: ErrorCode.CONNECTION_TIMEOUT,
-      [ConnectionErrorCode.NOT_FOUND]: ErrorCode.DEVICE_NOT_FOUND,
-      [ConnectionErrorCode.DISCONNECTED]: ErrorCode.DEVICE_DISCONNECTED,
-      [ConnectionErrorCode.SERVICE_NOT_FOUND]: ErrorCode.SERVICE_NOT_FOUND,
-      [ConnectionErrorCode.CHARACTERISTIC_NOT_FOUND]: ErrorCode.CHARACTERISTIC_NOT_FOUND,
-      [ConnectionErrorCode.DISCOVERY_FAILED]: ErrorCode.SERVICE_DISCOVERY_FAILED,
-      [ConnectionErrorCode.PLATFORM_UNSUPPORTED]: ErrorCode.PLATFORM_NOT_SUPPORTED,
-    };
-    return mapping[code] ?? ErrorCode.CONNECTION_FAILED;
-  }
-
-  /**
-   * Checks if an error is a connection-related error
-   */
   static isConnectionError(error: unknown): error is ConnectionError {
     return error instanceof ConnectionError;
   }

@@ -1,31 +1,31 @@
 /**
  * Print Job Error
  *
- * Specialized error for print job failures
+ * Specialized error for print job failures.
+ *
+ * All `PrintJobErrorCode` entries have string values identical to the
+ * corresponding `ErrorCode` entries; we cast directly and fall back to
+ * `ErrorCode.PRINT_JOB_FAILED` for unknown codes (defensive guard).
  */
 
-import { BluetoothPrintError, ErrorCode } from './baseError';
+import { BluetoothPrintError, ErrorCode } from './BaseError';
 
-/**
- * Print job-related error codes
- */
 export enum PrintJobErrorCode {
-  /** Print job failed */
   FAILED = 'PRINT_JOB_FAILED',
-  /** Print job is already in progress */
   IN_PROGRESS = 'PRINT_JOB_IN_PROGRESS',
-  /** Print job was cancelled */
   CANCELLED = 'PRINT_JOB_CANCELLED',
-  /** Print data is invalid */
   INVALID_DATA = 'INVALID_IMAGE_DATA',
-  /** Write operation failed */
   WRITE_FAILED = 'WRITE_FAILED',
-  /** Write operation timed out */
   WRITE_TIMEOUT = 'WRITE_TIMEOUT',
 }
 
+/** True when `code` matches a base `ErrorCode` value. */
+function isBaseCode(code: string): code is ErrorCode {
+  return (Object.values(ErrorCode) as string[]).includes(code);
+}
+
 /**
- * PrintJobError - Specialized error for print job failures
+ * PrintJobError - Specialized error for print job failures.
  *
  * @example
  * ```typescript
@@ -42,33 +42,16 @@ export class PrintJobError extends BluetoothPrintError {
     message: string,
     originalError?: Error
   ) {
-    const baseCode = PrintJobError._toBaseCode(jobErrorCode);
+    const baseCode: ErrorCode = isBaseCode(jobErrorCode)
+      ? jobErrorCode
+      : ErrorCode.PRINT_JOB_FAILED;
     super(baseCode, message, originalError);
     this.name = 'PrintJobError';
-
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, PrintJobError);
     }
   }
 
-  /**
-   * Converts PrintJobErrorCode to base ErrorCode
-   */
-  private static _toBaseCode(code: PrintJobErrorCode): ErrorCode {
-    const mapping: Partial<Record<PrintJobErrorCode, ErrorCode>> = {
-      [PrintJobErrorCode.FAILED]: ErrorCode.PRINT_JOB_FAILED,
-      [PrintJobErrorCode.IN_PROGRESS]: ErrorCode.PRINT_JOB_IN_PROGRESS,
-      [PrintJobErrorCode.CANCELLED]: ErrorCode.PRINT_JOB_CANCELLED,
-      [PrintJobErrorCode.INVALID_DATA]: ErrorCode.INVALID_IMAGE_DATA,
-      [PrintJobErrorCode.WRITE_FAILED]: ErrorCode.WRITE_FAILED,
-      [PrintJobErrorCode.WRITE_TIMEOUT]: ErrorCode.WRITE_TIMEOUT,
-    };
-    return mapping[code] ?? ErrorCode.PRINT_JOB_FAILED;
-  }
-
-  /**
-   * Checks if an error is a print job error
-   */
   static isPrintJobError(error: unknown): error is PrintJobError {
     return error instanceof PrintJobError;
   }
