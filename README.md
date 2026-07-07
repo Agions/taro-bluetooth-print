@@ -15,7 +15,7 @@
 [![stars](https://img.shields.io/github/stars/agions/taro-bluetooth-print?style=flat-square&label=⭐+Stars)](https://github.com/agions/taro-bluetooth-print)
 [![CI](https://img.shields.io/github/actions/workflow/status/agions/taro-bluetooth-print/ci.yml?style=flat-square&label=CI)](https://github.com/agions/taro-bluetooth-print/actions)
 
-[🚀 快速开始](#-快速开始) · [📖 完整文档](https://agions.github.io/taro-bluetooth-print/) · [🧩 在线示例](https://github.com/Agions/taro-bluetooth-print/tree/main/examples) · [💬 讨论](https://github.com/Agions/taro-bluetooth-print/discussions)
+[🚀 快速开始](#-快速开始) · [📖 完整文档](https://agions.github.io/taro-bluetooth-print/) · [🧩 在线示例](https://github.com/Agions/taro-bluetooth-print/tree/main/examples) · [💬 讨论](https://agions.github.io/taro-bluetooth-print/guide/discussions)
 
 </div>
 

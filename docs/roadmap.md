@@ -122,7 +122,7 @@ outline: [2, 3]
 如果您对路线图有建议，请通过以下方式联系我们：
 
 - [GitHub Issues](https://github.com/Agions/taro-bluetooth-print/issues)
-- [GitHub Discussions](https://github.com/Agions/taro-bluetooth-print/discussions)
+- [GitHub Discussions](https://agions.github.io/taro-bluetooth-print/guide/discussions)
 - [Pull Requests](https://github.com/Agions/taro-bluetooth-print/pulls)
 
 您的反馈将帮助我们更好地规划项目未来。
