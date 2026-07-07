@@ -1,6 +1,6 @@
 {
   "name": "taro-bluetooth-print",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "description": "Taro 蓝牙打印库 v2.6 - 轻量级、高性能、跨平台支持微信、支付宝、百度、字节跳动小程序及H5 Web Bluetooth",
   "type": "module",
   "main": "dist/index.cjs.js",
@@ -99,5 +99,7 @@
       "vite@<=6.4.1": ">=6.4.2",
       "postcss@<8.5.10": ">=8.5.10"
     }
-  }
+  },
+  "homepage": "https://agions.github.io/taro-bluetooth-print/",
+  "documentation": "https://agions.github.io/taro-bluetooth-print/"
 }
