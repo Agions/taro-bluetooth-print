@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.15.2] - 2026-07-07
+
+### Changed
+
+- ** Discussions 入口改造** — 因 GitHub Discussions 页面当前为空，正式文档中讨论入口改为 docs 内页面：`https://agions.github.io/taro-bluetooth-print/guide/discussions`
+  - README.md: `💬 讨论` 链接改为 docs 页面
+  - docs/roadmap.md: GitHub Discussions 链接改为 docs 页面
+  - 新增 docs/guide/discussions.md：整合社区渠道说明、Issue 报告规范、PR 规范、行为准则
+
+---
+
 ## [2.15.1] - 2026-07-07
 
 ### Fixed
