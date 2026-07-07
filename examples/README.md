@@ -1,191 +1,112 @@
 # 示例项目
 
-本目录包含 `taro-bluetooth-print` 库在各个平台上的完整使用示例。
+`taro-bluetooth-print` 官方示例集合，覆盖**微信小程序 / H5 / 鸿蒙 HarmonyOS / React Native** 四大平台完整打印场景。
 
 ## 目录结构
 
 ```
 examples/
-├── weapp/           # 微信小程序示例
-│   ├── printer-page.tsx    # 完整打印页面
-│   └── pages.json          # 页面配置
-│
-├── h5/              # H5 Web Bluetooth 示例
-│   └── index.html         # 完整的 HTML 示例
-│
-├── harmonyos/      # 鸿蒙 HarmonyOS 示例
-│   └── harmony-print-service.ts  # 打印服务类
-│
-├── react-native/   # React Native 示例
-│   └── PrinterScreen.tsx   # 打印屏幕组件
-│
-└── label-print/    # 标签打印完整示例
-    ├── tspl-label.ts      # TSPL 标签打印
-    └── zpl-label.ts      # ZPL 标签打印
+├── README.md           # 本文件 — 示例总览
+├── weapp/              # 微信小程序（Taro 3.x）
+│   ├── printer-page.tsx
+│   └── README.md
+├── h5/                 # H5 Web Bluetooth（纯前端）
+│   ├── index.html
+│   └── README.md
+├── harmonyos/          # 鸿蒙 HarmonyOS（ArkTS）
+│   ├── harmony-print-service.ts
+│   └── README.md
+└── react-native/       # React Native（iOS + Android）
+    ├── PrinterScreen.tsx
+    └── README.md
 ```
+
+## 平台一览
+
+| 平台 | 适配器 | 示例文件 | 文档 |
+|:---|:---|:---|:---|
+| 微信小程序 | `TaroAdapter` | `printer-page.tsx` | [README](./weapp/README.md) |
+| H5 | `WebBluetoothAdapter` | `index.html` | [README](./h5/README.md) |
+| 鸿蒙 HarmonyOS | `HarmonyAdapter` | `harmony-print-service.ts` | [README](./harmonyos/README.md) |
+| React Native | `ReactNativeAdapter` | `PrinterScreen.tsx` | [README](./react-native/README.md) |
 
 ## 快速开始
 
-### 微信小程序
+### 方式 1: 克隆完整项目
 
 ```bash
-# 1. 安装依赖
-npm install taro-bluetooth-print
-
-# 2. 复制示例代码到 pages 目录
-
-# 3. 配置 app.json
+git clone https://github.com/Agions/taro-bluetooth-print.git
+cd taro-bluetooth-print
+pnpm install
 ```
 
-详细说明: [weapp/README.md](weapp/README.md)
-
-### H5 Web Bluetooth
+### 方式 2: 仅安装核心库
 
 ```bash
-# 1. 构建库
-npm run build
-
-# 2. 启动本地服务器
-npx serve examples/h5
-
-# 3. 浏览器打开 (需要 HTTPS 或 localhost)
+pnpm add taro-bluetooth-print
 ```
 
-详细说明: [h5/README.md](h5/README.md)
+## 示例场景
 
-### 鸿蒙 HarmonyOS
+### 🧾 打印小票（ESC/POS）
+
+适用于佳博 / 芯烨 / 商米 / 汉印 / 思普瑞特等热敏打印机。
 
 ```typescript
-// 1. 安装
-npm install taro-bluetooth-print
-
-// 2. 引入使用
-import { HarmonyPrintService } from './harmony-print-service';
-
-const service = new HarmonyPrintService();
-await service.scanDevices();
-await service.connect(deviceId);
-await service.printTestPage();
-```
-
-详细说明: [harmonyos/README.md](harmonyos/README.md)
-
-### React Native
-
-```bash
-# 1. 安装
-npm install taro-bluetooth-print
-
-# 2. iOS 原生配置
-cd ios && pod install
-
-# 3. 使用组件
-import PrinterScreen from './PrinterScreen';
-```
-
-详细说明: [react-native/README.md](react-native/README.md)
-
-## 常见示例
-
-### 1. 打印收据
-
-```typescript
-import { BluetoothPrinter } from 'taro-bluetooth-print';
-
-const printer = new BluetoothPrinter();
-await printer.connect(deviceId);
-
-// 构建收据内容
 await printer
-  .align('center')
-  .setSize(2, 2)
-  .text('商店名称', 'GBK')
-  .resetStyle()
+  .text('=== 欢迎光临 ===', { align: 'center', bold: true })
   .feed()
-  .text('------------------------', 'GBK')
-  .feed();
-
-// 商品明细
-const items = [
-  { name: '商品A', price: 10, qty: 2 },
-  { name: '商品B', price: 20, qty: 1 },
-];
-const total = 40;
-
-items.forEach(item => {
-  const line = `${item.name} x${item.qty}`.padEnd(15) + `¥${item.price * item.qty}`;
-  printer.text(line, 'GBK');
-});
-
-await printer
+  .text('商品A     x1    ¥10.00')
+  .text('商品B     x2    ¥20.00')
   .feed()
-  .text('------------------------', 'GBK')
-  .feed()
-  .setBold(true)
-  .text(`合计: ¥${total}`, 'GBK')
-  .resetStyle()
-  .feed(3)
+  .text('------------------------')
+  .text('合计：            ¥30.00', { bold: true })
+  .feed(2)
+  .qr('https://example.com', { size: 6 })
+  .feed(2)
   .cut()
   .print();
 ```
 
-### 2. 打印标签 (TSPL)
+**适用平台：** 全部 4 个平台
+
+---
+
+### 🏷️ 打印标签（TSPL / ZPL / CPCL）
+
+适用于 TSC / Zebra / HP / 霍尼韦尔等标签打印机。
 
 ```typescript
-import { BluetoothPrinter, TsplDriver } from 'taro-bluetooth-print';
-
 const driver = new TsplDriver();
-const printer = new BluetoothPrinter(undefined, driver);
-
 driver
-  .size(60, 40)           // 60x40mm
-  .gap(3)                 // 3mm 间隙
+  .size(60, 40)      // 60x40mm 标签
+  .gap(3)            // 3mm 间隙
   .clear()
   .text('商品名称', { x: 20, y: 20, font: 3 })
   .text('¥99.00', { x: 20, y: 60, font: 4 })
   .barcode('6901234567890', { x: 20, y: 100, type: 'EAN13' })
   .qrcode('https://example.com', { x: 250, y: 20 })
   .print(1);
-
-await printer.connect(deviceId);
-await printer.print();
 ```
 
-### 3. 打印标签 (ZPL)
+**适用平台：** 全部 4 个平台（需打印机支持对应协议）
+
+---
+
+### 📋 打印队列（批量任务）
+
+适用于批量打印、订单打印等场景。
 
 ```typescript
-import { BluetoothPrinter, ZplDriver } from 'taro-bluetooth-print';
-
-const driver = new ZplDriver();
-const printer = new BluetoothPrinter(undefined, driver);
-
-driver
-  .startFormat()
-  .labelHome(20, 20)
-  .text('商品标签', { x: 50, y: 50 })
-  .barcode('1234567890', { x: 50, y: 120, type: '128', height: 60 })
-  .qrcode('https://example.com', { x: 300, y: 50 })
-  .box({ x: 10, y: 10, width: 380, height: 200 })
-  .quantity(1)
-  .print();
-
-await printer.connect(deviceId);
-await printer.print();
-```
-
-### 4. 使用打印队列
-
-```typescript
-import { PrintQueue } from 'taro-bluetooth-print';
-
 const queue = new PrintQueue({ maxSize: 100 });
 
-// 添加任务
+// 添加高优先级任务
 queue.add(printData1, { priority: 'HIGH' });
-queue.add(printData2, { priority: 'NORMAL' });
-queue.add(printData3, { priority: 'LOW' });
 
-// 监听
+// 添加普通任务
+queue.add(printData2, { priority: 'NORMAL' });
+
+// 监听完成事件
 queue.on('job-completed', (job) => {
   console.log('任务完成:', job.id);
 });
@@ -195,17 +116,24 @@ queue.on('job-failed', (job, error) => {
 });
 ```
 
-### 5. 断点续传
+**适用平台：** 全部 4 个平台
+
+---
+
+### 🔄 断点续传（大文件打印）
+
+适用于打印大量内容（如 100 条订单）的场景。
 
 ```typescript
-// 大批量打印时支持暂停
 const printPromise = printer.print();
 
+// 5 秒后暂停
 setTimeout(() => {
   printer.pause();
   console.log('已暂停，剩余:', printer.remaining());
 }, 5000);
 
+// 10 秒后恢复
 setTimeout(async () => {
   await printer.resume();
 }, 10000);
@@ -213,31 +141,56 @@ setTimeout(async () => {
 await printPromise;
 ```
 
+**适用平台：** 全部 4 个平台
+
+---
+
 ## 平台差异
 
 | 功能 | 微信小程序 | H5 | 鸿蒙 | React Native |
-|------|-----------|-----|------|--------------|
+|:---|:---:|:---:|:---:|:---:|
 | 蓝牙扫描 | ✅ | ✅ | ✅ | ✅ |
 | BLE 连接 | ✅ | ✅ | ✅ | ✅ |
 | 打印收据 | ✅ | ✅ | ✅ | ✅ |
 | 打印标签 | ✅ | ✅ | ✅ | ✅ |
 | 断点续传 | ✅ | ✅ | ✅ | ✅ |
 | 打印队列 | ✅ | ✅ | ✅ | ✅ |
+| 离线缓存 | ✅ | ✅ | ✅ | ✅ |
 
-## 故障排查
+## 常见问题
 
-1. **无法扫描设备**
-   - 检查蓝牙权限
-   - 确认设备已开启蓝牙
-   - 靠近设备
+**Q: 无法扫描设备？**  
+A: 检查蓝牙权限、设备是否开启 BLE 广播、手机与打印机距离。
 
-2. **连接成功但打印失败**
-   - 检查打印机是否支持 ESC/POS
-   - 尝试增加 chunkSize
-   - 查看错误日志
+**Q: 连接成功但打印失败？**  
+A: 查看错误日志，可能是 MTU 过小、分片大小不合适、打印机忙。
 
-3. **打印乱码**
-   - 确认编码设置正确 (GBK/UTF-8)
-   - 打印机可能只支持特定编码
+**Q: 打印乱码？**  
+A: 确认编码设置正确（GBK/UTF-8），检查打印机是否支持所选编码。
 
-更多问题请查看 [故障排除文档](../docs/guide/troubleshooting.md)
+**Q: 真机调试时扫描不到设备？**  
+A: 微信小程序蓝牙 API 不支持开发者工具模拟器，需真机预览。
+
+更多问题请查看 [完整文档](https://agions.github.io/taro-bluetooth-print/guide/faq)。
+
+## 相关链接
+
+- [完整文档](https://agions.github.io/taro-bluetooth-print/)
+- [快速开始](https://agions.github.io/taro-bluetooth-print/guide/getting-started)
+- [功能详解](https://agions.github.io/taro-bluetooth-print/guide/features)
+- [驱动支持](https://agions.github.io/taro-bluetooth-print/guide/drivers)
+- [API 参考](https://agions.github.io/taro-bluetooth-print/api/)
+- [GitHub Issues](https://github.com/Agions/taro-bluetooth-print/issues)
+
+## 贡献示例
+
+欢迎提交更多平台的示例！请遵循以下规范：
+
+1. 每个示例包含完整可运行代码
+2. 添加详细的 README.md（前置条件 / 快速开始 / API 说明 / 常见问题）
+3. 确保代码通过 lint 和 type-check
+4. 提交 PR 时附带测试截图或录屏
+
+## 许可证
+
+MIT · Copyright © 2024-present [Agions](https://github.com/Agions)

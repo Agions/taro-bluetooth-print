@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.15.1] - 2026-07-07
+
+### Fixed
+
+- **README logo 修复** — npm 注册表 README 中 logo 使用相对路径 `docs/public/logo.svg`，在 npmjs.com 上无法访问。已改为绝对 URL：`https://agions.github.io/taro-bluetooth-print/logo.svg`（GitHub Pages 托管，全球 CDN 可用）
+- **examples 文档补全** — 为 `examples/weapp` / `examples/h5` / `examples/harmonyos` / `examples/react-native` 各添加专业 README.md，包含前置条件、快速开始、核心代码说明、平台差异、常见问题
+- **examples/README.md 重写** — 新增平台对比表、4 大示例场景（小票 / 标签 / 队列 / 断点续传）带完整代码示例、平台功能矩阵、常见问题汇总
+
+### Changed
+
+- **README.md** — 示例项目章节从简单表格升级为带场景代码块的专业文档（+119 行）
+- **examples/README.md** — 从 159 行重写为 187 行专业文档，新增 4 个平台 README（各 ~120-180 行）
+- **Brand Consistency** — 所有示例文档统一使用品牌渐变色（indigo → cyan）和文档结构模板
+
+---
+
 ## [2.14.0] - 2026-07-07
 
 ### Changed

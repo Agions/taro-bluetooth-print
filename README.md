@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/public/logo.svg" alt="taro-bluetooth-print" width="120" />
+<img src="https://agions.github.io/taro-bluetooth-print/logo.svg" alt="taro-bluetooth-print" width="120" />
 
 # taro-bluetooth-print
 
@@ -261,12 +261,89 @@ printer.use(createRetryPlugin({ maxRetries: 3, backoffMultiplier: 2 }));
 
 ## 🧪 示例项目
 
-| 平台 | 路径 |
-|:---|:---|
-| 微信小程序 | [`examples/weapp`](./examples/weapp) |
-| H5 | [`examples/h5`](./examples/h5) |
-| React Native | [`examples/react-native`](./examples/react-native) |
-| 鸿蒙 HarmonyOS | [`examples/harmonyos`](./examples/harmonyos) |
+完整的跨平台打印示例，覆盖微信小程序 / H5 / 鸿蒙 HarmonyOS / React Native 四大平台。
+
+| 平台 | 适配器 | 示例文件 | 文档 |
+|:---|:---|:---|:---|
+| 微信小程序 | `TaroAdapter` | [`printer-page.tsx`](./examples/weapp/printer-page.tsx) | [README](./examples/weapp/README.md) |
+| H5 | `WebBluetoothAdapter` | [`index.html`](./examples/h5/index.html) | [README](./examples/h5/README.md) |
+| 鸿蒙 HarmonyOS | `HarmonyAdapter` | [`harmony-print-service.ts`](./examples/harmonyos/harmony-print-service.ts) | [README](./examples/harmonyos/README.md) |
+| React Native | `ReactNativeAdapter` | [`PrinterScreen.tsx`](./examples/react-native/PrinterScreen.tsx) | [README](./examples/react-native/README.md) |
+
+### 🎯 示例场景
+
+#### 🧾 打印小票（ESC/POS）
+
+适用于佳博 / 芯烨 / 商米 / 汉印 / 思普瑞特等热敏打印机。
+
+```typescript
+await printer
+  .text('=== 欢迎光临 ===', { align: 'center', bold: true })
+  .feed()
+  .text('商品A     x1    ¥10.00')
+  .text('商品B     x2    ¥20.00')
+  .feed()
+  .text('------------------------')
+  .text('合计：            ¥30.00', { bold: true })
+  .feed(2)
+  .qr('https://example.com', { size: 6 })
+  .feed(2)
+  .cut()
+  .print();
+```
+
+**适用平台：** 全部 4 个平台
+
+---
+
+#### 🏷️ 打印标签（TSPL / ZPL / CPCL）
+
+适用于 TSC / Zebra / HP / 霍尼韦尔等标签打印机。
+
+```typescript
+const driver = new TsplDriver();
+driver
+  .size(60, 40)      // 60x40mm 标签
+  .gap(3)            // 3mm 间隙
+  .clear()
+  .text('商品名称', { x: 20, y: 20, font: 3 })
+  .text('¥99.00', { x: 20, y: 60, font: 4 })
+  .barcode('6901234567890', { x: 20, y: 100, type: 'EAN13' })
+  .qrcode('https://example.com', { x: 250, y: 20 })
+  .print(1);
+```
+
+**适用平台：** 全部 4 个平台（需打印机支持对应协议）
+
+---
+
+#### 📋 打印队列（批量任务）
+
+适用于批量打印、订单打印等场景。
+
+```typescript
+const queue = new PrintQueue({ maxSize: 100 });
+queue.add(printData1, { priority: 'HIGH' });
+queue.add(printData2, { priority: 'NORMAL' });
+queue.on('job-completed', (job) => console.log('任务完成:', job.id));
+```
+
+**适用平台：** 全部 4 个平台
+
+---
+
+#### 🔄 断点续传（大文件打印）
+
+适用于打印大量内容（如 100 条订单）的场景。
+
+```typescript
+const printPromise = printer.print();
+setTimeout(() => printer.pause(), 5000);
+setTimeout(async () => await printer.resume(), 10000);
+await printPromise;
+```
+
+**适用平台：** 全部 4 个平台
 
 ---
 
