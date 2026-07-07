@@ -10,8 +10,8 @@
  * Big5: 13911 个字符映射
  */
 
-import { binarySearchGbk, isInCommonRange } from './gbk-lite';
-import { GBK_DATA as FULL_GBK_DATA, BIG5_DATA as FULL_BIG5_DATA } from './gbk-data';
+import { binarySearchGbk, isInCommonRange } from './GbkLite';
+import { GBK_DATA as FULL_GBK_DATA, BIG5_DATA as FULL_BIG5_DATA } from './GbkData';
 
 // 懒加载完整编码数据
 let GBK_DATA: number[] | null = null;
