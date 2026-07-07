@@ -13,6 +13,7 @@
  */
 
 import { Logger } from '@/utils/logger';
+import { BoundedOrderedMap } from '@/utils/BoundedOrderedMap';
 import { PrintJobStatus, PrintJobPriority } from '@/queue/PrintQueue';
 
 /**
@@ -59,24 +60,24 @@ export interface PrintHistoryStats {
   failed: number;
   /** Cancelled jobs */
   cancelled: number;
-  /** Average duration in ms */
+  /** Average duration in milliseconds */
   avgDuration: number;
-  /** Total bytes printed */
+  /** Total bytes */
   totalBytes: number;
-  /** Success rate */
+  /** Success rate (0-100) */
   successRate: number;
 }
 
 /**
- * Query options for history
+ * History query options
  */
 export interface HistoryQueryOptions {
   /** Start date filter */
   startDate?: number;
   /** End date filter */
   endDate?: number;
-  /** Status filter */
-  status?: PrintJobStatus | PrintJobStatus[];
+  /** Status filter (single or array) */
+  status?: PrintJobStatus | 'unknown' | Array<PrintJobStatus | 'unknown'>;
   /** Device ID filter */
   deviceId?: string;
   /** Limit results */
@@ -86,26 +87,25 @@ export interface HistoryQueryOptions {
 }
 
 /**
- * Print History Service
+ * Print History Service.
+ *
+ * Backed by a {@link BoundedOrderedMap} that automatically evicts the oldest
+ * entries once capacity is exceeded.
  */
 export class PrintHistory {
   private readonly logger = Logger.scope('PrintHistory');
-  private readonly entries: Map<string, PrintHistoryEntry> = new Map();
+  private readonly store: BoundedOrderedMap<string, PrintHistoryEntry>;
   private counter = 0;
+
   /** Default maximum number of history entries */
   private static readonly DEFAULT_MAX_ENTRIES = 1000;
-
-  private readonly maxEntries: number;
-
-  /** Ordered index of entry IDs by createdAt (ascending) for fast pruning */
-  private readonly orderedIds: { id: string; createdAt: number }[] = [];
 
   /**
    * Creates a new PrintHistory instance
    * @param maxEntries - Maximum number of entries to keep (default: 1000)
    */
   constructor(maxEntries = PrintHistory.DEFAULT_MAX_ENTRIES) {
-    this.maxEntries = maxEntries;
+    this.store = new BoundedOrderedMap<string, PrintHistoryEntry>(maxEntries);
   }
 
   /**
@@ -123,7 +123,7 @@ export class PrintHistory {
     const id = this.generateId();
     const now = Date.now();
 
-    const entry: PrintHistoryEntry = {
+    this.store.set(id, {
       id,
       jobId: params.jobId,
       dataSize: params.data.length,
@@ -133,15 +133,7 @@ export class PrintHistory {
       deviceId: params.deviceId,
       deviceName: params.deviceName,
       metadata: params.metadata,
-    };
-
-    this.entries.set(id, entry);
-
-    // Maintain the ordered index: insert at the correct position (ascending by createdAt)
-    const insertIdx = this.findInsertPosition(now);
-    this.orderedIds.splice(insertIdx, 0, { id, createdAt: now });
-
-    this.enforceMaxEntries();
+    });
 
     this.logger.debug(`History entry added: ${id}`);
     return id;
@@ -159,32 +151,21 @@ export class PrintHistory {
       error: string;
     }>
   ): void {
-    const entry = this.entries.get(id);
+    const entry = this.store.get(id);
     if (!entry) {
       this.logger.warn(`History entry not found: ${id}`);
       return;
     }
 
-    Object.assign(entry, updates);
-
-    if (updates.startedAt) {
-      entry.startedAt = updates.startedAt;
-    }
-
-    if (updates.completedAt) {
+    if (updates.status !== undefined) entry.status = updates.status;
+    if (updates.startedAt !== undefined) entry.startedAt = updates.startedAt;
+    if (updates.completedAt !== undefined) {
       entry.completedAt = updates.completedAt;
-      if (entry.startedAt) {
+      if (entry.startedAt !== undefined) {
         entry.duration = updates.completedAt - entry.startedAt;
       }
     }
-
-    if (updates.error) {
-      entry.error = updates.error;
-    }
-
-    if (updates.status) {
-      entry.status = updates.status;
-    }
+    if (updates.error !== undefined) entry.error = updates.error;
 
     this.logger.debug(`History entry updated: ${id}`);
   }
@@ -193,14 +174,14 @@ export class PrintHistory {
    * Get entry by ID
    */
   getEntry(id: string): PrintHistoryEntry | undefined {
-    return this.entries.get(id);
+    return this.store.get(id);
   }
 
   /**
    * Get recent jobs
    */
   getRecent(count = 10): PrintHistoryEntry[] {
-    return Array.from(this.entries.values())
+    return Array.from(this.store.values())
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, count);
   }
@@ -209,36 +190,34 @@ export class PrintHistory {
    * Query history with filters
    */
   query(options: HistoryQueryOptions = {}): PrintHistoryEntry[] {
-    let results = Array.from(this.entries.values());
+    let results = Array.from(this.store.values());
 
-    if (options.startDate) {
+    if (options.startDate !== undefined) {
       const startDate = options.startDate;
       results = results.filter(e => e.createdAt >= startDate);
     }
 
-    if (options.endDate) {
+    if (options.endDate !== undefined) {
       const endDate = options.endDate;
       results = results.filter(e => e.createdAt <= endDate);
     }
 
-    if (options.status) {
+    if (options.status !== undefined) {
       const statuses = Array.isArray(options.status) ? options.status : [options.status];
       results = results.filter(e => statuses.includes(e.status as PrintJobStatus));
     }
 
-    if (options.deviceId) {
+    if (options.deviceId !== undefined) {
       results = results.filter(e => e.deviceId === options.deviceId);
     }
 
-    // Sort by creation date descending
     results.sort((a, b) => b.createdAt - a.createdAt);
 
-    // Pagination
-    if (options.offset) {
+    if (options.offset !== undefined && options.offset > 0) {
       results = results.slice(options.offset);
     }
 
-    if (options.limit) {
+    if (options.limit !== undefined && options.limit > 0) {
       results = results.slice(0, options.limit);
     }
 
@@ -249,9 +228,8 @@ export class PrintHistory {
    * Get statistics
    */
   getStats(options?: { days?: number }): PrintHistoryStats {
-    let entries = Array.from(this.entries.values());
+    let entries = Array.from(this.store.values());
 
-    // Filter by days if specified
     if (options?.days) {
       const cutoff = Date.now() - options.days * 24 * 60 * 60 * 1000;
       entries = entries.filter(e => e.createdAt >= cutoff);
@@ -263,7 +241,7 @@ export class PrintHistory {
 
     const totalDuration = completed
       .filter(e => e.duration !== undefined)
-      .reduce((sum, e) => sum + (e.duration || 0), 0);
+      .reduce((sum, e) => sum + (e.duration ?? 0), 0);
 
     const totalBytes = entries.reduce((sum, e) => sum + e.dataSize, 0);
 
@@ -282,8 +260,7 @@ export class PrintHistory {
    * Clear all history
    */
   clear(): void {
-    this.entries.clear();
-    this.orderedIds.length = 0;
+    this.store.clear();
     this.logger.info('Print history cleared');
   }
 
@@ -291,11 +268,11 @@ export class PrintHistory {
    * Export history as JSON
    */
   export(): string {
-    return JSON.stringify(Array.from(this.entries.values()), null, 2);
+    return JSON.stringify(Array.from(this.store.values()), null, 2);
   }
 
   /**
-   * Import history from JSON
+   * Import history from JSON. Rebuilds the underlying ordered index after bulk insert.
    */
   import(json: string): number {
     try {
@@ -304,15 +281,12 @@ export class PrintHistory {
 
       for (const entry of data) {
         if (entry.id && entry.dataSize) {
-          this.entries.set(entry.id, entry);
+          this.store.set(entry.id, entry);
           imported++;
         }
       }
 
-      // Rebuild the ordered index after bulk import
-      this.rebuildIndex();
-
-      this.enforceMaxEntries();
+      this.store.rebuildIndex();
       this.logger.info(`Imported ${imported} history entries`);
       return imported;
     } catch (error) {
@@ -321,68 +295,17 @@ export class PrintHistory {
     }
   }
 
+  /** Total number of entries currently retained (≤ maxEntries). */
+  get size(): number {
+    return this.store.size;
+  }
+
   /**
    * Generate unique ID
    */
   private generateId(): string {
     this.counter++;
     return `history_${Date.now()}_${this.counter}`;
-  }
-
-  /**
-   * Enforce maximum entries limit using the ordered index.
-   * Instead of full-sorting, we use the pre-sorted index to find and remove the oldest entries.
-   */
-  private enforceMaxEntries(): void {
-    if (this.entries.size <= this.maxEntries) {
-      return;
-    }
-
-    const excess = this.entries.size - this.maxEntries;
-
-    // The ordered index is ascending by createdAt, so the first `excess` entries are the oldest
-    for (let i = 0; i < excess; i++) {
-      const item = this.orderedIds[i];
-      if (item) {
-        this.entries.delete(item.id);
-      }
-    }
-
-    // Remove the pruned entries from the ordered index
-    this.orderedIds.splice(0, excess);
-
-    this.logger.debug(`Pruned ${excess} old history entries`);
-  }
-
-  /**
-   * Binary search to find the insertion position for a given timestamp
-   * in the orderedIds array (ascending order).
-   */
-  private findInsertPosition(createdAt: number): number {
-    let lo = 0;
-    let hi = this.orderedIds.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >>> 1;
-      const midEntry = this.orderedIds[mid];
-      if (midEntry && midEntry.createdAt <= createdAt) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return lo;
-  }
-
-  /**
-   * Rebuild the ordered index from the entries map.
-   * Used after bulk operations like import.
-   */
-  private rebuildIndex(): void {
-    this.orderedIds.length = 0;
-    for (const [id, entry] of this.entries) {
-      this.orderedIds.push({ id, createdAt: entry.createdAt });
-    }
-    this.orderedIds.sort((a, b) => a.createdAt - b.createdAt);
   }
 }
 
