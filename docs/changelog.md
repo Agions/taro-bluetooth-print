@@ -9,7 +9,7 @@
 - **插件系统统一**: 移除冗余的 core/plugin PluginManager，保留 plugins/PluginManager
 - **代码重复消除**: 重复率从 0.57% 降至 0%（8 个克隆 → 0 个）
   - TemplateRenderer 提取 `buildTableSeparatorLine` 和 `renderFillLines` 辅助方法
-  - CpclDriver/ZplDriver 提取 `barcode-helpers.ts` mixin 模式
+  - CpclDriver/ZplDriver 提取 `BarcodeHelpers.ts` mixin 模式
   - BaseAdapter 统一重导出共享依赖，消除 ReactNativeAdapter 重复导入
   - PreviewRenderer 合并 handleESC/handleGS 为 `handleControlSequence`
   - gbk-lite.ts 数据去重（582 → 106 条目，减少 81.8%）
@@ -35,7 +35,7 @@
 
 ### Added
 
-- 新增 `src/drivers/barcode-helpers.ts` — 条码便捷方法 mixin
+- 新增 `src/drivers/BarcodeHelpers.ts` — 条码便捷方法 mixin
 - BaseAdapter 新增共享依赖重导出
 
 ### Testing

@@ -1,5 +1,64 @@
 # Changelog
 
+## [2.14.0] - 2026-07-07
+
+### Changed
+
+- **核心引擎解耦**: `BluetoothPrinter` 抽出 `handleError()` 与 `resolveConnectionManager()` helper，消除 4 处 try/catch 模板
+- **命令构建器精简**: `CommandBuilder` 抽出 `pushCommands()` helper，消除 7 处 `buffer.push + invalidateCache` 重复
+- **适配器分层**: 5 个 mini-program adapter（Taro / Alipay / Baidu / ByteDance / QQ）精简为薄壳类（-69% 平均）
+- **服务层去重**: `ConnectionManager.classifyConnectError()`、`PrintJobManager.wrapError()` 抽离，消除嵌套三元
+- **错误类去重**: `ConnectionError` / `PrintJobError` 移除冗余 mapping 表（基于字符串值与 `ErrorCode` 完全一致）；`CommandBuildError` 仅保留 DRIVER_ERROR 单条映射
+- **类型黑洞修复**: `PluginManager.executeHook()` 移除 `@ts-expect-error`，改用显式类型守卫
+- **命名规范统一**: 冻结 PascalCase（类文件）/ camelCase（工具文件）/ `I`-prefix（接口）/ 0 下划线前缀 4 条规则
+- **API 表面补完**: `src/index.ts` 新增 `QQAdapter` 导出
+
+### Removed
+
+- `src/utils/validation.ts` — deprecated 空 stub，无任何引用
+
+### Renamed
+
+- `drivers/escPosDriver.ts` → `drivers/EscPosDriver.ts`
+- `drivers/barcode-helpers.ts` → `drivers/BarcodeHelpers.ts`
+- `errors/baseError.ts` → `errors/BaseError.ts`
+- `plugins/types.ts` → `plugins/PluginTypes.ts`
+- `encoding/gbk-{table,lite,data}.ts` → `encoding/Gbk{Table,Lite,Data}.ts`
+- `encoding/korean-japanese.ts` → `encoding/KoreanJapanese.ts`
+
+### Refactoring Metrics
+
+| 指标 | Before | After | Δ |
+|---|---:|---:|---:|
+| `BluetoothPrinter.ts` | 433 行 | 277 行 | **-36%** |
+| `CommandBuilder.ts` | 315 行 | 158 行 | **-50%** |
+| `PrintJobManager.ts` | 539 行 | 386 行 | **-28%** |
+| 5 mini-program adapters | ~200 行 | ~62 行 | **-69%** |
+| 3 error classes | 225 行 | 142 行 | **-37%** |
+| **Total** | **23,355 行** | **22,567 行** | **-788 / -3.4%** |
+
+### Testing
+
+- 1,102 tests passed, 38 skipped, 0 regressions
+- type-check: 0 errors (strict + noUncheckedIndexedAccess 全开)
+- eslint: 0 errors / 0 warnings
+- vite build: 22.84s · 230.91 KB gzip（基线 22.25s · 230.58 KB gzip）
+- GitHub Actions CI: ✅ success (Run #28835694715)
+
+### Commits
+
+7 个 conventional commits 落地 (`be2fbdc..06f5ede`)：
+
+1. `refactor(core): simplify BluetoothPrinter & CommandBuilder`
+2. `refactor(services): dedup ConnectionManager + PrintJobManager`
+3. `refactor(adapters): deduplicate mini-program adapters and BaseAdapter imports`
+4. `refactor: enforce PascalCase file naming for class-bearing modules`
+5. `refactor: remove @ts-expect-error and dead code`
+6. `refactor(errors): deduplicate error-code mapping tables`
+7. `chore: update import paths after PascalCase file renames`
+
+---
+
 ## [2.13.0] - 2026-05-27
 
 ### Changed

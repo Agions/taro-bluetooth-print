@@ -118,7 +118,7 @@ src/
 | 观察者模式 | EventEmitter | ✅ 核心组件 |
 | 策略模式 | 驱动适配 | ✅ 良好 |
 | 模板方法模式 | BaseAdapter | ✅ 优秀 |
-| Mixin 模式 | barcode-helpers.ts | ✅ 消除重复 |
+| Mixin 模式 | BarcodeHelpers.ts | ✅ 消除重复 |
 
 ### 3.3 依赖注入 ✅
 

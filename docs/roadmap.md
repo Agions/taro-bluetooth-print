@@ -22,9 +22,6 @@ outline: [2, 3]
 
 #### 平台支持
 
-- [ ] **支付宝小程序适配器**
-- [ ] **百度小程序适配器**
-- [ ] **字节跳动小程序适配器**
 - [ ] **鸿蒙系统原生适配器**
 
 #### 驱动扩展
@@ -39,6 +36,26 @@ outline: [2, 3]
 - [ ] **模板市场**: 预设模板分享平台
 - [ ] **云端配置**: 打印机配置云端管理
 - [ ] **多语言支持**: 国际化(i18n)
+
+## v2.14.0 - 架构深度重构
+
+### 已完成 (2026-07-07)
+
+- [x] **核心引擎解耦**: BluetoothPrinter 抽出 `handleError()` / `resolveConnectionManager()` helper，消除 4 处 try/catch 模板
+- [x] **命令构建器精简**: CommandBuilder 抽出 `pushCommands()` helper，消除 7 处 buffer.push 重复（-50% 代码量）
+- [x] **适配器分层**: 5 个 mini-program adapter 精简为 ~12 行薄壳类（-69% 平均）
+- [x] **连接/任务服务层**: 抽出 `classifyConnectError()` / `wrapError()` helper
+- [x] **命名规范统一**: 冻结 PascalCase/camelCase/I-prefix/无下划线前缀；8 个文件重命名
+- [x] **错误处理优化**: ConnectionError/PrintJobError/CommandBuildError 移除冗余 mapping 表（-37% 平均）
+- [x] **类型黑洞修复**: 消除 `PluginManager.ts` 的 `@ts-expect-error`
+- [x] **死代码清理**: 删除 `src/utils/validation.ts`（deprecated 空 stub）
+- [x] **平台适配补完**: `src/index.ts` 补 `QQAdapter` 漏掉的 export
+
+### 性能
+
+- 源代码: 23,355 行 → 22,567 行（**-788 行，-3.4%**）
+- 重命名: 8 个文件 PascalCase 统一
+- 重构 commits: 7 个 conventional commits
 
 ## v2.10.x - 持续完善
 
