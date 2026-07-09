@@ -1,12 +1,20 @@
 # 鸿蒙 HarmonyOS 示例
 
-基于 HarmonyOS ArkTS 的蓝牙打印服务封装示例。
+HarmonyOS 蓝牙打印服务封装示例。
+
+## ⚠️ 重要说明
+
+`taro-bluetooth-print` v2.15.x **未提供**开箱即用的 HarmonyOS adapter (内置 6 个 adapter: Taro / Alipay / Baidu / ByteDance / QQ / WebBluetooth)。
+
+本文件提供:
+- **HarmonyPrintService**: 完整业务流封装 (扫描/连接/打印/事件)
+- **HarmonyAdapter**: 参考实现 (伪代码,展示要实现的方法),实际接入需要按 `IPrinterAdapter` 接口用 HarmonyOS BLE API 实现
 
 ## 文件结构
 
 ```
 harmonyos/
-└── harmony-print-service.ts   # 打印服务类（扫描 / 连接 / 打印）
+└── harmony-print-service.ts   # HarmonyAdapter (伪代码) + HarmonyPrintService
 ```
 
 ## 前置条件
