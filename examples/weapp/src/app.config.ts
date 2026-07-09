@@ -8,7 +8,10 @@ export default {
     'pages/index/index',
     'pages/printer/index',
     'pages/receipt/index',
-    'pages/label/index'
+    'pages/label/index',
+    'pages/image/index',
+    'pages/template/index',
+    'pages/offline/index'
   ],
   window: {
     backgroundTextStyle: 'light',

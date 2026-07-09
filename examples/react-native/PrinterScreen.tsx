@@ -19,7 +19,15 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { BluetoothPrinter, DeviceManager, TsplDriver } from 'taro-bluetooth-print';
+import { createBluetoothPrinter, DeviceManager, TsplDriver } from 'taro-bluetooth-print';
+// ⚠️ 注意: v2.15.x 未导出 ReactNativeAdapter,需用平台原生 BLE 模块
+// (iOS: react-native-ble-plx / Android: react-native-ble-manager) 实现 IPrinterAdapter
+// 本文件演示业务流,具体 adapter 接入需自行封装
+//
+// 真实集成步骤:
+//   1. npm install react-native-ble-plx
+//   2. 实现 ReactNativeAdapter implements IPrinterAdapter
+//   3. const printer = createBluetoothPrinter({ adapter: new ReactNativeAdapter() });
 
 // 设备类型
 interface BluetoothDevice {
@@ -39,8 +47,10 @@ const PrinterScreen: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   
-  // 打印机实例
-  const [printer] = useState(() => new BluetoothPrinter());
+  // 打印机实例 (实际接入需先实现 RN adapter,见顶部 import 注释)
+  // 下面这行 placeholder 仅用于展示代码结构;真实场景必须传入 RN adapter:
+  //   const [printer] = useState(() => createBluetoothPrinter({ adapter: new ReactNativeAdapter() }));
+  const [printer] = useState(() => createBluetoothPrinter({} as any));
   const [deviceManager] = useState(() => new DeviceManager());
 
   // 初始化
@@ -224,7 +234,13 @@ const PrinterScreen: React.FC = () => {
   };
 
   /**
-   * 打印标签
+   * 打印标签 (TSPL)
+   *
+   * ⚠️ v2.15.x TSPL 集成说明:
+   * TsplDriver 不实现 IPrinterDriver (没有 init() 方法),
+   * 不能直接喂给 CommandBuilder。
+   * 正确流程: TsplDriver 链式构造 → getBuffer() → 通过 adapter.write() 发送
+   * 此示例展示到 getBuffer() 这一步
    */
   const handlePrintLabel = async () => {
     if (!connected) {
@@ -232,30 +248,30 @@ const PrinterScreen: React.FC = () => {
       return;
     }
 
-    setPrinting(true);
-
     try {
+      // 1. 构建 TSPL driver (链式 API)
       const driver = new TsplDriver();
-      const labelPrinter = new BluetoothPrinter(printer.adapter as any, driver);
-
       driver
         .size(60, 40)
         .gap(3)
         .clear()
         .text('商品名称', { x: 20, y: 20, font: 3 })
-        .text('¥99.00', { x: 20, y: 60, font: 4 })
-        .barcode('6901234567890', { x: 20, y: 100, type: 'EAN13' })
-        .qrcode('https://example.com', { x: 250, y: 20 })
-        .print(1);
+        .text('¥99.00', { x: 20, y: 80, font: 4 })
+        .barcode('6901234567890', { x: 20, y: 160, type: 'EAN13', height: 60 })
+        .qrcode('https://example.com', { x: 250, y: 20, cellWidth: 4 })
+        .print(1, 1);
 
-      // 注意：需要通过底层适配器发送
-      const buffer = driver.getBuffer();
-      // 这里简化处理
-      await printer.write(buffer).catch(() => {});
-      
-      addLog('标签打印完成', 'success');
+      // 2. 取 ASCII 字节流
+      const bytes = driver.getBuffer();
+
+      // 3. 真实发送 (RN adapter 需用户实现, 此处仅演示):
+      //    await yourRnAdapter.write(bytes);
+      addLog(
+        `✅ TSPL 指令流: ${bytes.length} bytes (已构造,待通过 adapter.write 发送)`,
+        'success'
+      );
     } catch (error: any) {
-      addLog(`打印失败: ${error.message}`, 'error');
+      addLog(`失败: ${error.message}`, 'error');
     } finally {
       setPrinting(false);
     }

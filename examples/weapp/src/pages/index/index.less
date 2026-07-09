@@ -2,71 +2,223 @@
   padding: 24rpx;
   min-height: 100vh;
   box-sizing: border-box;
+  background: #f9fafb;
 }
 
+/* ==================== Hero (任务 1) ==================== */
+
 .hero {
+  position: relative;
+  overflow: hidden;
   text-align: center;
-  padding: 48rpx 0 32rpx;
+  padding: 56rpx 32rpx 40rpx;
+  margin: 0 -24rpx 32rpx;
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 50%, #a855f7 100%);
+  border-radius: 0 0 32rpx 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(67, 56, 202, 0.15);
+}
+
+/* 装饰圆 - 纯 CSS,无额外资源 */
+.hero-deco {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.hero-deco--1 {
+  top: -40rpx;
+  right: -40rpx;
+  width: 200rpx;
+  height: 200rpx;
+}
+.hero-deco--2 {
+  bottom: -60rpx;
+  left: -60rpx;
+  width: 240rpx;
+  height: 240rpx;
+  background: rgba(255, 255, 255, 0.05);
+}
+.hero-deco--3 {
+  top: 60rpx;
+  left: 40%;
+  width: 80rpx;
+  height: 80rpx;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 版本徽章 */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  margin-bottom: 20rpx;
+  backdrop-filter: blur(10rpx);
+}
+.hero-badge-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 8rpx rgba(74, 222, 128, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+.hero-badge-text {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 500;
+  font-family: monospace;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
 }
 
 .hero-title {
   display: block;
-  font-size: 48rpx;
+  font-size: 52rpx;
   font-weight: 700;
-  color: #4338ca;
+  color: #fff;
   margin-bottom: 12rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+  letter-spacing: 2rpx;
 }
-
 .hero-sub {
   display: block;
-  font-size: 24rpx;
-  color: #6366f1;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
   font-family: monospace;
 }
 
+/* ==================== Demo 卡片 (任务 2) ==================== */
+
 .demo-list {
-  margin-top: 32rpx;
+  margin-top: 8rpx;
 }
 
 .demo-card {
+  position: relative;
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   padding: 28rpx 24rpx;
   margin-bottom: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(67, 56, 202, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  /* 左边色条 - 默认透明,active 态显示 */
+  border-left: 6rpx solid transparent;
+}
+
+/* 微信 hover 态 - 透明度反馈 */
+.demo-card--hover {
+  background: #f5f3ff;
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(67, 56, 202, 0.12);
+}
+
+/* 点击瞬间 active 态 - 强反馈 */
+.demo-card--active {
+  background: #ede9fe;
+  transform: scale(0.96);
+  box-shadow: 0 1rpx 4rpx rgba(67, 56, 202, 0.18);
+  border-left-color: #4338ca;
 }
 
 .demo-emoji {
   font-size: 56rpx;
   margin-right: 20rpx;
+  /* emoji 微动效,吸睛但不打扰 */
+  transition: transform 0.2s ease;
+}
+.demo-card--active .demo-emoji,
+.demo-card--hover .demo-emoji {
+  transform: scale(1.15) rotate(-5deg);
 }
 
 .demo-info {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+.demo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 6rpx;
 }
 
 .demo-title {
   font-size: 32rpx;
   font-weight: 600;
   color: #1e1b4b;
-  margin-bottom: 6rpx;
+  flex-shrink: 0;
 }
 
 .demo-desc {
   font-size: 24rpx;
   color: #6b7280;
   line-height: 1.4;
+  /* 截断过长的描述 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 卡片标签 (NEW / HOT / BETA) */
+.demo-tag {
+  display: inline-block;
+  font-size: 18rpx;
+  font-weight: 700;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  letter-spacing: 1rpx;
+  flex-shrink: 0;
+  font-family: monospace;
+}
+.demo-tag--new {
+  background: #dcfce7;
+  color: #166534;
+}
+.demo-tag--hot {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.demo-tag--beta {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .demo-arrow {
   font-size: 40rpx;
   color: #cbd5e1;
   margin-left: 12rpx;
+  font-weight: 300;
+  transition: transform 0.2s ease, color 0.2s ease;
 }
+.demo-card--active .demo-arrow,
+.demo-card--hover .demo-arrow {
+  color: #4338ca;
+  transform: translateX(8rpx);
+}
+
+/* ==================== Footer (任务 3) ==================== */
 
 .footer {
   margin-top: 48rpx;
@@ -74,10 +226,56 @@
 }
 
 .footer-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
   font-size: 24rpx;
-  color: #f59e0b;
+  color: #92400e;
   background: #fef3c7;
   padding: 12rpx 24rpx;
   border-radius: 8rpx;
-  display: inline-block;
+  margin-bottom: 24rpx;
+}
+.footer-tip-icon {
+  font-size: 24rpx;
+}
+
+/* 动态系统信息 (平台/微信/基础库) */
+.footer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.04);
+  font-family: monospace;
+  flex-wrap: wrap;
+}
+.footer-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  min-width: 0;
+}
+.footer-meta-label {
+  font-size: 18rpx;
+  color: #9ca3af;
+  letter-spacing: 1rpx;
+}
+.footer-meta-value {
+  font-size: 22rpx;
+  color: #4338ca;
+  font-weight: 600;
+  max-width: 180rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.footer-meta-divider {
+  width: 1rpx;
+  height: 28rpx;
+  background: #e5e7eb;
 }
