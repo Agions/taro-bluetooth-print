@@ -1,0 +1,160 @@
+.printer-page {
+  padding: 24rpx;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.header {
+  background: linear-gradient(135deg, #4338ca, #6366f1);
+  color: #fff;
+  padding: 32rpx 28rpx;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(67, 56, 202, 0.2);
+}
+
+.title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.status {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.scan-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(67, 56, 202, 0.08);
+}
+
+.loading {
+  text-align: center;
+  padding: 32rpx 0;
+  color: #6366f1;
+  font-size: 28rpx;
+}
+
+.device-list {
+  max-height: 480rpx;
+  margin-top: 16rpx;
+}
+
+.empty {
+  text-align: center;
+  padding: 48rpx 0;
+  color: #9ca3af;
+  font-size: 26rpx;
+}
+
+.device-item {
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx 16rpx;
+  border-bottom: 1rpx solid #f3f4f6;
+  background: #fafafa;
+  margin-bottom: 12rpx;
+  border-radius: 12rpx;
+}
+
+.device-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1e1b4b;
+  margin-bottom: 4rpx;
+}
+
+.device-id {
+  font-size: 22rpx;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.connected-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(67, 56, 202, 0.08);
+}
+
+.device-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #f3f4f6;
+  font-size: 28rpx;
+  color: #1e1b4b;
+}
+
+.print-buttons {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16rpx;
+}
+
+.progress {
+  margin-top: 24rpx;
+  padding: 16rpx;
+  background: #f0f9ff;
+  border-radius: 12rpx;
+}
+
+.progress-bar {
+  height: 16rpx;
+  background: #e0e7ff;
+  border-radius: 8rpx;
+  overflow: hidden;
+  margin-top: 12rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4338ca, #6366f1);
+  transition: width 0.3s ease;
+}
+
+.logs {
+  flex: 1;
+  background: #1e1b4b;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  min-height: 300rpx;
+}
+
+.logs-title {
+  color: #a5b4fc;
+  font-size: 26rpx;
+  margin-bottom: 12rpx;
+}
+
+.logs-content {
+  flex: 1;
+  max-height: 400rpx;
+}
+
+.logs-empty {
+  color: #6b7280;
+  font-size: 24rpx;
+  text-align: center;
+  padding: 32rpx 0;
+}
+
+.log-item {
+  display: block;
+  color: #c7d2fe;
+  font-family: monospace;
+  font-size: 22rpx;
+  line-height: 1.6;
+  word-break: break-all;
+}
