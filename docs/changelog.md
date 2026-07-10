@@ -1,37 +1,172 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.15.3] - 2026-07-10
+
+### Added
+
+- **`BluetoothPrinter.writeRaw(buffer, options?)`** — 原始字节透传通道,绕过 `CommandBuilder` 直接走连接层
+  - 复用 `PrintJobManager` 的分片 / 重试 / 进度 / 暂停 / 状态机
+  - 不触碰 `commandBuilder` 命令队列 — 可与 `text()` / `qr()` / `cut()` 自由混用
+  - 抛出 `CONNECTION_FAILED` (未连接) / `PRINT_JOB_FAILED` (adapter 错误)
+- **6 个新 / 扩展 API 文档**: [drivers.md](./api/drivers.md) / [adapters.md](./api/adapters.md) / [errors.md](./api/errors.md) / [factory.md](./api/factory.md) / [plugins.md](./api/plugins.md) / [bluetooth-printer.md](./api/bluetooth-printer.md)
+
+### Changed
+
+- **构建产物按 sub-export 拆分** — 主 bundle `index.es.js` / `index.cjs.js` 从 **630KB → 86KB**(-86%)
+  - 5 个 lib entry:`index` / `core` / `drivers` / `adapters` / `encoding`
+  - 总 dist 大小 2.6MB → ~715KB(-73%)
+- **修复**:vitepress public 资源不再 leak 到 dist/
+
+### Testing
+
+- 新增 **206 个单元测试**(1,102 → 1,308 个),覆盖率 **62.61% → 66.97%**(lines)
+- 重点补强:`TemplateRenderer` 47.69% → **99.67%** / `TemplateParser` 73.52% → **97.05%** / `utils/platform` 47.61% → **100%**
+
+### Follow-up (v3.x)
+
+- `TsplDriverAdapter` — 让 `printer.text(...).qr(...).print()` 在 TSPL 模式也能跑(对称体验),不在 v2.15.3 hotfix 范围内
+- 剩余 API 文档(v2.15.4+):17 个服务层 / 工具 / 类型文档
+
+---
+
+## [2.15.2] - 2026-07-07
+
+### Changed
+
+- **Discussions 入口改造** — 因 GitHub Discussions 页面当前为空,正式文档中讨论入口改为 docs 内页面:`/guide/discussions`
+  - `README.md`: `💬 讨论` 链接改为 docs 页面
+  - `docs/roadmap.md`: GitHub Discussions 链接改为 docs 页面
+  - 新增 `docs/guide/discussions.md`:整合社区渠道说明、Issue 报告规范、PR 规范、行为准则
+
+---
+
+## [2.15.1] - 2026-07-07
+
+### Fixed
+
+- **README logo 修复** — npm 注册表 README 中 logo 使用相对路径,在 npmjs.com 上无法访问。已改为绝对 URL:`https://agions.github.io/taro-bluetooth-print/logo.svg`
+- **examples 文档补全** — 为 `examples/weapp` / `examples/h5` / `examples/harmonyos` / `examples/react-native` 各添加专业 README.md,包含前置条件、快速开始、核心代码说明、平台差异、常见问题
+
+### Changed
+
+- **README.md** — 示例项目章节从简单表格升级为带场景代码块的专业文档(+119 行)
+- **examples/README.md** — 从 159 行重写为 187 行专业文档,新增 4 个平台 README
+- **Brand Consistency** — 所有示例文档统一使用品牌渐变色(indigo → cyan)和文档结构模板
+
+---
+
+## [2.15.0] - 2026-07-07
+
+### Added
+
+- **Professional Documentation Redesign** — Complete visual overhaul of docs site with custom brand identity
+  - 6 new SVG logo variants (primary, mark, dark, wordmark, OG cover, hero banner)
+  - Reimagined docs landing page with hero banner, feature cards, and compatibility matrix
+  - Full Mermaid architecture diagrams (6-layer system, connection sequence, print flow)
+- **Online Documentation Link** — `homepage` and `documentation` fields added to `package.json`
+  - Live docs: https://agions.github.io/taro-bluetooth-print/
+
+### Changed
+
+- **README.md** — Hero section with brand badges, 4 why-choose cards, architecture mermaid diagram, 8×7 platform compatibility matrix(360 → 443 lines)
+- **docs/index.md** — VitePress hero with `hero-banner.svg`, 6 feature cards, full protocol×platform matrix, 6 highlight cards with hover effects(154 → 305 lines)
+- **docs/guide/architecture.md** — Added mermaid `flowchart TD` (6-layer architecture), `sequenceDiagram` (connection flow + print flow), detailed layer responsibility table
+- **Brand Identity** — Unified design language: indigo → cyan gradient(`#4338ca` → `#6366f1` → `#0891b2`)
+
+### Documentation
+
+- All SVG assets are inline-path (0 external dependencies)
+- Docs build time: 19.3s, 0 errors
+- Mermaid diagrams render correctly in VitePress
+
+---
+
+## [2.14.0] - 2026-07-07
+
+### Changed
+
+- **核心引擎解耦**: `BluetoothPrinter` 抽出 `handleError()` 与 `resolveConnectionManager()` helper,消除 4 处 try/catch 模板
+- **命令构建器精简**: `CommandBuilder` 抽出 `pushCommands()` helper,消除 7 处 `buffer.push + invalidateCache` 重复
+- **适配器分层**: 5 个 mini-program adapter(Taro / Alipay / Baidu / ByteDance / QQ)精简为薄壳类(-69% 平均)
+- **服务层去重**: `ConnectionManager.classifyConnectError()`、`PrintJobManager.wrapError()` 抽离,消除嵌套三元
+- **错误类去重**: `ConnectionError` / `PrintJobError` 移除冗余 mapping 表;`CommandBuildError` 仅保留 DRIVER_ERROR 单条映射
+- **类型黑洞修复**: `PluginManager.executeHook()` 移除 `@ts-expect-error`,改用显式类型守卫
+- **命名规范统一**: 冻结 PascalCase(类文件)/ camelCase(工具文件)/ `I`-prefix(接口)/ 0 下划线前缀 4 条规则
+- **API 表面补完**: `src/index.ts` 新增 `QQAdapter` 导出
+
+### Removed
+
+- `src/utils/validation.ts` — deprecated 空 stub,无任何引用
+
+### Renamed
+
+- `drivers/escPosDriver.ts` → `drivers/EscPosDriver.ts`
+- `drivers/barcode-helpers.ts` → `drivers/BarcodeHelpers.ts`
+- `errors/baseError.ts` → `errors/BaseError.ts`
+- `plugins/types.ts` → `plugins/PluginTypes.ts`
+- `encoding/gbk-{table,lite,data}.ts` → `encoding/Gbk{Table,Lite,Data}.ts`
+- `encoding/korean-japanese.ts` → `encoding/KoreanJapanese.ts`
+
+### Refactoring Metrics
+
+| 指标 | Before | After | Δ |
+|---|---:|---:|---:|
+| `BluetoothPrinter.ts` | 433 行 | 277 行 | **-36%** |
+| `CommandBuilder.ts` | 315 行 | 158 行 | **-50%** |
+| `PrintJobManager.ts` | 539 行 | 386 行 | **-28%** |
+| 5 mini-program adapters | ~200 行 | ~62 行 | **-69%** |
+| 3 error classes | 225 行 | 142 行 | **-37%** |
+| **Total** | **23,355 行** | **22,567 行** | **-788 / -3.4%** |
+
+### Testing
+
+- 1,102 tests passed, 38 skipped, 0 regressions
+- type-check: 0 errors (strict + noUncheckedIndexedAccess 全开)
+- eslint: 0 errors / 0 warnings
+- vite build: 22.84s · 230.91 KB gzip
+- GitHub Actions CI: ✅ success (Run #28835694715)
+
+---
+
 ## [2.13.0] - 2026-05-27
 
 ### Changed
 
-- **架构精简**: 移除过度工程的 DI 容器系统（Container、Tokens、ServiceProvider、di-factory），约 1,048 行冗余代码
-- **事件系统统一**: 移除冗余的 EventBus，统一使用类型安全的 EventEmitter
-- **插件系统统一**: 移除冗余的 core/plugin PluginManager，保留 plugins/PluginManager
-- **代码重复消除**: 重复率从 0.57% 降至 0%（8 个克隆 → 0 个）
+- **架构精简**: 移除过度工程的 DI 容器系统(Container、Tokens、ServiceProvider、di-factory),约 1,048 行冗余代码
+- **事件系统统一**: 移除冗余的 EventBus,统一使用类型安全的 EventEmitter
+- **插件系统统一**: 移除冗余的 core/plugin PluginManager,保留 plugins/PluginManager
+- **代码重复消除**: 重复率从 0.57% 降至 0%(8 个克隆 → 0 个)
   - TemplateRenderer 提取 `buildTableSeparatorLine` 和 `renderFillLines` 辅助方法
   - CpclDriver/ZplDriver 提取 `BarcodeHelpers.ts` mixin 模式
-  - BaseAdapter 统一重导出共享依赖，消除 ReactNativeAdapter 重复导入
+  - BaseAdapter 统一重导出共享依赖,消除 ReactNativeAdapter 重复导入
   - PreviewRenderer 合并 handleESC/handleGS 为 `handleControlSequence`
-  - gbk-lite.ts 数据去重（582 → 106 条目，减少 81.8%）
+  - gbk-lite.ts 数据去重(582 → 106 条目,减少 81.8%)
 - **类型安全提升**: 类型断言从 124 处降至 73 处
-  - EventEmitter 内部存储改用映射类型，消除 10+ 类型断言
+  - EventEmitter 内部存储改用映射类型,消除 10+ 类型断言
   - 消除所有 `as` 类型转换中的不必要断言
-- **错误处理改进**: 修复 6 处空 catch 块，所有异常均记录日志
+- **错误处理改进**: 修复 6 处空 catch 块,所有异常均记录日志
   - CloudPrintManager、QRCodeDiscoveryService、PrinterStatus、PrintScheduler
 - **魔法数字提取**: 8 个硬编码数字提取为命名常量
   - `DEFAULT_HEARTBEAT_INTERVAL`、`DEFAULT_RECONNECT_INTERVAL`、`DEFAULT_CONNECTION_TIMEOUT`
   - `DEFAULT_RETRY_BASE_DELAY`、`DEFAULT_RETRY_MAX_DELAY`、`MAX_TIMEOUT_MS`
-- **工厂模式简化**: 移除 `PrinterFactory` 对象包装，保留 `createBluetoothPrinter` 和 `createWebBluetoothPrinter` 函数
+- **工厂模式简化**: 移除 `PrinterFactory` 对象包装,保留 `createBluetoothPrinter` 和 `createWebBluetoothPrinter` 函数
 
 ### Removed
 
-- 删除 `src/core/di/` 目录（Container.ts、Tokens.ts、index.ts）
-- 删除 `src/core/event/` 目录（EventBus.ts、index.ts）
-- 删除 `src/core/plugin/` 目录（PluginManager.ts、index.ts）
-- 删除 `src/providers/` 目录（ServiceProvider.ts、index.ts）
+- 删除 `src/core/di/` 目录(Container.ts、Tokens.ts、index.ts)
+- 删除 `src/core/event/` 目录(EventBus.ts、index.ts)
+- 删除 `src/core/plugin/` 目录(PluginManager.ts、index.ts)
+- 删除 `src/providers/` 目录(ServiceProvider.ts、index.ts)
 - 删除 `src/factory/di-factory.ts`
 - 删除 5 个对应的测试文件
-- 删除根目录多余报告文档（ARCHITECTURE_ANALYSIS.md、CODE_DUPLICATION_REPORT.md、RELEASE_v2.9.6.md）
+- 删除根目录多余报告文档(ARCHITECTURE_ANALYSIS.md、CODE_DUPLICATION_REPORT.md、RELEASE_v2.9.6.md)
 
 ### Added
 
@@ -43,13 +178,13 @@
 - 1,102 tests passed, 38 skipped, 0 regressions
 - type-check: 0 errors
 - build: 通过
-- 代码重复率: 0%（jscpd 检测）
+- 代码重复率: 0%(jscpd 检测)
 
 ### Performance
 
-- 源代码: 25,828 行 → 24,687 行（-1,141 行，-4.4%）
-- 源文件: 96 个 → 84 个（-12 个）
-- 构建产物: 631 KB（gzip 231 KB）
+- 源代码: 25,828 行 → 24,687 行(-1,141 行,-4.4%)
+- 源文件: 96 个 → 84 个(-12 个)
+- 构建产物: 631 KB(gzip 231 KB)
 
 ---
 
@@ -59,7 +194,7 @@
 
 - **代码质量优化**: 全面消除 ESLint 错误和警告
 - **测试覆盖率提升**: 从 64% 提升至 80.87%
-- **Bug 修复**: sendAudioData 无限循环（catch 块缺少 break）
+- **Bug 修复**: sendAudioData 无限循环(catch 块缺少 break)
 
 ### Testing
 
@@ -72,11 +207,11 @@
 
 ### Changed
 
-- **错误体系统一**: 将 14 处 `throw new Error()` 迁移为 `BluetoothPrintError` + `ErrorCode`，覆盖 ReactNativeAdapter、DeviceManager、PrinterConfigManager、PrinterFactory、PreviewRenderer、PrintQueue、CloudPrintManager、PrintJobManager、PrintScheduler、image.ts
-- **DiscoveryService.ts**: 移除顶部 3 条 eslint-disable 规则，清理注释代码
-- **TemplateRenderer.ts**: `itemData: any` → `Record<string, unknown>`，移除 3 处行内 eslint-disable
-- **outputLimiter.ts**: batchProcess 错误处理规范化（instanceof Error 守卫 + message 输出）
-- **魔数提取**: ChunkWriteStrategy 提取 7 个常量（CHUNK_SIZE_STEP、DELAY_BACKOFF_FACTOR 等），PrintHistory 提取 DEFAULT_MAX_ENTRIES，TemplateRenderer/TemplateEngine 提取 DEFAULT_PAPER_WIDTH
+- **错误体系统一**: 将 14 处 `throw new Error()` 迁移为 `BluetoothPrintError` + `ErrorCode`,覆盖 ReactNativeAdapter、DeviceManager、PrinterConfigManager、PrinterFactory、PreviewRenderer、PrintQueue、CloudPrintManager、PrintJobManager、PrintScheduler、image.ts
+- **DiscoveryService.ts**: 移除顶部 3 条 eslint-disable 规则,清理注释代码
+- **TemplateRenderer.ts**: `itemData: any` → `Record<string, unknown>`,移除 3 处行内 eslint-disable
+- **outputLimiter.ts**: batchProcess 错误处理规范化(instanceof Error 守卫 + message 输出)
+- **魔数提取**: ChunkWriteStrategy 提取 7 个常量(CHUNK_SIZE_STEP、DELAY_BACKOFF_FACTOR 等),PrintHistory 提取 DEFAULT_MAX_ENTRIES,TemplateRenderer/TemplateEngine 提取 DEFAULT_PAPER_WIDTH
 
 ### Added
 
@@ -90,26 +225,17 @@
 
 ---
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
----
-
 ## [2.10.2] - 2026-05-02
 
 ### Fixed
 
 - **代码质量优化 — 消除所有 ESLint 错误** (#37 → 0)
-  - 移除 3 个文件顶部 `eslint-disable`（共 18 条规则绕过）
+  - 移除 3 个文件顶部 `eslint-disable`(共 18 条规则绕过)
   - 修复所有非空断言 (`!`) — `Uint8Array[i]!`、`parts[x]!`、`job.nextRunTime!` 等
   - 修复所有 `any` 类型绕过 — `as string` 改为 `typeof` 运行时检查
   - JSON.parse 结果改用 `as Record<string, unknown>` + 类型守卫访问
-  - 异步方法 `void` → `await`，消除 `require-await` 错误
+  - 异步方法 `void` → `await`,消除 `require-await` 错误
   - `Record<string, any>` → `Record<string, unknown>`
-  - 消除 `no-base-to-string`：`String(value)` → `JSON.stringify(value)`
-  - 消除 `no-unused-vars`：废弃变量改为 `void timeout`
+  - 消除 `no-base-to-string`:`String(value)` → `JSON.stringify(value)`
+  - 消除 `no-unused-vars`:废弃变量改为 `void timeout`
 - **零 ESLint 警告/错误、零非空断言、零行内 eslint-disable 残留**
-
----
