@@ -10,8 +10,7 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.es.js",
-      "require": "./dist/index.cjs.js",
-      "default": "./dist/index.umd.js"
+      "require": "./dist/index.cjs.js"
     },
     "./core": {
       "types": "./dist/types/core/index.d.ts",
@@ -25,6 +24,10 @@
       "types": "./dist/types/adapters/index.d.ts",
       "import": "./dist/adapters/index.es.js"
     },
+    "./encoding": {
+      "types": "./dist/types/encoding/index.d.ts",
+      "import": "./dist/encoding/index.es.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -36,6 +39,7 @@
   "scripts": {
     "clean": "rimraf dist docs/.vitepress/dist",
     "build": "vite build",
+    "build:umd": "vite build --config vite.umd.config.ts",
     "dev": "vite build --watch",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
