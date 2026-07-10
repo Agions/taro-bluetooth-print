@@ -71,6 +71,12 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
    * Resolve the first constructor argument to an IConnectionManager. An adapter
    * (anything implementing `connect`/`disconnect`/`write`) gets auto-wrapped for
    * backward compatibility; missing/undefined falls back to a default manager.
+   *
+   * Disambiguation: `IConnectionManager` exposes `getState()` (manager-only
+   * method on the interface). Adapters only have `connect`/`disconnect`/`write`.
+   * Using `getState` as the discriminator correctly identifies a pre-built
+   * manager vs. a raw adapter — using `connect` (which both have) silently
+   * re-wrapped managers and broke isConnected() (v2.15.3 fix).
    */
   private resolveConnectionManager(
     arg: IConnectionManager | IPrinterAdapter | undefined
@@ -78,11 +84,11 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     if (!arg) {
       return new ConnectionManager();
     }
-    // Adapters expose `connect`; managers expose `getState`. Disambiguate by method presence.
-    if (typeof (arg as IPrinterAdapter).connect === 'function') {
-      return new ConnectionManager(arg as IPrinterAdapter);
+    // Managers expose `getState`; adapters do not. Disambiguate by method presence.
+    if (typeof (arg as IConnectionManager).getState === 'function') {
+      return arg as IConnectionManager;
     }
-    return arg as IConnectionManager;
+    return new ConnectionManager(arg as IPrinterAdapter);
   }
 
   /**
@@ -222,6 +228,62 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   setOptions(options: IAdapterOptions): this {
     this.printJobManager.setOptions(options);
     return this;
+  }
+
+  /**
+   * Write a pre-built byte buffer directly to the connected printer,
+   * bypassing the CommandBuilder entirely. Use this when a driver (such as
+   * TsplDriver, ZplDriver, StarPrinter, CPCL or any custom protocol) emits
+   * its own byte stream and you want the same connection / chunking /
+   * progress / pause pipeline as the standard print() path.
+   *
+   * Unlike print() — which calls commandBuilder.getBuffer() then clears it —
+   * writeRaw() does NOT touch the command queue. It is safe to call between
+   * text() / qr() / cut() calls; those calls continue to accumulate in the
+   * command buffer for the next print() invocation.
+   *
+   * @param buffer  Bytes to send (e.g. `tsplDriver.getBuffer()`)
+   * @param options Optional adapter overrides (chunkSize, delay, retries).
+   *                Forwarded to PrintJobManager.setOptions() before start.
+   * @throws BluetoothPrintError(CONNECTION_FAILED) if not connected
+   * @throws BluetoothPrintError(PRINT_JOB_FAILED) on adapter write failure
+   *
+   * @example
+   * ```ts
+   * // TSPL label printing — full end-to-end flow now works.
+   * const tspl = new TsplDriver()
+   *   .size(60, 40)
+   *   .gap(3)
+   *   .clear()
+   *   .text('Hello', { x: 20, y: 20, font: 3 })
+   *   .print(1, 1);
+   * await printer.writeRaw(tspl.getBuffer());
+   * ```
+   */
+  async writeRaw(buffer: Uint8Array, options?: IAdapterOptions): Promise<void> {
+    if (!this.connectionManager.isConnected()) {
+      throw new BluetoothPrintError(
+        ErrorCode.CONNECTION_FAILED,
+        'Printer not connected. Call connect() first.'
+      );
+    }
+
+    this.printerLogger.info(`writeRaw: ${buffer.length} bytes`);
+    if (options) this.printJobManager.setOptions(options);
+
+    this.updateState();
+    this.printJobManager.setProgressCallback((sent, total) => {
+      this.emit('progress', { sent, total });
+    });
+
+    try {
+      await this.printJobManager.start(buffer);
+      if (!this.printJobManager.isPaused()) this.emit('print-complete');
+    } catch (error) {
+      throw this.handleError(error, ErrorCode.PRINT_JOB_FAILED, 'writeRaw failed');
+    } finally {
+      this.updateState();
+    }
   }
 
   /**

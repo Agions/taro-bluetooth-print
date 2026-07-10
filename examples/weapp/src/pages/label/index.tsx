@@ -8,24 +8,21 @@
  * - EAN-13 条形码
  * - QRCode 二维码
  *
- * ⚠️ v2.15.x TSPL 集成说明 (重要 API 边界):
+ * v2.15.3+ TSPL 集成:
  *
- * 当前版本的 taro-bluetooth-print 主链路 (createBluetoothPrinter + BluetoothPrinter.print())
- *   是基于 ESC/POS CommandBuilder 设计的 (依赖 EscPosDriver.init())。
+ * 蓝牙打印主链路基于 ESC/POS CommandBuilder (依赖 EscPosDriver.init())，
+ * 而 TsplDriver 是 fluent-builder，**不实现** IPrinterDriver，也没有 init()。
+ * v2.15.3 起，主库新增 `BluetoothPrinter.writeRaw(buffer)` 方法，让 TSPL /
+ * ZPL / CPCL / StarPRNT 等任何 driver 可以通过同一条连接走完整的
+ * chunking / progress / pause / state 管线。
  *
- * TsplDriver **不实现 IPrinterDriver**, 也**没有 init() 方法**,
- *   所以 `new CommandBuilder(tsplDriver)` 会 throw (constructor 里调 driver.init())。
- *
- * 正确的 TSPL 工作流 (v2.15.x):
+ * 端到端工作流 (v2.15.3+):
  *   1. const driver = new TsplDriver();
  *   2. driver.size(...).gap(...).text(...)... — 链式构造 TSPL 指令
- *   3. const bytes = driver.getBuffer(); — 拿到 ASCII 字节流
- *   4. 通过 adapter 直接写入 BLE characteristic:
- *        await adapter.write(bytes);
- *      (此示例库未暴露 BluetoothPrinter.writeRaw() 公开 API,
- *       如有需求可基于 ConnectionManager.adapter 自己封装)
+ *   3. const bytes = driver.getBuffer();
+ *   4. await printer.writeRaw(bytes);  //  ← 关键 API
  *
- * 本页面演示到步骤 3 (生成字节), 步骤 4 在用户实际项目中按平台实现。
+ * 本页面演示完整 4 步 (v2.15.3 起可端到端跑通)。
  */
 import { useState } from 'react';
 import Taro from '@tarojs/taro';
@@ -64,14 +61,16 @@ export default function LabelPage() {
       const bytes = driver.getBuffer();
       const preview = driver.getCommands().split('\r\n').filter(Boolean).slice(0, 6).join('\n');
 
+      // 3. 通过 writeRaw() 端到端发送 (v2.15.3+ 公开 API)
+      await basePrinter.writeRaw(bytes);
+
       setResult(
-        `✅ TSPL 指令流生成成功\n\n` +
+        `✅ TSPL 标签打印完成\n\n` +
           `字节数: ${bytes.length}\n` +
           `驱动: TsplDriver\n` +
           `协议: TSPL (用于标签机)\n\n` +
           `前 6 条指令预览:\n${preview}\n\n` +
-          `⚠️ 当前版本需通过 adapter.write(bytes) 发送,\n` +
-          `完整 ESC/POS 流程见「收据打印」页`
+          `✨ v2.15.3+ writeRaw() 端到端跑通, 复用同一个 BluetoothPrinter 实例`
       );
     } catch (err: any) {
       setResult(`❌ 生成失败: ${err?.message ?? err}`);
