@@ -1,5 +1,58 @@
 # Changelog
 
+## [2.15.3] - 2026-07-10
+
+### Added
+
+- **`BluetoothPrinter.writeRaw(buffer, options?)`** — 原始字节透传通道，绕过 `CommandBuilder` 直接走连接层。
+  - 用途：让 `TsplDriver` / `ZplDriver` / `StarPrinter` / `CPCL` 等非 ESC/POS driver 通过统一管线端到端跑通
+  - 复用 `PrintJobManager` 的分片 / 重试 / 进度 / 暂停 / 状态机
+  - 不触碰 `commandBuilder` 命令队列 — 可与 `text()` / `qr()` / `cut()` 自由混用
+  - 抛出 `CONNECTION_FAILED` (未连接) / `PRINT_JOB_FAILED` (adapter 错误) — 与 `print()` 一致
+  - 9 个新单元测试覆盖端到端 TSPL 流、进度事件、完成事件、错误处理、空 buffer 等场景
+  - **配套**：`examples/weapp/src/pages/label/index.tsx` 端到端跑通 TSPL 标签打印（之前只能到 step 3）
+
+- **6 个新 / 扩展 API 文档** — 覆盖 `writeRaw()`、drivers / adapters / factory / errors / plugins 5 个新文件 + bluetooth-printer.md 扩展原始字节透传章节
+  - [bluetooth-printer.md (扩展)](./api/bluetooth-printer.md#原始字节透传v2153) — 新增 `writeRaw()` 章节
+  - [drivers.md (新)](./api/drivers.md) — TSPL / ZPL / CPCL / StarPRNT 完整 driver 指南
+  - [adapters.md (新)](./api/adapters.md) — 平台 adapter 接入 + AdapterFactory 自动选择
+  - [errors.md (新)](./api/errors.md) — 完整错误码 + 子类 + retry 模式
+  - [factory.md (新)](./api/factory.md) — `createBluetoothPrinter` / `createWebBluetoothPrinter` / `PrinterFactory`
+  - [plugins.md (新)](./api/plugins.md) — PluginManager / 内置插件 / 自定义插件
+  - `docs/api/index.md` TOC 重构：新增 "服务层"、"工具与模板"、"工厂"、"插件系统"、"类型定义"、"事件总线" 分类块
+
+### Changed
+
+- **构建产物按 sub-export 拆分** — 主 bundle `index.es.js` / `index.cjs.js` 从 **630KB → 86KB**（-86%）
+  - 5 个 lib entry：`index` / `core` / `drivers` / `adapters` / `encoding`
+  - 共享代码 hoist 到 `dist/chunks/shared-*.js`（190KB gzip）
+  - 总 dist 大小 2.6MB → ~715KB（-73%）
+  - 浏览器端可按需 import：`taro-bluetooth-print/drivers` 只取驱动层
+  - 新增独立 UMD 构建配置 `vite.umd.config.ts`（Vite 7 不支持 multi-entry + UMD）
+  - 新增 script：`npm run build:umd`
+  - **修复**：vitepress public 资源不再 leak 到 dist/`hero-illustration.svg` / `logo.svg` / `manifest.webmanifest` 等
+
+### Testing
+
+- 新增 **206 个单元测试**（1,102 → 1,308 个），覆盖率 **62.61% → 66.97%**（lines）
+- 重点补强：
+  - `template/engines/TemplateRenderer` 47.69% → **99.67%**
+  - `template/parsers/TemplateParser` 73.52% → **97.05%**
+  - `utils/platform` 47.61% → **100%**
+  - `utils/BoundedOrderedMap` 70.83% → **100%**
+  - `utils/normalizeError` 62.5% → **100%**
+- 新增 4 个接口契约测试：`CommandBuilder` / `ConnectionManager` / `PrintJobManager` 各自实现对应 `I*` 接口
+- 新增 1 个 `PrintJobManager` 边界测试集（cancel/pause/resume/start 边界 + 大 buffer 分片 + 错误恢复 + 静态 store）
+- 修复 4 个 spec 假设错误（strict `> 0` 时间比较、`resume()` 早返回、no-op adapter 错误码、清理阈值）
+
+### Follow-up (v3.x)
+
+- `TsplDriverAdapter` — 让 `printer.text(...).qr(...).print()` 在 TSPL 模式也能跑（对称体验）。该改动有 4 个 design trade-off（cursor 策略 / init 语义 / image RLE 编码 / 字节累加方式），不在 v2.15.3 hotfix 范围内。
+- `interfaces/*.ts` 0% 覆盖率保留 — 纯 type-only 文件，无运行时代码可测。
+- **剩余 API 文档**（v2.15.4+）：`connection-manager` / `command-builder` / `print-job-manager` / `print-scheduler` / `cloud-print-manager` / `qrcode-discovery` / `qrcode-parser` / `text-formatter` / `preview-renderer` / `encoding-service` / `image-processing` / `logger` / `platform` / `output-limiter` / `event-emitter` / `types`（17 个服务层 / 工具 / 类型文档）。v2.15.3 周期内优先保障 writeRaw API + 用户最常用的 4 个模块（drivers / adapters / errors / factory / plugins）有正式文档。
+
+---
+
 ## [2.15.2] - 2026-07-07
 
 ### Changed

@@ -416,6 +416,41 @@ await printer
 
 ---
 
+## 原始字节透传（v2.15.3+）
+
+`writeRaw()` 让非 ESC/POS driver（TSPL / ZPL / CPCL / StarPRNT 等）走同一条连接管线，绕过 `CommandBuilder`：
+
+```typescript
+import { TsplDriver } from 'taro-bluetooth-print/drivers';
+
+const tspl = new TsplDriver()
+  .size(60, 40)
+  .gap(3)
+  .clear()
+  .text('Hello', { x: 20, y: 20, font: 3 })
+  .barcode('6901234567890', { x: 20, y: 100, type: 'EAN13' })
+  .print(1, 1);
+
+await printer.writeRaw(tspl.getBuffer());
+```
+
+### 签名
+
+```typescript
+async writeRaw(
+  buffer: Uint8Array,
+  options?: { chunkSize?: number; delay?: number; retries?: number }
+): Promise<void>
+```
+
+- **buffer** — 要发送的字节流（driver.getBuffer()）
+- **options** — 可选 adapter 选项，覆盖 `setOptions()` 设置
+- **不会触碰** `CommandBuilder` 命令队列 — 可与 `text()` / `qr()` 混用
+- **抛出**：
+  - `BluetoothPrintError(CONNECTION_FAILED)` — 未连接
+  - `BluetoothPrintError(PRINT_JOB_FAILED)` — adapter 写入失败
+- 进度 / 完成 / 暂停事件与 `print()` 完全一致
+
 ## 任务控制
 
 ### `pause(): void`
