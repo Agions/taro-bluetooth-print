@@ -48,7 +48,7 @@
 
 - ✅ 整个库 **0 个生产依赖**（仅 peerDep `@tarojs/taro ^3.6.22`）
 - ✅ 严格类型契约 (`IPrinterDriver` / `IPrinterAdapter`)，IDE 自动补全
-- ✅ **1,102 个测试**全绿 · **jscpd 0 重复** · **零 dead code**
+- ✅ **1,436 个测试**全绿 · **jscpd 0 重复** · **零 dead code**
 
 ---
 
@@ -235,8 +235,8 @@ printer.use(createRetryPlugin({ maxRetries: 3, backoffMultiplier: 2 }));
 
 | 维度 | 数值 |
 |:---|:---|
-| 包体积（minzip） | **~231 KB** —— 零运行时依赖 |
-| 测试用例 | **1,102** 个，全绿 |
+| 包体积（main bundle） | **89 KB / 25.5 KB gzip**（v2.15.4+，GBK 表按需懒加载） |
+| 测试用例 | **1,436** 个，全绿 |
 | 代码重复 | **jscpd 0 clones** |
 | 死代码 | **0 行** |
 | TypeScript any 暴露 | **0 处** |
@@ -353,7 +353,7 @@ await printPromise;
 git clone https://github.com/Agions/taro-bluetooth-print.git
 cd taro-bluetooth-print
 pnpm install
-pnpm test          # 1102 测试
+pnpm test          # 1436 测试
 pnpm lint          # ESLint
 pnpm type-check    # tsc --noEmit
 pnpm build         # 产物输出到 dist/

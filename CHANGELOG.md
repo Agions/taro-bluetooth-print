@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.15.4] - 2026-07-13
+
+### Added (Phase A — 可观测性 + 重试编排)
+
+- **`BluetoothPrinter.job-completed` / `job-failed` 事件** — 每次底层 `adapter.write()` 完成后触发，携带 `source` / `bytes` / `durationMs` / `completedAt`（失败额外带 `error: BluetoothPrintError`）。与 `print-complete`（业务级）并存：`print-complete` 用于业务提示，新事件用于精细化埋点 / SLA 监控 / 重试编排。
+  - 新类型 `JobResult` 已从 `taro-bluetooth-print` 命名导出
+
+- **`RetryPlugin.onRetry` 回调** — 每次重试 **sleep 之前** 触发，携带 `attempt` / `maxRetries` / `delayMs` / `error`。用于 UI Toast（"正在重连 2/3..."）或遥测。回调内异常被捕获并 log，不会影响 retry 计时。
+
+- **`BatchPrintManager` 失败任务管理**
+  - 新方法：`retryJob(id)` / `retryAllFailedJobs()` / `getFailedJobs()` / `clearFailedJobs()`
+  - 新事件：`batch-progress`（`{ sent, total, jobIds }`）/ `batch-failed`（`{ jobIds, bytes, error }`）/ `job-retried`（`BatchJob`）
+  - 失败任务保留在内部 `failedJobs` 缓冲中（**不**自动从队列删除），等待显式重试
+
+- **`PrinterConfigManager.export()` / `import()` 升级为 versioned snapshot（format=1）**
+  - 字段校验（缺字段 / 类型错 → 抛 `BluetoothPrintError(INVALID_CONFIGURATION)`）
+  - `import()` 返回 `PrinterConfigImportResult`（含 `imported` / `skipped` / `format`）
+  - 向后兼容：v0 格式仍可读，但会自动升级为 v1
+
+### Changed (Phase B — 包体积优化)
+
+- **`GbkData` 拆分为独立 chunk** — `shared` chunk 从 **480KB → 24.7KB**（gzip 190KB → 8.78KB，**-95%**）
+  - 用户业务只需要 ES/POS 主路径时，浏览器首屏不会下载 455KB GBK 全表
+  - `gbk-data-{hash}.js` 仍按需加载（首次遇到 CJK 字符时触发）
+
+### Testing (Phase C — 覆盖率提升)
+
+- **77 个新单元测试**（1,359 → 1,436），覆盖率 **67.3% → 71.5%**（lines）
+- 重点提升：
+  - `LoggingPlugin.ts` 17.85% → **100%**
+  - `EventEmitter.ts` 42.55% → **91.48%**
+  - `GbkTable.ts` 50% → **92%**
+  - `DeviceManager.ts` 59.84% → **90.9%**
+
+### Docs (Phase D)
+
+- `docs/api/bluetooth-printer.md` — 新增「任务级事件」章节 + `JobResult` 类型定义
+- `docs/api/plugins.md` — RetryPlugin 字段更新为真实签名 + 新增 `onRetry` 章节 + `RetryAttempt` 类型
+- `docs/api/batch-print-manager.md` — 事件列表重写（对齐真实 `BatchEvents`）+ 新增「失败任务管理」章节
+
 ## [2.15.3] - 2026-07-10
 
 ### Added

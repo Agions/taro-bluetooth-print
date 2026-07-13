@@ -531,7 +531,48 @@ const cb = printer.getCommandBuilder();
 | `error` | `BluetoothPrintError` | 发生错误 |
 | `connected` | `string`（deviceId） | 成功连接 |
 | `disconnected` | `string`（deviceId） | 断开连接 |
-| `print-complete` | `void` | 打印完成 |
+| `print-complete` | `void` | 打印完成（业务级） |
+| `job-completed` | [`JobResult`](#jobresult) | 单次底层写任务成功（含 bytes/durationMs/source） |
+| `job-failed` | [`JobResult & { error }`](#jobresult) | 单次底层写任务失败（含 BluetoothPrintError） |
+
+### 任务级事件（v2.15.4+）
+
+`print-complete` 是面向业务的高层语义（成功完成整个打印）。`job-completed` / `job-failed` 面向可观测性 / 编排 —— **每次** 发生底层 `adapter.write()` 调用就会触发一次，包括通过 `RetryPlugin` 重试过程中的每一次尝试。
+
+```typescript
+import type { JobResult } from 'taro-bluetooth-print';
+
+printer.on('job-completed', (evt: JobResult) => {
+  // evt: {
+  //   source: 'print' | 'writeRaw';  // 调用入口
+  //   bytes: number;                  // 发送字节数
+  //   durationMs: number;             // adapter.write 耗时 ms
+  //   completedAt: number;            // 完成时间戳（epoch ms）
+  // }
+  console.log(`✅ ${evt.source} 写入 ${evt.bytes}B 耗时 ${evt.durationMs}ms`);
+});
+
+printer.on('job-failed', (evt) => {
+  // evt 除了 JobResult 字段外,还携带:
+  //   error: BluetoothPrintError    // 结构化错误,详见 errors 章节
+  console.error(`❌ ${evt.source} 失败: ${evt.error.code} - ${evt.error.message}`);
+});
+```
+
+#### `JobResult`
+
+```typescript
+interface JobResult {
+  source: 'print' | 'writeRaw';  // 调用入口
+  bytes: number;                  // 发送字节数
+  durationMs: number;             // adapter.write 耗时 ms
+  completedAt: number;            // 完成时间戳（epoch ms）
+}
+```
+
+> **何时用哪个？**
+> - **业务提示 / Toast / 业务埋点** → 用 `print-complete` / `error`
+> - **重试编排 / SLA 监控 / 精细化埋点** → 用 `job-completed` / `job-failed`（每次写尝试都触发，包括 RetryPlugin 重试）
 
 ### 事件监听
 

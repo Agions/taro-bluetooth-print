@@ -173,7 +173,7 @@ flowchart TB
 <div class="feature-grid">
   <div class="feature-card">
     <h4>📦 极致轻量</h4>
-    <p>minzip <strong>~231 KB</strong>，零运行时依赖，tree-shaking 友好</p>
+    <p>main bundle <strong>~89 KB / 25.5 KB gzip</strong>，GBK 表按需懒加载，零运行时依赖，tree-shaking 友好</p>
   </div>
   <div class="feature-card">
     <h4>💎 类型安全</h4>
@@ -181,7 +181,7 @@ flowchart TB
   </div>
   <div class="feature-card">
     <h4>🧪 测试覆盖</h4>
-    <p><strong>1,102 个测试</strong> 100% 通过，jscpd 0 重复，零死代码</p>
+    <p><strong>1,436 个测试</strong> 71.5% 覆盖率（lines），jscpd 0 重复，零死代码</p>
   </div>
   <div class="feature-card">
     <h4>🧩 可组合</h4>
