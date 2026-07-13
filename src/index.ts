@@ -7,7 +7,7 @@
 
 // Core classes
 export { BluetoothPrinter } from './core/BluetoothPrinter';
-export type { PrinterEvents } from './core/BluetoothPrinter';
+export type { PrinterEvents, JobResult } from './core/BluetoothPrinter';
 export { EventEmitter } from './core/EventEmitter';
 
 // Drivers - 打印机驱动
@@ -117,8 +117,20 @@ export type {
   LoggingConfig,
 } from './config/PrinterConfig';
 
-export { PrinterConfigManager, printerConfigManager } from './config/PrinterConfigManager';
-export type { SavedPrinter, GlobalConfig, IConfigStorage } from './config/PrinterConfigManager';
+export {
+  PrinterConfigManager,
+  printerConfigManager,
+  PRINTER_CONFIG_EXPORT_VERSION,
+  LocalStorage,
+} from './config/PrinterConfigManager';
+export type {
+  SavedPrinter,
+  GlobalConfig,
+  IConfigStorage,
+  PrintConfig,
+  PrinterConfigSnapshot,
+  PrinterConfigImportResult,
+} from './config/PrinterConfigManager';
 
 // Plugin System - 插件系统
 export { createLoggingPlugin, createRetryPlugin } from './plugins';

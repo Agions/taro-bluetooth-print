@@ -92,6 +92,43 @@ export interface GlobalConfig {
 }
 
 /**
+ * Schema version of the export format. Bump when {@link PrinterConfigSnapshot}
+ * adds/removes fields so old exports can be migrated.
+ */
+export const PRINTER_CONFIG_EXPORT_VERSION = 1;
+
+/**
+ * Versioned wrapper around the printer configuration export.
+ * Persist this verbatim (JSON.stringify / parse) for cross-device sync.
+ */
+export interface PrinterConfigSnapshot {
+  /** Schema version (always present). */
+  format: typeof PRINTER_CONFIG_EXPORT_VERSION;
+  /** Timestamp when the snapshot was exported (epoch ms). */
+  exportedAt: number;
+  /** Optional human-readable source identifier (e.g. "pos-terminal-01"). */
+  source?: string;
+  /** Saved printer configurations. */
+  printers: SavedPrinter[];
+  /** Global configuration overrides. */
+  globalConfig: GlobalConfig;
+  /** Last-used printer id (may be null if unset). */
+  lastUsedPrinterId: string | null;
+}
+
+/**
+ * Result of an import operation — distinguishes "nothing matched" from "rejected".
+ */
+export interface PrinterConfigImportResult {
+  /** Number of printers successfully loaded into the manager. */
+  imported: number;
+  /** Number of printer entries in the snapshot that were skipped (validation failure). */
+  skipped: number;
+  /** Detected snapshot format version. */
+  format: number;
+}
+
+/**
  * Configuration storage interface
  */
 export interface IConfigStorage {
@@ -424,67 +461,135 @@ export class PrinterConfigManager {
   }
 
   /**
-   * Export all configuration as JSON
+   * Export all configuration as a versioned JSON snapshot.
+   *
+   * The returned string can be persisted to disk, sent over the network, or
+   * shared across devices. Always re-import via {@link import} — never JSON.parse
+   * it yourself, as the snapshot wraps a versioned {@link PrinterConfigSnapshot}.
+   *
+   * @param source - Optional human-readable identifier (e.g. "pos-terminal-01")
+   *                 recorded in the snapshot for diagnostics.
+   * @returns Pretty-printed JSON string
    */
-  export(): string {
-    return JSON.stringify(
-      {
-        printers: Array.from(this.printers.values()),
-        globalConfig: this.globalConfig,
-        lastUsedPrinterId: this.lastUsedPrinterId,
-        exportedAt: Date.now(),
-      },
-      null,
-      2
-    );
+  export(source?: string): string {
+    const snapshot: PrinterConfigSnapshot = {
+      format: PRINTER_CONFIG_EXPORT_VERSION,
+      exportedAt: Date.now(),
+      source,
+      printers: Array.from(this.printers.values()),
+      globalConfig: this.globalConfig,
+      lastUsedPrinterId: this.lastUsedPrinterId,
+    };
+    return JSON.stringify(snapshot, null, 2);
   }
 
   /**
-   * Import configuration from JSON
+   * Import configuration from a versioned JSON snapshot produced by {@link export}.
    *
-   * @param json - JSON string to import
-   * @param merge - If true, merge with existing config; if false, replace
-   * @returns Number of printers imported
+   * Behavior:
+   * - Throws `BluetoothPrintError(INVALID_CONFIGURATION)` on parse / schema failure.
+   * - When `merge === false` (default), existing printers are cleared first.
+   * - Printer entries that fail per-entry validation are skipped (counted in `skipped`).
+   * - Unknown / higher `format` versions throw rather than silently partial-load.
+   *
+   * @param json - JSON string previously produced by `export()`.
+   * @param merge - When true, merge into existing config; when false (default), replace.
+   * @returns Import summary (imported count + skipped count + detected version).
+   * @throws BluetoothPrintError on malformed JSON, missing fields, or unsupported version.
    */
-  import(json: string, merge = false): number {
+  import(json: string, merge = false): PrinterConfigImportResult {
+    if (typeof json !== 'string' || json.length === 0) {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'import() requires a non-empty JSON string'
+      );
+    }
+
+    let parsed: unknown;
     try {
-      const data = JSON.parse(json) as {
-        printers?: SavedPrinter[];
-        globalConfig?: GlobalConfig;
-        lastUsedPrinterId?: string;
-      };
+      parsed = JSON.parse(json);
+    } catch (err) {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        `Failed to parse JSON: ${(err as Error).message}`
+      );
+    }
 
-      let imported = 0;
+    if (!parsed || typeof parsed !== 'object') {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'Snapshot root must be a JSON object'
+      );
+    }
 
-      if (!merge) {
-        this.printers.clear();
-      }
+    const data = parsed as Partial<PrinterConfigSnapshot>;
 
-      if (data.printers && Array.isArray(data.printers)) {
-        for (const printer of data.printers) {
-          if (printer.id) {
-            this.printers.set(printer.id, printer);
-            imported++;
-          }
+    if (typeof data.format !== 'number') {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'Snapshot is missing required field: format'
+      );
+    }
+    if (data.format > PRINTER_CONFIG_EXPORT_VERSION) {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        `Snapshot format ${data.format} is newer than supported version ${PRINTER_CONFIG_EXPORT_VERSION}. Please upgrade the library.`
+      );
+    }
+
+    if (!merge) {
+      this.printers.clear();
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    if (Array.isArray(data.printers)) {
+      for (const candidate of data.printers) {
+        if (this.isValidSavedPrinter(candidate)) {
+          this.printers.set(candidate.id, candidate);
+          imported++;
+        } else {
+          skipped++;
+          this.logger.warn(
+            `Skipped invalid printer entry during import: ${JSON.stringify(candidate).slice(0, 80)}`
+          );
         }
       }
-
-      if (data.globalConfig) {
-        this.globalConfig = { ...DEFAULT_GLOBAL_CONFIG, ...data.globalConfig };
-      }
-
-      if (data.lastUsedPrinterId && this.printers.has(data.lastUsedPrinterId)) {
-        this.lastUsedPrinterId = data.lastUsedPrinterId;
-      }
-
-      this.save();
-      this.logger.info(`Imported ${imported} printers`);
-
-      return imported;
-    } catch (error) {
-      this.logger.error('Failed to import configuration:', error);
-      return 0;
     }
+
+    if (data.globalConfig && typeof data.globalConfig === 'object') {
+      this.globalConfig = { ...DEFAULT_GLOBAL_CONFIG, ...data.globalConfig };
+    }
+
+    if (
+      typeof data.lastUsedPrinterId === 'string' &&
+      data.lastUsedPrinterId.length > 0 &&
+      this.printers.has(data.lastUsedPrinterId)
+    ) {
+      this.lastUsedPrinterId = data.lastUsedPrinterId;
+    }
+
+    this.save();
+    this.logger.info(
+      `Imported ${imported} printer(s) (skipped ${skipped}) from format v${data.format}`
+    );
+
+    return { imported, skipped, format: data.format };
+  }
+
+  /** Lightweight per-entry validator for an imported printer. */
+  private isValidSavedPrinter(p: unknown): p is SavedPrinter {
+    if (!p || typeof p !== 'object') return false;
+    const r = p as Record<string, unknown>;
+    return (
+      typeof r.id === 'string' &&
+      r.id.length > 0 &&
+      typeof r.deviceId === 'string' &&
+      r.deviceId.length > 0 &&
+      typeof r.name === 'string' &&
+      typeof r.createdAt === 'number' &&
+      typeof r.updatedAt === 'number'
+    );
   }
 
   /**

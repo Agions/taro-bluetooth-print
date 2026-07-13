@@ -93,6 +93,23 @@ export interface BatchEvents {
   'job-rejected': { reason: string };
   'auto-flush': { jobCount: number; bytes: number };
   'jobs-merged': { fromCount: number; toCount: number; savedBytes: number };
+  /** Per-job progress while the batch processor is running. */
+  'batch-progress': {
+    /** Number of bytes the processor has accepted so far (caller-reported). */
+    sent: number;
+    /** Total bytes the processor was asked to handle for this batch. */
+    total: number;
+    /** Job IDs in the current batch. */
+    jobIds: string[];
+  };
+  /** Emitted when the batch processor throws — the entire batch is marked failed. */
+  'batch-failed': {
+    jobIds: string[];
+    bytes: number;
+    error: BluetoothPrintError;
+  };
+  /** Emitted when a previously-failed job is re-queued via retryJob(). */
+  'job-retried': BatchJob;
 }
 
 /**
@@ -155,6 +172,9 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
     autoFlushCount: 0,
     unifiedCutsApplied: 0,
   };
+
+  /** Jobs from the most recent failed batch. Cleared on next successful processBatch(). */
+  private failedJobs: BatchJob[] = [];
 
   /**
    * Last job timestamp for interval timeout tracking
@@ -300,10 +320,12 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
   /**
    * Process the current batch
    *
-   * @param processor - Function to send batch data to printer
+   * @param processor - Function to send batch data to printer. May return a
+   *                    promise that resolves with the number of bytes sent, or
+   *                    void if the byte count is unknown.
    * @returns Number of jobs processed
    */
-  async processBatch(processor: (data: Uint8Array) => Promise<void>): Promise<number> {
+  async processBatch(processor: (data: Uint8Array) => Promise<void | number>): Promise<number> {
     if (this.isProcessing) {
       throw new BluetoothPrintError(
         ErrorCode.PRINT_JOB_IN_PROGRESS,
@@ -319,11 +341,12 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
     this.isProcessing = true;
     this.clearWatchTimer();
 
-    try {
-      // Get jobs for this batch
-      const batchJobs = this.prepareBatch();
-      const { mergedData, fromCount, toCount } = this.mergeJobs(batchJobs);
+    // Snapshot the batch up-front so we can mark them failed if processor throws.
+    const batchJobs = this.prepareBatch();
+    const { mergedData, fromCount, toCount } = this.mergeJobs(batchJobs);
+    const batchJobIds = batchJobs.map(j => j.id);
 
+    try {
       // Report merge stats if jobs were merged
       if (fromCount !== toCount) {
         const savedBytes =
@@ -338,8 +361,37 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       // Emit batch ready event
       this.emit('batch-ready', batchJobs);
 
-      // Process the merged data
-      await processor(mergedData);
+      // Process the merged data. A throwing processor marks the whole batch
+      // as failed (kept in failedJobs for retryJob()) and emits batch-failed.
+      try {
+        const result = await processor(mergedData);
+        if (typeof result === 'number') {
+          this.emit('batch-progress', {
+            sent: result,
+            total: mergedData.length,
+            jobIds: batchJobIds,
+          });
+        }
+      } catch (procErr) {
+        const error =
+          procErr instanceof BluetoothPrintError
+            ? procErr
+            : new BluetoothPrintError(
+                ErrorCode.PRINT_JOB_FAILED,
+                (procErr as Error)?.message ?? 'Batch processor failed'
+              );
+        // Preserve failed jobs for retryJob() — DO NOT splice them from jobs[].
+        this.failedJobs = [...batchJobs];
+        this.emit('batch-failed', {
+          jobIds: batchJobIds,
+          bytes: mergedData.length,
+          error,
+        });
+        this.logger.error(
+          `Batch failed: ${batchJobs.length} jobs, ${mergedData.length} bytes — ${error.code}: ${error.message}`
+        );
+        throw error;
+      }
 
       // Update stats
       this.stats.totalBytes += mergedData.length;
@@ -355,6 +407,8 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
       }
       this.pendingBytes -= removedBytes;
       this.jobs.splice(0, batchJobs.length);
+      // Successful batch clears the failed-jobs buffer.
+      this.failedJobs = [];
 
       this.emit('batch-processed', { jobCount: batchJobs.length, bytes: mergedData.length });
       this.logger.info(`Batch processed: ${batchJobs.length} jobs`);
@@ -363,6 +417,70 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Re-queue a previously-failed job.
+   *
+   * Searches `failedJobs` for the given id; if found, re-inserts the job at the
+   * front of the queue with bumped priority (current max + 1) so it is processed
+   * before other pending jobs. Returns false if no failed job matches.
+   *
+   * Does NOT auto-trigger processBatch — caller decides when to retry.
+   *
+   * @param id - Job ID returned from a prior addJob() call.
+   * @returns true if re-queued, false if no matching failed job.
+   */
+  retryJob(id: string): boolean {
+    const idx = this.failedJobs.findIndex(j => j.id === id);
+    if (idx === -1) {
+      this.logger.warn(`retryJob: no failed job with id ${id}`);
+      return false;
+    }
+    const job = this.failedJobs[idx]!;
+    this.failedJobs.splice(idx, 1);
+
+    // Bump priority above the current queue head so it runs first.
+    const maxPriority = this.jobs.reduce((m, j) => Math.max(m, j.priority), 0);
+    job.priority = maxPriority + 1;
+
+    this.jobs.unshift(job);
+    this.pendingBytes += job.data.length;
+    this.waitFired = false;
+    this.flushFired = false;
+    this.lastJobAt = Date.now();
+    this.restartWatchTimer();
+
+    this.emit('job-retried', job);
+    this.logger.info(`Re-queued failed job ${id} at priority ${job.priority}`);
+    return true;
+  }
+
+  /**
+   * Re-queue ALL currently-failed jobs in one call. Returns the count re-queued.
+   */
+  retryAllFailedJobs(): number {
+    let count = 0;
+    // Iterate in reverse so retryJob()'s unshift() doesn't shift our index.
+    for (let i = this.failedJobs.length - 1; i >= 0; i--) {
+      if (this.retryJob(this.failedJobs[i]!.id)) count++;
+    }
+    return count;
+  }
+
+  /**
+   * Snapshot of the most recent failed batch (empty if last batch succeeded
+   * or no batch has run yet).
+   */
+  getFailedJobs(): BatchJob[] {
+    return [...this.failedJobs];
+  }
+
+  /** Discard the failed-jobs buffer without re-queueing. */
+  clearFailedJobs(): void {
+    const count = this.failedJobs.length;
+    this.failedJobs = [];
+    this.logger.info(`Cleared ${count} failed jobs`);
   }
 
   /**

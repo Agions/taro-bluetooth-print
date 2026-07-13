@@ -22,6 +22,18 @@ import type { ICommandBuilder } from '@/services/interfaces';
 import type { TextAlign } from '@/formatter';
 import type { BarcodeFormat } from '@/barcode';
 
+/** Payload for `job-completed` / `job-failed` events. */
+export interface JobResult {
+  /** Source of the completed job: `print` (CommandBuilder pipeline) or `writeRaw` (raw bytes). */
+  source: 'print' | 'writeRaw';
+  /** Total bytes transmitted to the printer. */
+  bytes: number;
+  /** Job end timestamp (epoch ms). */
+  completedAt: number;
+  /** Wall-clock duration of the job in ms (0 for synchronous completion). */
+  durationMs: number;
+}
+
 /** Printer event map. */
 export interface PrinterEvents {
   'state-change': PrinterState;
@@ -30,6 +42,10 @@ export interface PrinterEvents {
   connected: string;
   disconnected: string;
   'print-complete': void;
+  /** Emitted when a print/writeRaw job successfully completes all bytes. */
+  'job-completed': JobResult;
+  /** Emitted when a print/writeRaw job fails (immediately before re-throwing). */
+  'job-failed': JobResult & { error: BluetoothPrintError };
 }
 
 /** Bluetooth Thermal Printer Controller. */
@@ -276,11 +292,28 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       this.emit('progress', { sent, total });
     });
 
+    const startTime = Date.now();
     try {
       await this.printJobManager.start(buffer);
-      if (!this.printJobManager.isPaused()) this.emit('print-complete');
+      if (!this.printJobManager.isPaused()) {
+        this.emit('print-complete');
+        this.emit('job-completed', {
+          source: 'writeRaw',
+          bytes: buffer.length,
+          completedAt: Date.now(),
+          durationMs: Date.now() - startTime,
+        });
+      }
     } catch (error) {
-      throw this.handleError(error, ErrorCode.PRINT_JOB_FAILED, 'writeRaw failed');
+      const wrapped = this.handleError(error, ErrorCode.PRINT_JOB_FAILED, 'writeRaw failed');
+      this.emit('job-failed', {
+        source: 'writeRaw',
+        bytes: buffer.length,
+        completedAt: Date.now(),
+        durationMs: Date.now() - startTime,
+        error: wrapped,
+      });
+      throw wrapped;
     } finally {
       this.updateState();
     }
@@ -346,17 +379,32 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       this.emit('progress', { sent, total });
     });
 
+    const startTime = Date.now();
     try {
       await this.printJobManager.start(buffer);
       if (this.printJobManager.isPaused()) {
         this.printerLogger.info('Print job paused');
       } else {
         this.emit('print-complete');
+        this.emit('job-completed', {
+          source: 'print',
+          bytes: buffer.length,
+          completedAt: Date.now(),
+          durationMs: Date.now() - startTime,
+        });
         this.printerLogger.info('Print job completed successfully');
       }
     } catch (error) {
       this.printerLogger.error('Print job failed with error:', error);
-      throw this.handleError(error, ErrorCode.PRINT_JOB_FAILED, 'Print job failed');
+      const wrapped = this.handleError(error, ErrorCode.PRINT_JOB_FAILED, 'Print job failed');
+      this.emit('job-failed', {
+        source: 'print',
+        bytes: buffer.length,
+        completedAt: Date.now(),
+        durationMs: Date.now() - startTime,
+        error: wrapped,
+      });
+      throw wrapped;
     } finally {
       this.updateState();
     }

@@ -7,6 +7,18 @@ import { Plugin, PluginFactory, PluginOptions } from '../PluginTypes';
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 
+/** Payload passed to the onRetry callback for each retry attempt. */
+export interface RetryAttempt {
+  /** 1-indexed attempt number (1 = first retry after the initial failure). */
+  attempt: number;
+  /** Maximum retries allowed. */
+  maxRetries: number;
+  /** Delay in ms before this retry will be scheduled to run. */
+  delayMs: number;
+  /** The error that triggered this retry. */
+  error: BluetoothPrintError;
+}
+
 export interface RetryPluginOptions extends PluginOptions {
   /** Maximum retry attempts (default: 3) */
   maxRetries?: number;
@@ -18,24 +30,31 @@ export interface RetryPluginOptions extends PluginOptions {
   backoffMultiplier?: number;
   /** Error codes that should trigger retry */
   retryableErrors?: ErrorCode[];
+  /**
+   * Optional callback invoked BEFORE sleeping for each retry attempt.
+   * Receives the 1-indexed attempt number, the planned delay, and the
+   * triggering error. Use this for surfacing retry state to UIs (toast
+   * "Reconnecting (2/3)…") or for telemetry.
+   */
+  onRetry?: (info: RetryAttempt) => void;
 }
 
 /**
  * Creates a retry plugin instance
  */
 export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): Plugin => {
-  const opts: Required<RetryPluginOptions> = {
-    maxRetries: options?.maxRetries ?? 3,
-    initialDelay: options?.initialDelay ?? 1000,
-    maxDelay: options?.maxDelay ?? 10000,
-    backoffMultiplier: options?.backoffMultiplier ?? 2,
-    retryableErrors: options?.retryableErrors ?? [
-      ErrorCode.CONNECTION_FAILED,
-      ErrorCode.CONNECTION_TIMEOUT,
-      ErrorCode.WRITE_FAILED,
-      ErrorCode.WRITE_TIMEOUT,
-    ],
-  };
+  const maxRetries = options?.maxRetries ?? 3;
+  const initialDelay = options?.initialDelay ?? 1000;
+  const maxDelay = options?.maxDelay ?? 10000;
+  const backoffMultiplier = options?.backoffMultiplier ?? 2;
+  const retryableErrors: ErrorCode[] = options?.retryableErrors ?? [
+    ErrorCode.CONNECTION_FAILED,
+    ErrorCode.CONNECTION_TIMEOUT,
+    ErrorCode.WRITE_FAILED,
+    ErrorCode.WRITE_TIMEOUT,
+  ];
+  const onRetry = options?.onRetry;
+  const opts = { maxRetries, initialDelay, maxDelay, backoffMultiplier, retryableErrors, onRetry };
 
   const logger = Logger.scope('RetryPlugin');
   let retryCount = 0;
@@ -74,6 +93,21 @@ export const createRetryPlugin: PluginFactory = (options?: RetryPluginOptions): 
             `Retryable error occurred (attempt ${retryCount}/${opts.maxRetries}): ${error.code}`
           );
           logger.info(`Waiting ${currentDelay}ms before retry...`);
+
+          // Fire user callback BEFORE sleeping so UIs can update immediately.
+          // Wrapped in try/catch — a throwing callback must not break retry timing.
+          if (opts.onRetry) {
+            try {
+              opts.onRetry({
+                attempt: retryCount,
+                maxRetries: opts.maxRetries,
+                delayMs: currentDelay,
+                error,
+              });
+            } catch (cbErr) {
+              logger.error('onRetry callback threw — ignoring:', cbErr);
+            }
+          }
 
           await sleep(currentDelay);
 
