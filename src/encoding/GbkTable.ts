@@ -26,12 +26,14 @@ import { GBK_DATA as FULL_GBK_DATA, BIG5_DATA as FULL_BIG5_DATA } from './GbkDat
 let GBK_DATA: number[] | null = null;
 let BIG5_DATA: number[] | null = null;
 
-function loadFullData() {
+function loadFullData(): { GBK_DATA: number[]; BIG5_DATA: number[] } {
   if (!GBK_DATA) {
     GBK_DATA = FULL_GBK_DATA;
     BIG5_DATA = FULL_BIG5_DATA;
   }
-  return { GBK_DATA: GBK_DATA!, BIG5_DATA: BIG5_DATA! };
+  // After the guard above, both module-level vars are guaranteed initialized.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  return { GBK_DATA: GBK_DATA as number[], BIG5_DATA: BIG5_DATA as number[] };
 }
 
 // Unicode to GBK mapping table
