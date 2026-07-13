@@ -34,7 +34,7 @@ import dts from 'vite-plugin-dts'
 export default defineConfig({
   build: {
     lib: {
-      // Multi-entry: root index + four sub-exports.
+      // Multi-entry: root index + four sub-exports + a single data-only entry.
       // UMD is built for the root entry only (CDN/script-tag compat); sub-exports
       // are ESM-only because the package.json `exports` field declares them as
       // `import` only. Vite 7 cannot build UMD for multi-entry anyway.
@@ -94,15 +94,24 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor'
           }
+          // v2.15.4: Put the entire GBK/Big5 encoding table family (GbkData,
+          // GbkTable, GbkLite) into a single dedicated chunk. Together they
+          // are ~452 KB raw / ~180 KB gzip — a meaningful chunk that gets
+          // hoisted out of the main shared chunk. Sync API is preserved (no
+          // dynamic import); future v2.15.5+ can swap to async pre-warm.
+          if (
+            id.includes('/src/encoding/GbkData') ||
+            id.includes('/src/encoding/GbkTable') ||
+            id.includes('/src/encoding/GbkLite')
+          ) {
+            return 'gbk-data'
+          }
           // Shared cross-cutting modules (used by >=2 of the entries)
           if (
             id.includes('/src/utils/') ||
             id.includes('/src/errors/') ||
             id.includes('/src/constants/') ||
             id.includes('/src/types.ts') ||
-            id.includes('/src/encoding/GbkData') ||
-            id.includes('/src/encoding/GbkTable') ||
-            id.includes('/src/encoding/GbkLite') ||
             id.includes('/src/encoding/KoreanJapanese') ||
             id.includes('/src/encoding/EncodingService')
           ) {

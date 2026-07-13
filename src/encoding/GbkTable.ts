@@ -1,10 +1,19 @@
 /**
  * GBK Encoding Table - 懒加载版本
  *
- * 优化策略：
- * 1. 默认使用精简版编码表 (gbk-lite.ts，约 3500 常用字)
- * 2. 遇到非常用字时动态加载完整编码表
- * 3. 二分查找代替 Map，大幅减少内存占用
+ * 优化策略（v2.15.4 重新设计）：
+ * 1. 默认使用精简版编码表 (GbkLite.ts，约 106 个最常用汉字)
+ * 2. 命中精简表的字符直接返回（毫秒级）
+ * 3. 未命中时查完整表 (GbkData.ts)
+ * 4. GbkData 通过 vite manualChunks 拆成独立 chunk `chunks/gbk-data-*.js`
+ *    —— 在 dist 输出层面做到了代码分割，但运行时仍然同步可用
+ *
+ * 注意：dynamic import() 方案曾在 v2.15.4-dev 中尝试，但因为
+ * EncodingService.encode() / TemplateRenderer 都是同步 API，
+ * 切换到 dynamic 后会导致中文编码首次失败（'生产日期'/'谢谢惠顾'
+ * 这类字符不在 lite 表中）。v2.15.4-final 选择保留 static import
+ * 来换取 100% backward compat；异步 pre-warm 留给 v2.15.5+ 重构
+ * sync → async encoding API 时再启用。
  *
  * GBK: 23940 个字符映射
  * Big5: 13911 个字符映射
@@ -22,7 +31,7 @@ function loadFullData() {
     GBK_DATA = FULL_GBK_DATA;
     BIG5_DATA = FULL_BIG5_DATA;
   }
-  return { GBK_DATA: GBK_DATA, BIG5_DATA: BIG5_DATA! };
+  return { GBK_DATA: GBK_DATA!, BIG5_DATA: BIG5_DATA! };
 }
 
 // Unicode to GBK mapping table
@@ -38,7 +47,7 @@ export const unicodeToBig5: Map<number, number> = new Map();
 export const big5ToUnicode: Map<number, number> = new Map();
 
 /**
- * Get GBK bytes for a Unicode character
+ * Get GBK bytes for a Unicode character.
  * 先查精简表，查不到再懒加载完整表
  */
 export function getGbkBytes(unicode: number): [number, number] | null {
