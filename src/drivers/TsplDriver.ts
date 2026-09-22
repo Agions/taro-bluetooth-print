@@ -7,6 +7,7 @@
 
 import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
+import type { ILabelDriver } from './contracts';
 
 /**
  * Label size configuration
@@ -127,7 +128,8 @@ export interface LineOptions {
  *   .getBuffer();
  * ```
  */
-export class TsplDriver {
+export class TsplDriver implements ILabelDriver {
+  readonly protocol = 'TSPL';
   private commands: string[] = [];
   private readonly logger = Logger.scope('TsplDriver');
   private dpi = 203; // Default DPI for most label printers

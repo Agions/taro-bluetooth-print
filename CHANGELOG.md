@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.15.5] - 2026-09-22
+
+### Added
+
+- **驱动层统一抽象契约** (`IProtocolDriver` / `IReceiptDriver` / `ILabelDriver`) — 建立标准化协议接口规范，为多协议驱动提供生命周期、指令缓冲区获取与清理的标准约定。
+- **`BluetoothPrinter.printDriver(driver, options?)`** — 核心门面新增协议驱动直接执行通道，支持直接传入 TSPL / ZPL / CPCL 驱动实例并复用底层分片、重试与进度状态机，打印完成后自动清空驱动指令缓冲。
+- **补齐顶层 `ReactNativeAdapter` 导出** — 在根入口 `src/index.ts` 补齐遗漏导出的 `ReactNativeAdapter`。
+- **新增单元测试** — 补充针对 `printDriver()` 流程、驱动契约与适配器导出的单元测试。
+
+### Changed
+
+- **驱动标准化升级** — `TsplDriver`、`ZplDriver`、`CpclDriver` 实现统一协议契约，规范协议标识与缓冲区重置接口。
+- **贡献指南规范化** — 修复 `CONTRIBUTING.md` 中指向架构设计与 API 文档的失效链接，将测试框架从陈旧的 Jest 修正为 Vitest 并提供真实单元测试示例，校准最后更新时间。
+- **文档体系清理** — 移除根目录临时发布跟踪文件至 `docs/releases/` 归档，清理无意义构建占位文件 `docs/README.md`，同步 VitePress 文档站 Changelog。
+- **包信息优化** — 移除 `package.json` description 中的硬编码易过时版本号，补齐 React Native 与 QQ 等平台支持描述。
+
 ## [2.15.4] - 2026-07-13
 
 ### Added (Phase A — 可观测性 + 重试编排)

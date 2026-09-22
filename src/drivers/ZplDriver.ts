@@ -9,6 +9,7 @@ import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
 import { bitmapToHex } from '@/utils/bitmap';
 import { applyBarcodeMixins } from './BarcodeHelpers';
+import type { IProtocolDriver } from './contracts';
 
 /**
  * ZPL Label size configuration
@@ -115,7 +116,8 @@ export interface ZplBoxOptions {
  *   .getCommands();
  * ```
  */
-export class ZplDriver {
+export class ZplDriver implements IProtocolDriver {
+  readonly protocol = 'ZPL';
   private commands: string[] = [];
   private readonly logger = Logger.scope('ZplDriver');
 
@@ -518,6 +520,13 @@ export class ZplDriver {
     this.commands = [];
     this.startFormat();
     return this;
+  }
+
+  /**
+   * Clear commands buffer (IProtocolDriver compliance)
+   */
+  clear(): void {
+    this.resetCommands();
   }
 
   /**

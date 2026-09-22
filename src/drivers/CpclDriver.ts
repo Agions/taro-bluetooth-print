@@ -9,6 +9,7 @@ import { Logger } from '@/utils/logger';
 import { Encoding } from '@/utils/encoding';
 import { bitmapToHex } from '@/utils/bitmap';
 import { applyBarcodeMixins } from './BarcodeHelpers';
+import type { IProtocolDriver } from './contracts';
 
 /**
  * CPCL page size presets
@@ -128,7 +129,8 @@ export interface CpclBoxOptions {
  *   .getCommands();
  * ```
  */
-export class CpclDriver {
+export class CpclDriver implements IProtocolDriver {
+  readonly protocol = 'CPCL';
   private commands: string[] = [];
   private readonly logger = Logger.scope('CpclDriver');
 
@@ -534,6 +536,13 @@ export class CpclDriver {
   reset(): this {
     this.commands = [];
     return this;
+  }
+
+  /**
+   * Clear commands buffer (IProtocolDriver compliance)
+   */
+  clear(): void {
+    this.reset();
   }
 
   /**

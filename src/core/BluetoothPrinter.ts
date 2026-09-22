@@ -21,6 +21,7 @@ import type { IPrintJobManager } from '@/services/interfaces';
 import type { ICommandBuilder } from '@/services/interfaces';
 import type { TextAlign } from '@/formatter';
 import type { BarcodeFormat } from '@/barcode';
+import type { IProtocolDriver } from '@/drivers/contracts';
 
 /** Payload for `job-completed` / `job-failed` events. */
 export interface JobResult {
@@ -316,6 +317,32 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
       throw wrapped;
     } finally {
       this.updateState();
+    }
+  }
+
+  /**
+   * Write and execute commands directly from any unified protocol driver
+   * (e.g. TsplDriver, ZplDriver, CpclDriver).
+   *
+   * @param driver  Driver instance adhering to IProtocolDriver
+   * @param options Optional adapter write options
+   *
+   * @example
+   * ```ts
+   * const tspl = new TsplDriver()
+   *   .size(60, 40)
+   *   .gap(3)
+   *   .clear()
+   *   .text('Hello', { x: 20, y: 20, font: 3 })
+   *   .print(1, 1);
+   * await printer.printDriver(tspl);
+   * ```
+   */
+  async printDriver(driver: IProtocolDriver, options?: IAdapterOptions): Promise<void> {
+    const buffer = driver.getBuffer();
+    await this.writeRaw(buffer, options);
+    if (typeof driver.clear === 'function') {
+      driver.clear();
     }
   }
 

@@ -19,6 +19,7 @@ export { AlipayAdapter } from './adapters/AlipayAdapter';
 export { BaiduAdapter } from './adapters/BaiduAdapter';
 export { ByteDanceAdapter } from './adapters/ByteDanceAdapter';
 export { QQAdapter } from './adapters/QQAdapter';
+export { ReactNativeAdapter } from './adapters/ReactNativeAdapter';
 export { WebBluetoothAdapter } from './adapters/WebBluetoothAdapter';
 export { AdapterFactory } from './adapters/AdapterFactory';
 export { BaseAdapter } from './adapters/BaseAdapter';

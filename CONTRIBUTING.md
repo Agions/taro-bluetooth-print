@@ -28,8 +28,8 @@
 在开始贡献之前，请确保您已经：
 
 - ✅ 阅读了项目的 [README](README.md)
-- ✅ 了解项目的 [架构设计](docs/architecture/README.md)
-- ✅ 查看了 [API 文档](docs/api/README.md)
+- ✅ 了解项目的 [架构设计](docs/guide/architecture.md)
+- ✅ 查看了 [API 文档](docs/api/index.md)
 - ✅ 搜索了现有的 [Issues](https://github.com/Agions/taro-bluetooth-print/issues)
 - ✅ 查看了 [贡献者列表](https://github.com/Agions/taro-bluetooth-print/graphs/contributors)
 
@@ -38,7 +38,7 @@
 - **基础知识**: 熟悉 JavaScript/TypeScript
 - **框架知识**: 了解 Taro 框架和跨平台开发
 - **蓝牙知识**: 了解蓝牙协议和打印原理（加分项）
-- **测试经验**: 熟悉 Jest 或其他测试框架
+- **测试经验**: 熟悉 Vitest 或相关单元测试框架
 - **Git 使用**: 熟悉 Git 基本操作和协作流程
 
 ## 🛠️ 开发环境设置
@@ -373,54 +373,40 @@ tests/
 ### 2. 单元测试示例
 
 ```typescript
-// tests/unit/services/bluetooth-service.test.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { BluetoothService } from '../../../src/services/bluetooth.service';
-import { IBluetoothAdapter } from '../../../src/interfaces/bluetooth-adapter.interface';
+// tests/core/BluetoothPrinter.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { BluetoothPrinter } from '@/core/BluetoothPrinter';
+import type { IConnectionManager } from '@/services/interfaces';
 
-describe('BluetoothService', () => {
-  let service: BluetoothService;
-  let mockAdapter: jest.Mocked<IBluetoothAdapter>;
+describe('BluetoothPrinter', () => {
+  let printer: BluetoothPrinter;
+  let mockConnectionManager: Partial<IConnectionManager>;
 
-  beforeEach(async () => {
-    mockAdapter = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      scan: jest.fn()
-    } as any;
+  beforeEach(() => {
+    mockConnectionManager = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      isConnected: vi.fn().mockReturnValue(true),
+      getState: vi.fn().mockReturnValue(1),
+      getDeviceId: vi.fn().mockReturnValue('test-device-id'),
+      destroy: vi.fn(),
+    };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BluetoothService,
-        {
-          provide: 'BluetoothAdapter',
-          useValue: mockAdapter
-        }
-      ]
-    }).compile();
-
-    service = module.get<BluetoothService>(BluetoothService);
+    printer = new BluetoothPrinter(mockConnectionManager as IConnectionManager);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('should create instance successfully', () => {
+    expect(printer).toBeDefined();
   });
 
-  describe('connect', () => {
-    it('should connect successfully', async () => {
-      mockAdapter.connect.mockResolvedValue(true);
+  it('should connect to device', async () => {
+    await printer.connect('test-device-id');
+    expect(mockConnectionManager.connect).toHaveBeenCalledWith('test-device-id');
+  });
 
-      const result = await service.connect();
-
-      expect(result).toBe(true);
-      expect(mockAdapter.connect).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle connection failure', async () => {
-      mockAdapter.connect.mockRejectedValue(new Error('Connection failed'));
-
-      await expect(service.connect()).rejects.toThrow('Connection failed');
-    });
+  it('should handle disconnection', async () => {
+    await printer.disconnect();
+    expect(mockConnectionManager.disconnect).toHaveBeenCalled();
   });
 });
 ```
@@ -769,4 +755,4 @@ feat(bluetooth): 添加设备自动重连功能
 
 ---
 
-_最后更新时间: 2025年10月28日_
+_最后更新时间: 2026年9月22日_
