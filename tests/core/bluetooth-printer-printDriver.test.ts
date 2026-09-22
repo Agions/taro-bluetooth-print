@@ -10,7 +10,7 @@ import { TsplDriver } from '../../src/drivers/TsplDriver';
 import { ZplDriver } from '../../src/drivers/ZplDriver';
 import { CpclDriver } from '../../src/drivers/CpclDriver';
 import type { IProtocolDriver } from '../../src/drivers/contracts';
-import { ReactNativeAdapter } from '../../src';
+import { ReactNativeAdapter } from '../../src/adapters/ReactNativeAdapter';
 
 describe('BluetoothPrinter.printDriver()', () => {
   let mockConnectionManager: IConnectionManager;
