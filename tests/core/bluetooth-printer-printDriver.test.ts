@@ -105,8 +105,9 @@ describe('BluetoothPrinter.printDriver()', () => {
 
   test('prints CPCL driver output and resets commands', async () => {
     const cpcl = new CpclDriver(576, 400)
+      .pageStart()
       .text('CPCL TEST')
-      .print();
+      .pageEnd();
 
     expect(cpcl.protocol).toBe('CPCL');
     const expectedBuffer = cpcl.getBuffer();
