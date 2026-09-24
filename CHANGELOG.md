@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.6] - 2026-09-24
+
+### Fixed
+
+- **CI/CD 流水线一致性** — 统一 `release.yml` 的 pnpm 为主流程锁定的 v9 版本，解决 pnpm 10 引起的 lockfile config 校验冲突。
+- **单元测试优化** — 修复 `CpclDriver` 页面起始/结束指令调用，消除全局 `@tarojs/taro` 间接依赖引起的测试异常。
+
 ## [2.15.5] - 2026-09-22
 
 ### Added
