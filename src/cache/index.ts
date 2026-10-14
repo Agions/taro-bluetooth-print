@@ -15,11 +15,4 @@ export type {
   SyncExecutor,
 } from './OfflineCache';
 
-export type {
-  WALEntry,
-  WALConfig,
-  WALStats,
-  WALJobStatus,
-  WALEvents,
-} from './WALJournal';
-
+export type { WALEntry, WALConfig, WALStats, WALJobStatus, WALEvents } from './WALJournal';

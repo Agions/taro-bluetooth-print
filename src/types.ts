@@ -144,6 +144,8 @@ export interface IQrOptions {
   size?: number;
   /** Error correction level (L, M, Q, H, default: M) */
   errorCorrection?: 'L' | 'M' | 'Q' | 'H';
+  /** Text encoding for QR code content (e.g. 'UTF-8', 'GBK', default: 'GBK') */
+  encoding?: string;
 }
 
 /**

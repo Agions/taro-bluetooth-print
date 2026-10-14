@@ -176,20 +176,14 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   /**
    * Add a job to the queue
    */
-  add(
-    data: Uint8Array,
-    options?: Partial<PrintJob> & { deduplicate?: boolean }
-  ): string {
+  add(data: Uint8Array, options?: Partial<PrintJob> & { deduplicate?: boolean }): string {
     if (this.jobs.size >= this.config.maxSize) {
       throw new BluetoothPrintError(ErrorCode.QUEUE_FULL, 'Queue is full');
     }
 
     if (options?.deduplicate && this.config.wal?.isDuplicate(data)) {
       this.logger.warn('Skipping duplicate print job detected in WAL window');
-      throw new BluetoothPrintError(
-        ErrorCode.INVALID_PARAMETER,
-        'Duplicate print job detected'
-      );
+      throw new BluetoothPrintError(ErrorCode.INVALID_PARAMETER, 'Duplicate print job detected');
     }
 
     const id = options?.id ?? this.generateJobId();

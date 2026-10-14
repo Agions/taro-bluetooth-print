@@ -1,15 +1,16 @@
 # Changelog
 
-## [2.2.0] - 2026-10-14
+## [2.16.0] - 2026-10-14
 
 ### Added
 
+- **ESC/POS 二维码自定义编码支持 (Fixes #16)** — `IQrOptions` 新增 `encoding?: string` 属性，`EscPosDriver.qr()` 与 `StarPrinter.qr()` 开放自定义字符集编码（如 `UTF-8` / `GBK`），默认保持 `GBK` 向后兼容，解决主流扫码枪和手机扫码默认 UTF-8 解码乱码的问题。
 - **WAL 预写日志容灾引擎 (`WALJournal`)** — 实现微秒级预写日志记录与两级容灾存储模型，覆盖 `QUEUED` -> `IN_PROGRESS` -> `COMPLETED` / `FAILED` 全生命周期状态机追踪，支持冷启动日志回放（Rehydration）自愈。
 - **跨平台存储统一抽象适配层 (`IStorageAdapter`)** — 提供跨端统一的同步键值持久化抽象，内置 `MemoryStorageAdapter`（纯内存/服务端/测试环境）、`LocalStorageAdapter`（Web/H5 环境）、`TaroStorageAdapter`（微信/支付宝/字节等全系小程序环境）以及环境自适应工厂 `createUniversalStorage`。
 - **高效 CRC32 校验与幂等去重引擎 (`crc32`)** — 纯 JS 高性能 CRC32 指纹哈希算法，支持在内存与 WAL 层面设定滑动时间窗口（Deduplication Window），拦截弱网或重复点击造成的误打漏打。
 - **`PrintQueue` 深度容灾与自愈集成** — 打印队列原生无缝挂载 `WALJournal`，在添加、执行、重试、取消流程中自动持久化日志，并提供 `recoverFromWAL()` 一键自愈重放闪退或崩溃未完成任务。
 - **`BluetoothPrinter` 统一驱动与容灾 API** — 新增 `useDriver()`、`getActiveDriver()`、`enableWAL()`、`getWAL()` 门面接口，支持优雅挂载协议驱动与按需激活容灾引擎。
-- **完善的单元测试覆盖** — 新增 `tests/cache/wal-journal.test.ts`，全量覆盖 CRC32 校验、各平台存储适配器契约、WAL 状态转移生命周期、滑动窗口去重过滤及队列崩溃重放测试用例。
+- **完善的单元测试覆盖** — 新增 `tests/cache/wal-journal.test.ts` 及 ESC/POS 二维码编码单元测试，全量覆盖各平台存储契约、WAL 状态转移、去重过滤、队列崩溃重放与字符集编码测试。
 
 ## [2.15.6] - 2026-09-24
 

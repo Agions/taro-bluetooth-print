@@ -180,7 +180,8 @@ export class EscPos implements IPrinterDriver {
    * driver.qr('https://example.com', {
    *   model: 2,
    *   size: 8,
-   *   errorCorrection: 'M'
+   *   errorCorrection: 'M',
+   *   encoding: 'UTF-8',
    * });
    * ```
    */
@@ -217,7 +218,8 @@ export class EscPos implements IPrinterDriver {
     // 4. Store Data (Function 180)
     // GS ( k pL pH 31 50 30 d1...dk
     // pL, pH: length of data + 3
-    const data = this.encodeText(content, 'GBK');
+    const encoding = options?.encoding ?? 'GBK';
+    const data = this.encodeText(content, encoding);
     const len = data.length + 3;
     const pL = len % 256;
     const pH = Math.floor(len / 256);

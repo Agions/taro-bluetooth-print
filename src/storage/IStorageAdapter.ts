@@ -150,6 +150,27 @@ export class LocalStorageAdapter implements IStorageAdapter {
   }
 }
 
+interface TaroStorageAPI {
+  getStorageSync: (key: string) => unknown;
+  setStorageSync: (key: string, data: unknown) => void;
+  removeStorageSync: (key: string) => void;
+  clearStorageSync: () => void;
+}
+
+function getGlobalTaro(): TaroStorageAPI | undefined {
+  const globalObj = globalThis as unknown as Record<string, unknown>;
+  const taro = globalObj.Taro;
+  if (
+    taro &&
+    typeof taro === 'object' &&
+    'getStorageSync' in taro &&
+    typeof (taro as TaroStorageAPI).getStorageSync === 'function'
+  ) {
+    return taro as TaroStorageAPI;
+  }
+  return undefined;
+}
+
 /**
  * Taro 小程序统一存储适配器（微信 / 支付宝 / 百度 / 字节 / QQ）
  */
@@ -161,17 +182,10 @@ export class TaroStorageAdapter implements IStorageAdapter {
     this.prefix = prefix;
   }
 
-  private getTaroStorage(): any {
-    if (typeof (globalThis as any).Taro !== 'undefined') {
-      return (globalThis as any).Taro;
-    }
-    return undefined;
-  }
-
   getItem(key: string): string | null {
     try {
-      const taro = this.getTaroStorage();
-      if (taro && typeof taro.getStorageSync === 'function') {
+      const taro = getGlobalTaro();
+      if (taro) {
         const res = taro.getStorageSync(this.prefix + key);
         if (typeof res === 'string') return res;
         if (res !== undefined && res !== null) return JSON.stringify(res);
@@ -184,8 +198,8 @@ export class TaroStorageAdapter implements IStorageAdapter {
 
   setItem(key: string, value: string): void {
     try {
-      const taro = this.getTaroStorage();
-      if (taro && typeof taro.setStorageSync === 'function') {
+      const taro = getGlobalTaro();
+      if (taro) {
         taro.setStorageSync(this.prefix + key, value);
       }
     } catch (err) {
@@ -195,8 +209,8 @@ export class TaroStorageAdapter implements IStorageAdapter {
 
   removeItem(key: string): void {
     try {
-      const taro = this.getTaroStorage();
-      if (taro && typeof taro.removeStorageSync === 'function') {
+      const taro = getGlobalTaro();
+      if (taro) {
         taro.removeStorageSync(this.prefix + key);
       }
     } catch (err) {
@@ -206,8 +220,8 @@ export class TaroStorageAdapter implements IStorageAdapter {
 
   clear(): void {
     try {
-      const taro = this.getTaroStorage();
-      if (taro && typeof taro.clearStorageSync === 'function') {
+      const taro = getGlobalTaro();
+      if (taro) {
         taro.clearStorageSync();
       }
     } catch (err) {
@@ -220,10 +234,7 @@ export class TaroStorageAdapter implements IStorageAdapter {
  * 自动探测环境并生成最佳存储适配器
  */
 export function createUniversalStorage(prefix = 'taro_bt_'): IStorageAdapter {
-  if (
-    typeof (globalThis as any).Taro !== 'undefined' &&
-    typeof (globalThis as any).Taro.getStorageSync === 'function'
-  ) {
+  if (getGlobalTaro() !== undefined) {
     return new TaroStorageAdapter(prefix);
   }
   if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {

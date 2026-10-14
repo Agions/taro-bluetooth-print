@@ -40,4 +40,23 @@ describe('EscPos Driver', () => {
     const commands = driver.qr('test', { size: 6, model: 2 });
     expect(commands.length).toBeGreaterThan(0);
   });
+
+  it('should support QR code with custom encoding (UTF-8 vs default GBK)', () => {
+    const driver = new EscPos();
+    // Default GBK: '测试' is 4 bytes in GBK
+    const gbkCommands = driver.qr('测试');
+    expect(gbkCommands).toHaveLength(6);
+    expect(gbkCommands[4]).toHaveLength(4);
+
+    // Custom UTF-8: '测试' is 6 bytes in UTF-8
+    const utf8Commands = driver.qr('测试', { encoding: 'UTF-8' });
+    expect(utf8Commands).toHaveLength(6);
+    expect(utf8Commands[4]).toHaveLength(6);
+  });
+
+  it('should return empty array for empty QR content', () => {
+    const driver = new EscPos();
+    expect(driver.qr('')).toEqual([]);
+    expect(driver.qr(null as unknown as string)).toEqual([]);
+  });
 });

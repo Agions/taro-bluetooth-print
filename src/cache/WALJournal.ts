@@ -141,7 +141,7 @@ export class WALJournal extends EventEmitter<WALEvents> {
       storagePrefix: config?.storagePrefix ?? 'taro_bt_wal_',
       maxEntries: config?.maxEntries ?? 200,
       dedupWindowMs: config?.dedupWindowMs ?? 10 * 60 * 1000, // 10分钟
-      retentionMs: config?.retentionMs ?? 2 * 60 * 60 * 1000,  // 2小时
+      retentionMs: config?.retentionMs ?? 2 * 60 * 60 * 1000, // 2小时
       autoCompact: config?.autoCompact ?? true,
     };
     this.storage = storage ?? createUniversalStorage(this.config.storagePrefix);
@@ -160,7 +160,7 @@ export class WALJournal extends EventEmitter<WALEvents> {
     try {
       const raw = this.storage.getItem(this.storageKey);
       if (!raw) return;
-      const parsed: WALEntry[] = JSON.parse(raw);
+      const parsed = (JSON.parse(raw) as unknown) as WALEntry[];
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
           this.entries.set(item.jobId, item);
@@ -324,7 +324,10 @@ export class WALJournal extends EventEmitter<WALEvents> {
 
     if (unfinished.length > 0) {
       this.logger.info(`WAL Recovery: Identified ${unfinished.length} unfinished jobs to replay`);
-      this.emit('recovered', Array.from(this.entries.values()).filter(e => e.status === 'QUEUED' || e.status === 'IN_PROGRESS'));
+      const activeEntries = Array.from(this.entries.values()).filter(
+        e => e.status === 'QUEUED' || e.status === 'IN_PROGRESS'
+      );
+      this.emit('recovered', activeEntries);
     }
     return unfinished;
   }
