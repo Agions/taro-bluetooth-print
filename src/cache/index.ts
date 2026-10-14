@@ -4,6 +4,7 @@
  */
 
 export { OfflineCache, offlineCache } from './OfflineCache';
+export { WALJournal } from './WALJournal';
 
 export type {
   CachedJob,
@@ -13,3 +14,12 @@ export type {
   IOfflineCache,
   SyncExecutor,
 } from './OfflineCache';
+
+export type {
+  WALEntry,
+  WALConfig,
+  WALStats,
+  WALJobStatus,
+  WALEvents,
+} from './WALJournal';
+

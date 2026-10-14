@@ -50,9 +50,27 @@ export type {
   PrintQueueEvents,
 } from './queue/PrintQueue';
 
-// Offline Cache - 离线缓存
-export { OfflineCache } from './cache/OfflineCache';
-export type { CachedJob, CacheConfig, CacheStats } from './cache/OfflineCache';
+// Offline Cache & WAL Journal - 离线缓存与容灾预写日志
+export { OfflineCache, WALJournal } from './cache';
+export type {
+  CachedJob,
+  CacheConfig,
+  CacheStats,
+  WALEntry,
+  WALConfig,
+  WALStats,
+  WALJobStatus,
+  WALEvents,
+} from './cache';
+
+// Storage - 跨端存储适配器
+export {
+  MemoryStorageAdapter,
+  LocalStorageAdapter,
+  TaroStorageAdapter,
+  createUniversalStorage,
+} from './storage';
+export type { IStorageAdapter } from './storage';
 
 // Template Engine - 模板引擎
 export { TemplateEngine } from './template/TemplateEngine';
@@ -86,6 +104,7 @@ export { Logger, LogLevel } from './utils/logger';
 export { Encoding } from './utils/encoding';
 export { ImageProcessing } from './utils/image';
 export { PlatformType, detectPlatform, isPlatformSupported } from './utils/platform';
+export { crc32 } from './utils/checksum';
 export {
   truncateString,
   truncateForLog,

@@ -22,6 +22,8 @@ import type { ICommandBuilder } from '@/services/interfaces';
 import type { TextAlign } from '@/formatter';
 import type { BarcodeFormat } from '@/barcode';
 import type { IProtocolDriver } from '@/drivers/contracts';
+import { WALJournal, type WALConfig } from '@/cache/WALJournal';
+import type { IStorageAdapter } from '@/storage';
 
 /** Payload for `job-completed` / `job-failed` events. */
 export interface JobResult {
@@ -58,6 +60,8 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
   private readonly connectionManager: IConnectionManager;
   private readonly printJobManager: IPrintJobManager;
   private readonly commandBuilder: ICommandBuilder;
+  private activeDriver?: IProtocolDriver;
+  private walJournal?: WALJournal;
 
   /**
    * @param connectionManagerOrAdapter - Either an `IConnectionManager` (preferred)
@@ -344,6 +348,40 @@ export class BluetoothPrinter extends EventEmitter<PrinterEvents> {
     if (typeof driver.clear === 'function') {
       driver.clear();
     }
+  }
+
+  /**
+   * 挂载当前活动的统一协议驱动（如 TsplDriver / ZplDriver / CpclDriver）
+   */
+  useDriver(driver: IProtocolDriver): this {
+    this.activeDriver = driver;
+    this.printerLogger.info(`Switched active protocol driver to: ${driver.protocol}`);
+    return this;
+  }
+
+  /**
+   * 获取当前挂载的协议驱动
+   */
+  getActiveDriver(): IProtocolDriver | undefined {
+    return this.activeDriver;
+  }
+
+  /**
+   * 启用 WAL 预写日志容灾与幂等去重引擎
+   */
+  enableWAL(storage?: IStorageAdapter, config?: WALConfig): WALJournal {
+    if (!this.walJournal) {
+      this.walJournal = new WALJournal(storage, config);
+      this.printerLogger.info('WAL Journal resilience engine enabled');
+    }
+    return this.walJournal;
+  }
+
+  /**
+   * 获取 WAL 引擎实例（若已启用）
+   */
+  getWAL(): WALJournal | undefined {
+    return this.walJournal;
   }
 
   /**

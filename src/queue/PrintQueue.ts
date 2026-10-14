@@ -16,6 +16,7 @@ import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { normalizeError } from '@/utils/normalizeError';
 import { EventEmitter } from '@/core/EventEmitter';
+import type { WALJournal } from '@/cache/WALJournal';
 
 /**
  * Print job status
@@ -81,6 +82,8 @@ export interface QueueConfig {
   autoProcess: boolean;
   /** Concurrent jobs (default: 1) */
   concurrency: number;
+  /** Optional WAL Journal persistence engine */
+  wal?: WALJournal;
 }
 
 /**
@@ -173,22 +176,42 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   /**
    * Add a job to the queue
    */
-  add(data: Uint8Array, options?: Partial<PrintJob>): string {
+  add(
+    data: Uint8Array,
+    options?: Partial<PrintJob> & { deduplicate?: boolean }
+  ): string {
     if (this.jobs.size >= this.config.maxSize) {
       throw new BluetoothPrintError(ErrorCode.QUEUE_FULL, 'Queue is full');
     }
 
-    const id = this.generateJobId();
+    if (options?.deduplicate && this.config.wal?.isDuplicate(data)) {
+      this.logger.warn('Skipping duplicate print job detected in WAL window');
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_PARAMETER,
+        'Duplicate print job detected'
+      );
+    }
+
+    const id = options?.id ?? this.generateJobId();
     const job: PrintJob = {
       id,
       data,
       status: PrintJobStatus.PENDING,
       priority: options?.priority ?? PrintJobPriority.NORMAL,
       createdAt: Date.now(),
-      retryCount: 0,
+      retryCount: options?.retryCount ?? 0,
       maxRetries: options?.maxRetries ?? this.config.defaultRetries,
       metadata: options?.metadata,
     };
+
+    if (this.config.wal) {
+      this.config.wal.recordQueued({
+        id,
+        data,
+        priority: job.priority,
+        metadata: job.metadata,
+      });
+    }
 
     this.jobs.set(id, job);
     this.insertByPriority(id, job.priority);
@@ -228,6 +251,9 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
     }
 
     job.status = PrintJobStatus.CANCELLED;
+    if (this.config.wal) {
+      this.config.wal.recordFailed(jobId, 'Cancelled by user');
+    }
     this.removeFromPendingQueue(jobId);
     this.clearRetryTimer(jobId);
     this.emit('job-cancelled', job);
@@ -390,6 +416,9 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   private async executeJob(job: PrintJob): Promise<void> {
     job.status = PrintJobStatus.IN_PROGRESS;
     job.startedAt = Date.now();
+    if (this.config.wal) {
+      this.config.wal.recordStarted(job.id);
+    }
     this.emit('job-started', job);
     this.logger.debug(`Job started: ${job.id}`);
 
@@ -403,6 +432,9 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
 
       job.status = PrintJobStatus.COMPLETED;
       job.completedAt = Date.now();
+      if (this.config.wal) {
+        this.config.wal.recordCompleted(job.id);
+      }
       this.emit('job-completed', job);
       this.logger.debug(`Job completed: ${job.id}`);
     } catch (error) {
@@ -418,6 +450,9 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
       } else {
         job.status = PrintJobStatus.FAILED;
         job.completedAt = Date.now();
+        if (this.config.wal) {
+          this.config.wal.recordFailed(job.id, job.error?.message);
+        }
         this.emit('job-failed', job);
         this.logger.error(`Job failed: ${job.id}`, error);
       }
@@ -571,6 +606,40 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
       this.retryTimer = null;
     }
     this.retryQueue = [];
+  }
+
+  /**
+   * 获取当前挂载的 WAL Journal 引擎实例
+   */
+  getWAL(): WALJournal | undefined {
+    return this.config.wal;
+  }
+
+  /**
+   * 故障自愈重放：从 WAL 预写日志恢复所有闪退/崩溃前未完成的任务并重新加入队列
+   *
+   * @returns 成功恢复重放的任务数量
+   */
+  recoverFromWAL(): number {
+    if (!this.config.wal) return 0;
+
+    const unfinished = this.config.wal.getUnfinishedJobs();
+    let replayed = 0;
+
+    for (const item of unfinished) {
+      if (!this.jobs.has(item.id)) {
+        this.add(item.data, {
+          id: item.id,
+          priority: item.priority as PrintJobPriority,
+          retryCount: item.retryCount,
+          metadata: item.metadata,
+        });
+        replayed++;
+      }
+    }
+
+    this.logger.info(`WAL Recovery: replayed ${replayed} jobs into PrintQueue`);
+    return replayed;
   }
 }
 
