@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { crc32 } from '../../src/utils/checksum';
 import {
   MemoryStorageAdapter,
+  TaroStorageAdapter,
   createUniversalStorage,
 } from '../../src/storage';
 import { WALJournal } from '../../src/cache/WALJournal';
@@ -47,8 +48,33 @@ describe('Storage Adapters', () => {
     expect(storage.getAllKeys()).toEqual([]);
   });
 
-  it('createUniversalStorage falls back to MemoryStorageAdapter in node/test env', () => {
-    const storage = createUniversalStorage('auto_');
+  it('createUniversalStorage falls back to MemoryStorageAdapter when Taro is unavailable', () => {
+    const savedTaro = (globalThis as unknown as { Taro?: unknown }).Taro;
+    try {
+      delete (globalThis as unknown as { Taro?: unknown }).Taro;
+      const storage = createUniversalStorage('auto_');
+      storage.setItem('foo', 'bar');
+      expect(storage.getItem('foo')).toBe('bar');
+    } finally {
+      (globalThis as unknown as { Taro?: unknown }).Taro = savedTaro;
+    }
+  });
+
+  it('TaroStorageAdapter correctly stores and retrieves data through Taro API', () => {
+    const map = new Map<string, unknown>();
+    const taro = (globalThis as unknown as {
+      Taro: {
+        getStorageSync: (k: string) => unknown;
+        setStorageSync: (k: string, v: unknown) => void;
+      };
+    }).Taro;
+
+    vi.spyOn(taro, 'setStorageSync').mockImplementation((k: string, v: unknown) => {
+      map.set(k, v);
+    });
+    vi.spyOn(taro, 'getStorageSync').mockImplementation((k: string) => map.get(k));
+
+    const storage = new TaroStorageAdapter('taro_test_');
     storage.setItem('foo', 'bar');
     expect(storage.getItem('foo')).toBe('bar');
   });
