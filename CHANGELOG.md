@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.16.1] - 2026-10-15
+
+### Fixed
+
+- **类型系统继承兼容** — 修复 `WALJournal` 继承 `EventEmitter` 时 `logger` 访问修饰符不一致的问题（TS2415）。
+- **通用存储环境探测优化** — `createUniversalStorage` 增加对 Node/浏览器 `localStorage` 的主动可用性探测，防止非标准环境下的异常回退。
+- **单元测试隔离性增强** — 完善针对 `TaroStorageAdapter` 与多环境存储降级逻辑的独立测试用例。
+
 ## [2.16.0] - 2026-10-14
 
 ### Added
