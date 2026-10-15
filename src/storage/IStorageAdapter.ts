@@ -230,6 +230,20 @@ export class TaroStorageAdapter implements IStorageAdapter {
   }
 }
 
+function isLocalStorageAvailable(): boolean {
+  try {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return false;
+    }
+    const testKey = '__bt_storage_probe__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 自动探测环境并生成最佳存储适配器
  */
@@ -237,7 +251,7 @@ export function createUniversalStorage(prefix = 'taro_bt_'): IStorageAdapter {
   if (getGlobalTaro() !== undefined) {
     return new TaroStorageAdapter(prefix);
   }
-  if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+  if (isLocalStorageAvailable()) {
     return new LocalStorageAdapter(prefix);
   }
   return new MemoryStorageAdapter(prefix);
