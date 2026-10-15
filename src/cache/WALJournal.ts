@@ -79,8 +79,8 @@ export interface WALStats {
 export interface WALEvents {
   'entry-logged': WALEntry;
   'entry-updated': WALEntry;
-  'recovered': WALEntry[];
-  'compacted': number;
+  recovered: WALEntry[];
+  compacted: number;
 }
 
 // ─── Base64 编解码辅助 ────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export class WALJournal extends EventEmitter<WALEvents> {
     try {
       const raw = this.storage.getItem(this.storageKey);
       if (!raw) return;
-      const parsed = (JSON.parse(raw) as unknown) as WALEntry[];
+      const parsed = JSON.parse(raw) as unknown as WALEntry[];
       if (Array.isArray(parsed)) {
         for (const item of parsed) {
           this.entries.set(item.jobId, item);
