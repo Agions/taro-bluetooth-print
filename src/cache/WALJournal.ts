@@ -127,7 +127,7 @@ function base64ToBytes(b64: string): Uint8Array {
  * 预写日志管理器
  */
 export class WALJournal extends EventEmitter<WALEvents> {
-  private readonly logger = Logger.scope('WALJournal');
+  protected readonly logger = Logger.scope('WALJournal');
   private readonly storage: IStorageAdapter;
   private readonly config: Required<WALConfig>;
   private readonly storageKey: string;
