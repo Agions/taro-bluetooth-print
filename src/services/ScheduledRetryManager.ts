@@ -4,6 +4,9 @@
  * Provides time-based retry scheduling for failed print jobs.
  * Supports exponential backoff and persists scheduled retries across restarts.
  *
+ * @deprecated Since v2.17.0. Prefer configuring `backoffFactor` on {@link PrintQueue} directly.
+ * ScheduledRetryManager is retained for backward compatibility and will be removed in v3.0.0.
+ *
  * @example
  * ```typescript
  * const manager = new ScheduledRetryManager();

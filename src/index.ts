@@ -41,17 +41,17 @@ export type {
 } from './device/MultiPrinterManager';
 
 // Print Queue - 打印队列
-export { PrintQueue } from './queue/PrintQueue';
+export { PrintQueue, printQueue, getPrintQueue } from './queue';
 export type {
   PrintJob,
   PrintJobStatus,
   PrintJobPriority,
   QueueConfig,
   PrintQueueEvents,
-} from './queue/PrintQueue';
+} from './queue';
 
 // Offline Cache & WAL Journal - 离线缓存与容灾预写日志
-export { OfflineCache, WALJournal } from './cache';
+export { OfflineCache, offlineCache, getOfflineCache, WALJournal } from './cache';
 export type {
   CachedJob,
   CacheConfig,

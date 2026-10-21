@@ -84,6 +84,10 @@ export interface QueueConfig {
   concurrency: number;
   /** Optional WAL Journal persistence engine */
   wal?: WALJournal;
+  /** Exponential backoff factor (default: 1.0, e.g. 2.0 doubles delay each retry) */
+  backoffFactor?: number;
+  /** Maximum retry delay in ms when using exponential backoff (default: 60000) */
+  maxRetryDelay?: number;
 }
 
 /**
@@ -95,6 +99,7 @@ export interface PrintQueueEvents {
   'job-completed': PrintJob;
   'job-failed': PrintJob;
   'job-cancelled': PrintJob;
+  'job-retry': { job: PrintJob; attempt: number; delay: number };
   'queue-empty': void;
   'queue-paused': void;
   'queue-resumed': void;
@@ -136,6 +141,8 @@ const DEFAULT_CONFIG: QueueConfig = {
   retryDelay: 1000,
   autoProcess: true,
   concurrency: 1,
+  backoffFactor: 1.0,
+  maxRetryDelay: 60000,
 };
 
 /**
@@ -439,8 +446,18 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
         this.logger.warn(`Job ${job.id} failed, retrying (${job.retryCount}/${job.maxRetries})`);
         job.status = PrintJobStatus.PENDING;
 
+        // 计算指数退避延迟（若配置了 backoffFactor > 1）
+        const factor = this.config.backoffFactor ?? 1.0;
+        const maxDelay = this.config.maxRetryDelay ?? 60000;
+        const delay = Math.min(
+          maxDelay,
+          Math.round(this.config.retryDelay * Math.pow(factor, Math.max(0, job.retryCount - 1)))
+        );
+
+        this.emit('job-retry', { job, attempt: job.retryCount, delay });
+
         // 优化：添加到延迟队列，使用单个定时器调度
-        this.scheduleRetry(job.id, this.config.retryDelay);
+        this.scheduleRetry(job.id, delay);
       } else {
         job.status = PrintJobStatus.FAILED;
         job.completedAt = Date.now();
@@ -610,6 +627,65 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   }
 
   /**
+   * 手动触发重试失败或取消的任务
+   *
+   * @param jobId - 任务 ID
+   * @param options - 重试选项（是否重置重试计数、延迟时间）
+   * @returns 成功重新入队返回 true，未找到任务返回 false
+   */
+  retryJob(
+    jobId: string,
+    options?: { resetAttempts?: boolean; delay?: number }
+  ): boolean {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      this.logger.warn(`retryJob: job ${jobId} not found`);
+      return false;
+    }
+
+    if (job.status === PrintJobStatus.IN_PROGRESS) {
+      this.logger.warn(`retryJob: job ${jobId} is currently in progress`);
+      return false;
+    }
+
+    if (options?.resetAttempts) {
+      job.retryCount = 0;
+    }
+
+    job.status = PrintJobStatus.PENDING;
+    job.error = undefined;
+
+    const delay = options?.delay ?? 0;
+    if (delay > 0) {
+      this.scheduleRetry(jobId, delay);
+    } else {
+      this.removeFromRetryQueue(jobId);
+      this.removeFromPendingQueue(jobId);
+      this.insertByPriority(jobId, job.priority);
+      if (this.config.autoProcess && !this.isPaused) {
+        void this.processQueue();
+      }
+    }
+
+    this.logger.info(`Job ${jobId} manually re-queued for retry`);
+    return true;
+  }
+
+  /**
+   * 获取当前等待延迟重试的队列快照
+   */
+  getRetryQueue(): ReadonlyArray<{ jobId: string; retryAt: number; delay: number }> {
+    return [...this.retryQueue];
+  }
+
+  /**
+   * 检查指定打印数据在当前 WAL 去重时间窗口内是否重复
+   */
+  isDuplicate(data: Uint8Array): boolean {
+    return this.config.wal?.isDuplicate(data) ?? false;
+  }
+
+  /**
    * 故障自愈重放：从 WAL 预写日志恢复所有闪退/崩溃前未完成的任务并重新加入队列
    *
    * @returns 成功恢复重放的任务数量
@@ -637,5 +713,35 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
   }
 }
 
-// Export singleton instance for convenience
-export const printQueue = new PrintQueue();
+/**
+ * Lazy singleton backing reference
+ */
+let _defaultPrintQueue: PrintQueue | null = null;
+
+/**
+ * Get or initialize the default shared PrintQueue instance.
+ */
+export function getPrintQueue(): PrintQueue {
+  if (!_defaultPrintQueue) {
+    _defaultPrintQueue = new PrintQueue();
+  }
+  return _defaultPrintQueue;
+}
+
+/**
+ * Export singleton instance for convenience.
+ * Lazily initialized upon first access to eliminate unwanted startup side effects.
+ *
+ * @deprecated Since v2.17.0. Prefer instantiating your own {@link PrintQueue} or injecting via {@link BluetoothPrinter}.
+ * Will be removed in v3.0.0.
+ */
+export const printQueue: PrintQueue = new Proxy({} as PrintQueue, {
+  get(_target, prop, receiver) {
+    const instance = getPrintQueue();
+    const value = Reflect.get(instance, prop, receiver);
+    if (typeof value === 'function') {
+      return (value as Function).bind(instance);
+    }
+    return value;
+  },
+});

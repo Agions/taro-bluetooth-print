@@ -10,6 +10,7 @@ import { IPrintJobManager, IConnectionManager } from '@/services/interfaces';
 import { Logger } from '@/utils/logger';
 import { normalizeError } from '@/utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
+import type { PrintQueue } from '@/queue/PrintQueue';
 
 export type JobState = 'in-progress' | 'paused' | 'completed' | 'cancelled';
 
@@ -72,6 +73,23 @@ export class PrintJobManager implements IPrintJobManager {
 
   setJobStateCallback(callback?: (state: JobState) => void): void {
     this.onJobStateChange = callback;
+  }
+
+  private printQueue?: PrintQueue;
+
+  /**
+   * 关联共享的底层 PrintQueue 实例以实现任务生命周期协同
+   */
+  setPrintQueue(queue: PrintQueue): this {
+    this.printQueue = queue;
+    return this;
+  }
+
+  /**
+   * 获取关联的底层 PrintQueue 实例（若已配置）
+   */
+  getPrintQueue(): PrintQueue | undefined {
+    return this.printQueue;
   }
 
   /**

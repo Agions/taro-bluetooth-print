@@ -3,7 +3,7 @@
  * 离线缓存模块 - 负责任务持久化存储
  */
 
-export { OfflineCache, offlineCache } from './OfflineCache';
+export { OfflineCache, offlineCache, getOfflineCache } from './OfflineCache';
 export { WALJournal } from './WALJournal';
 
 export type {

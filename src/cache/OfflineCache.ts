@@ -170,6 +170,9 @@ function base64ToUint8Array(b64: string): Uint8Array {
 /**
  * Offline Cache class
  * Manages offline storage for print jobs
+ *
+ * @deprecated Since v2.17.0. Use {@link WALJournal} and {@link PrintQueue} with WAL persistence instead.
+ * OfflineCache will be removed in v3.0.0.
  */
 export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IOfflineCache {
   protected readonly logger = Logger.scope('OfflineCache');
@@ -558,5 +561,35 @@ export class OfflineCache extends EventEmitter<OfflineCacheEvents> implements IO
   }
 }
 
-// Export singleton instance for convenience
-export const offlineCache = new OfflineCache();
+/**
+ * Lazy singleton backing reference
+ */
+let _defaultOfflineCache: OfflineCache | null = null;
+
+/**
+ * Get or initialize the default shared OfflineCache instance.
+ */
+export function getOfflineCache(): OfflineCache {
+  if (!_defaultOfflineCache) {
+    _defaultOfflineCache = new OfflineCache();
+  }
+  return _defaultOfflineCache;
+}
+
+/**
+ * Export singleton instance for convenience.
+ * Lazily initialized upon first access to eliminate unwanted startup side effects.
+ *
+ * @deprecated Since v2.17.0. Prefer {@link WALJournal} and {@link PrintQueue}.
+ * Will be removed in v3.0.0.
+ */
+export const offlineCache: OfflineCache = new Proxy({} as OfflineCache, {
+  get(_target, prop, receiver) {
+    const instance = getOfflineCache();
+    const value = Reflect.get(instance, prop, receiver);
+    if (typeof value === 'function') {
+      return (value as Function).bind(instance);
+    }
+    return value;
+  },
+});

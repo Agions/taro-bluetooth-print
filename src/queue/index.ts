@@ -3,7 +3,13 @@
  * 打印队列模块 - 负责任务调度和优先级管理
  */
 
-export { PrintQueue, printQueue, PrintJobStatus, PrintJobPriority } from './PrintQueue';
+export {
+  PrintQueue,
+  printQueue,
+  getPrintQueue,
+  PrintJobStatus,
+  PrintJobPriority,
+} from './PrintQueue';
 
 export type {
   PrintJob,

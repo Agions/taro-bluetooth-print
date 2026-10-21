@@ -24,6 +24,7 @@
 import { Logger } from '@/utils/logger';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { EventEmitter } from '@/core/EventEmitter';
+import type { PrintQueue } from '@/queue/PrintQueue';
 
 /**
  * Batch job entry
@@ -189,6 +190,78 @@ export class BatchPrintManager extends EventEmitter<BatchEvents> {
   constructor(config: Partial<BatchConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  private printQueue: PrintQueue | null = null;
+
+  /**
+   * 关联共享的 PrintQueue 队列实例，支持将合并后的批次直接排队提交
+   */
+  setPrintQueue(queue: PrintQueue): this {
+    this.printQueue = queue;
+    return this;
+  }
+
+  /**
+   * 获取关联的 PrintQueue 实例（若已配置）
+   */
+  getPrintQueue(): PrintQueue | null {
+    return this.printQueue;
+  }
+
+  /**
+   * 将当前批次任务合并后直接提交至底层的 PrintQueue 进行队列调度与 WAL 容灾管理
+   *
+   * @param options - 提交选项（是否开启 WAL 去重，指定队列优先级）
+   * @returns 成功推送到队列返回生成的 jobId，无任务时返回 null
+   */
+  flushToQueue(options?: { deduplicate?: boolean; priority?: number }): string | null {
+    if (!this.printQueue) {
+      throw new BluetoothPrintError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'No PrintQueue attached to BatchPrintManager. Call setPrintQueue() first.'
+      );
+    }
+
+    if (this.jobs.length === 0) {
+      return null;
+    }
+
+    this.clearWatchTimer();
+    const batchJobs = this.prepareBatch();
+    const { mergedData, fromCount, toCount } = this.mergeJobs(batchJobs);
+
+    if (fromCount !== toCount) {
+      const savedBytes =
+        batchJobs.slice(0, fromCount).reduce((sum, j) => sum + j.data.length, 0) -
+        mergedData.length;
+      this.emit('jobs-merged', { fromCount, toCount, savedBytes: Math.abs(savedBytes) });
+      this.stats.mergedJobs += fromCount - toCount;
+    }
+
+    const priority = options?.priority ?? Math.max(0, ...batchJobs.map(j => j.priority));
+    const jobId = this.printQueue.add(mergedData, {
+      priority,
+      deduplicate: options?.deduplicate,
+      metadata: {
+        batchJobIds: batchJobs.map(j => j.id),
+        batchSize: batchJobs.length,
+      },
+    });
+
+    let removedBytes = 0;
+    for (let i = 0; i < batchJobs.length; i++) {
+      removedBytes += batchJobs[i]!.data.length;
+    }
+    this.pendingBytes -= removedBytes;
+    this.jobs.splice(0, batchJobs.length);
+    this.failedJobs = [];
+
+    this.stats.totalBytes += mergedData.length;
+    this.stats.batchesProcessed++;
+    this.emit('batch-processed', { jobCount: batchJobs.length, bytes: mergedData.length });
+
+    return jobId;
   }
 
   /**

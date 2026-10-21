@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.17.0] - 2026-10-21
+
+### Added
+
+- **任务队列指数退避重试 (`PrintQueue`)** — `QueueConfig` 扩展 `backoffFactor` 与 `maxRetryDelay` 配置，并在任务重试时派发 `'job-retry'` 事件，统一底层重试机制。
+- **手动任务重试与队列快照 (`retryJob`)** — `PrintQueue` 新增 `retryJob()` 与 `getRetryQueue()`，支持重置重试计数或指定延迟调度。
+- **批处理打印队列直连 (`BatchPrintManager.flushToQueue`)** — `BatchPrintManager` 接入底层物理队列 `PrintQueue`，合并小任务后可直接排队提交并享受 WAL 日志追踪。
+- **惰性单例代理 (`Lazy Singleton`)** — 针对顶层单例 `printQueue` 与 `offlineCache` 改为按需初始化的 Lazy Proxy，彻底消除无用 import 造成的全局副作用，并新增 `getPrintQueue()`、`getOfflineCache()` 访问函数。
+
+### Deprecated
+
+- **标记重复与旧版模块** — 将 `OfflineCache`（由 `WALJournal` 替代）与 `ScheduledRetryManager`（由 `PrintQueue` 指数退避替代）标记为 `@deprecated`，计划在 v3.0.0 移除。
+
 ## [2.16.1] - 2026-10-15
 
 ### Fixed
