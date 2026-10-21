@@ -4,6 +4,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock @tarojs/taro before importing modules that touch it
+vi.mock('@tarojs/taro', () => ({
+  default: {
+    getStorageSync: vi.fn(),
+    setStorageSync: vi.fn(),
+    removeStorageSync: vi.fn(),
+    getStorageInfoSync: vi.fn(),
+  },
+}));
+
 import {
   PrintQueue,
   PrintJobPriority,

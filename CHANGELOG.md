@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.17.3] - 2026-10-21
+
+### Fixed
+
+- **单元测试 Taro 隔离 Mock 补充** — 在 `tests/queue/print-queue-convergence.test.ts` 补充 `@tarojs/taro` 顶层 Mock，避免在纯 Node 运行环境中访问全局对象导致测试报错。
+
 ## [2.17.2] - 2026-10-21
 
 ### Fixed
