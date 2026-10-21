@@ -586,7 +586,7 @@ export function getOfflineCache(): OfflineCache {
 export const offlineCache: OfflineCache = new Proxy({} as OfflineCache, {
   get(_target, prop: string | symbol): unknown {
     const instance = getOfflineCache();
-    const value: unknown = (instance as Record<string | symbol, unknown>)[prop];
+    const value: unknown = (instance as unknown as Record<string | symbol, unknown>)[prop];
     if (typeof value === 'function') {
       return (...args: unknown[]): unknown =>
         (value as (...innerArgs: unknown[]) => unknown).apply(instance, args);
