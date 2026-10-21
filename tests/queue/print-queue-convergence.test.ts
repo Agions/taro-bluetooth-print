@@ -165,8 +165,9 @@ describe('PrintQueue Convergence & Resilience', () => {
       const data = new Uint8Array([0x1b, 0x40, 0x01]);
       expect(queue.isDuplicate(data)).toBe(false);
 
-      // Add to queue (records into WAL)
-      queue.add(data);
+      // Add to queue (records into WAL as QUEUED)
+      const jobId = queue.add(data);
+      wal.recordStarted(jobId);
       expect(queue.isDuplicate(data)).toBe(true);
     });
 
@@ -187,8 +188,8 @@ describe('PrintQueue Convergence & Resilience', () => {
       batchManager.setPrintQueue(queue);
       expect(batchManager.getPrintQueue()).toBe(queue);
 
-      batchManager.addJob({ data: new Uint8Array([1, 2]), priority: 1 });
-      batchManager.addJob({ data: new Uint8Array([3, 4]), priority: 2 });
+      batchManager.addJob(new Uint8Array([1, 2]), 1);
+      batchManager.addJob(new Uint8Array([3, 4]), 2);
 
       const jobId = batchManager.flushToQueue({ priority: PrintJobPriority.HIGH });
       expect(jobId).toBeDefined();
@@ -201,7 +202,7 @@ describe('PrintQueue Convergence & Resilience', () => {
 
     it('flushToQueue() throws if called without setting a PrintQueue', () => {
       const batchManager = new BatchPrintManager();
-      batchManager.addJob({ data: new Uint8Array([1]) });
+      batchManager.addJob(new Uint8Array([1]));
       expect(() => batchManager.flushToQueue()).toThrowError(/No PrintQueue attached/);
     });
   });

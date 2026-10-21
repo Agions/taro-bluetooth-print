@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.17.4] - 2026-10-21
+
+### Fixed
+
+- **单元测试断言与参数修正** — 修正 `print-queue-convergence.test.ts` 中 `BatchPrintManager.addJob` 参数契约与 `WALJournal.isDuplicate` 状态校验逻辑。
+
 ## [2.17.3] - 2026-10-21
 
 ### Fixed
