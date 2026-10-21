@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.17.1] - 2026-10-21
+
+### Fixed
+
+- **类型与格式检查优化** — 优化 `printQueue` 和 `offlineCache` 的惰性单例代理实现，严格满足 `@typescript-eslint/recommended-requiring-type-checking` 类型约束与 Prettier 规则。
+
 ## [2.17.0] - 2026-10-21
 
 ### Added

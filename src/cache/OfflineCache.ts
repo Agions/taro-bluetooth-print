@@ -584,11 +584,12 @@ export function getOfflineCache(): OfflineCache {
  * Will be removed in v3.0.0.
  */
 export const offlineCache: OfflineCache = new Proxy({} as OfflineCache, {
-  get(_target, prop, receiver) {
+  get(_target, prop: string | symbol): unknown {
     const instance = getOfflineCache();
-    const value = Reflect.get(instance, prop, receiver);
+    const value: unknown = (instance as Record<string | symbol, unknown>)[prop];
     if (typeof value === 'function') {
-      return (value as Function).bind(instance);
+      return (...args: unknown[]): unknown =>
+        (value as (...innerArgs: unknown[]) => unknown).apply(instance, args);
     }
     return value;
   },

@@ -633,10 +633,7 @@ export class PrintQueue extends EventEmitter<PrintQueueEvents> implements IPrint
    * @param options - 重试选项（是否重置重试计数、延迟时间）
    * @returns 成功重新入队返回 true，未找到任务返回 false
    */
-  retryJob(
-    jobId: string,
-    options?: { resetAttempts?: boolean; delay?: number }
-  ): boolean {
+  retryJob(jobId: string, options?: { resetAttempts?: boolean; delay?: number }): boolean {
     const job = this.jobs.get(jobId);
     if (!job) {
       this.logger.warn(`retryJob: job ${jobId} not found`);
@@ -736,11 +733,12 @@ export function getPrintQueue(): PrintQueue {
  * Will be removed in v3.0.0.
  */
 export const printQueue: PrintQueue = new Proxy({} as PrintQueue, {
-  get(_target, prop, receiver) {
+  get(_target, prop: string | symbol): unknown {
     const instance = getPrintQueue();
-    const value = Reflect.get(instance, prop, receiver);
+    const value: unknown = (instance as Record<string | symbol, unknown>)[prop];
     if (typeof value === 'function') {
-      return (value as Function).bind(instance);
+      return (...args: unknown[]): unknown =>
+        (value as (...innerArgs: unknown[]) => unknown).apply(instance, args);
     }
     return value;
   },
