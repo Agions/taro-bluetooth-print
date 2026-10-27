@@ -43,7 +43,9 @@ export {
 } from './CpclDriver';
 
 export {
+  StarDriver,
   StarPrinter,
+  type StarDriverOptions,
   type StarPrinterOptions,
   type Alignment,
   type BarcodeType,

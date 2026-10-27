@@ -29,7 +29,7 @@ export type { WebBluetoothRequestOptions } from './adapters/WebBluetoothAdapter'
 export * from './services';
 
 // Device Management - 设备管理
-export { DeviceManager, deviceManager } from './device/DeviceManager';
+export { DeviceManager, deviceManager, getDeviceManager } from './device/DeviceManager';
 export type { BluetoothDevice, ScanOptions, DeviceManagerEvents } from './device/DeviceManager';
 
 export { MultiPrinterManager, multiPrinterManager } from './device/MultiPrinterManager';

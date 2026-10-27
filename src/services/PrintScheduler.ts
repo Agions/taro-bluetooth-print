@@ -8,6 +8,7 @@ import { generateUUID } from '../utils/uuid';
 import { normalizeError } from '../utils/normalizeError';
 import { BluetoothPrintError, ErrorCode } from '@/errors/BaseError';
 import { Logger } from '@/utils/logger';
+import { IStorageAdapter, createUniversalStorage } from '@/storage';
 
 /** Maximum value for setTimeout (2^31 - 1, i.e. MAX_INT32) */
 const MAX_TIMEOUT_MS = 2147483647;
@@ -259,9 +260,11 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
   private persistKey: string = 'print-scheduler-jobs';
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly PERSIST_DEBOUNCE_MS = 500;
+  private readonly storage: IStorageAdapter;
 
-  constructor() {
+  constructor(options?: { storage?: IStorageAdapter }) {
     super();
+    this.storage = options?.storage ?? createUniversalStorage('print_scheduler_');
     this.restoreJobs();
   }
 
@@ -511,9 +514,7 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
       this.persistTimer = null;
       try {
         const data = JSON.stringify(Array.from(this.jobs.entries()));
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(this.persistKey, data);
-        }
+        this.storage.setItem(this.persistKey, data);
       } catch (error) {
         // Persist errors are non-critical — the in-memory job list remains functional;
         // persistence is only for crash-recovery convenience across app restarts
@@ -526,8 +527,7 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
 
   private restoreJobs(): void {
     try {
-      if (typeof localStorage === 'undefined') return;
-      const data = localStorage.getItem(this.persistKey);
+      const data = this.storage.getItem(this.persistKey);
       if (data) {
         const entries = JSON.parse(data) as [string, ScheduledPrint][];
         for (const [id, job] of entries) {
@@ -541,7 +541,7 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
         }
       }
     } catch (error) {
-      // Restore errors from corrupted/missing localStorage are non-critical;
+      // Restore errors from corrupted/missing storage are non-critical;
       // the system initializes with an empty job list and continues normally — no data loss
       this.schedulerLogger.warn('Failed to restore scheduled jobs:', error);
     }
@@ -560,9 +560,7 @@ export class PrintScheduler extends EventEmitter<ScheduleEvents> {
     }
     try {
       const data = JSON.stringify(Array.from(this.jobs.entries()));
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(this.persistKey, data);
-      }
+      this.storage.setItem(this.persistKey, data);
     } catch (error) {
       // Persist errors are non-critical
       this.schedulerLogger.warn('Failed to flush persist:', error);

@@ -32,6 +32,8 @@ export interface IAdapterOptions {
   delay?: number;
   /** Number of retries on write failure (default: 3) */
   retries?: number;
+  /** Callback invoked after each chunk is written with progress information */
+  onProgress?: (bytesWritten: number, totalBytes: number) => void;
 }
 
 /**
@@ -62,8 +64,25 @@ export interface IPrinterAdapter {
 
   /**
    * Start discovering nearby Bluetooth devices (optional)
+   * @param options - Optional scan filters and settings
+   * @param onDevice - Optional callback when a device is discovered
    */
-  startDiscovery?(): Promise<void>;
+  startDiscovery?(
+    options?: {
+      timeout?: number;
+      serviceUUIDs?: string[];
+      allowDuplicates?: boolean;
+      nameFilter?: string | RegExp;
+    },
+    onDevice?: (device: {
+      deviceId: string;
+      name: string;
+      rssi?: number;
+      advertisementData?: ArrayBuffer;
+      serviceUUIDs?: string[];
+      localName?: string;
+    }) => void
+  ): Promise<void>;
 
   /**
    * Stop discovering nearby Bluetooth devices (optional)

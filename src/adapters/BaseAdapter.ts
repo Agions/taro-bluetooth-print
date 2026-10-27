@@ -176,7 +176,22 @@ export abstract class BaseAdapter implements IPrinterAdapter {
   /**
    * Start discovering nearby Bluetooth devices (optional)
    */
-  startDiscovery?(): Promise<void>;
+  startDiscovery?(
+    options?: {
+      timeout?: number;
+      serviceUUIDs?: string[];
+      allowDuplicates?: boolean;
+      nameFilter?: string | RegExp;
+    },
+    onDevice?: (device: {
+      deviceId: string;
+      name: string;
+      rssi?: number;
+      advertisementData?: ArrayBuffer;
+      serviceUUIDs?: string[];
+      localName?: string;
+    }) => void
+  ): Promise<void>;
 
   /**
    * Stop discovering nearby Bluetooth devices (optional)

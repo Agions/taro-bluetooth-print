@@ -213,6 +213,12 @@ export abstract class ChunkWriteStrategy<TOptions = void> {
         return;
       }
 
+      // Notify progress if callback provided
+      if (typeof adapterOptions.onProgress === 'function') {
+        const bytesWritten = Math.min(i + adaptiveState.currentChunkSize, data.length);
+        adapterOptions.onProgress(bytesWritten, data.length);
+      }
+
       // Adaptive adjustment
       this.adjustTransmissionParams(
         adaptiveState,

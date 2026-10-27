@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.18.0] - 2026-10-27
+
+### Added
+
+- **设备管理与底层传输解耦 (`DeviceManager`)** — 彻底移除 `DeviceManager` 对 `@tarojs/taro` 的硬导入依赖，支持依赖注入 `IPrinterAdapter` 与 `IStorageAdapter`，在 Web Bluetooth、React Native、SSR/Node.js 等无 Taro 容器环境下纯净运行。
+- **设备发现标准契约 (`IPrinterAdapter.startDiscovery`)** — 在适配器接口规范化 `startDiscovery?` 与 `stopDiscovery?` 发现钩子，打通全平台蓝牙扫描规范。
+- **定时调度跨端持久化 (`PrintScheduler`)** — 移除直接依赖 `window.localStorage` 的假定，接入 `IStorageAdapter` 与 `createUniversalStorage`，在微信、支付宝、字节跳动等小程序环境中无缝支持任务防丢持久化。
+- **STAR 驱动契约标准化 (`StarDriver`)** — 新增标准化命名的 `StarDriver`，并原生实现 `IProtocolDriver`（支持 `getBuffer()` 与 `clear()`），与 `BluetoothPrinter.useDriver()` 契约深度对齐；保留 `StarPrinter` 兼容别名。
+
+### Changed
+
+- **传输层单点精准切片 (`PrintJobManager`)** — 移除作业管理器内部 512B 人工盲切循环，完整打印字节流直接提交至 `adapter.write()`，由底层 `ChunkWriteStrategy` 依据硬件协商 MTU 精确分包并通过 `onProgress` 向上穿透真实发送进度，彻底杜绝多字节/图片指令被拦腰截断撕裂的隐患。
+- **惰性单例代理模式 (`deviceManager`)** — `deviceManager` 升级为按需初始化的 Lazy Singleton Proxy，并导出 `getDeviceManager()` 访问工厂，消除全局导入初始化的副作用。
+
 ## [2.17.4] - 2026-10-21
 
 ### Fixed

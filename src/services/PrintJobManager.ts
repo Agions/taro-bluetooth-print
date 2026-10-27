@@ -345,10 +345,15 @@ export class PrintJobManager implements IPrintJobManager {
       );
     }
 
-    const { chunkSize = 512 } = this.adapterOptions;
     const jobBuffer = this.jobBuffer;
     const total = jobBuffer.length;
     const deviceId = this.getDeviceId();
+
+    // If caller explicitly configured chunkSize, respect chunking for backward compatibility.
+    // If not configured, delegate the entire remaining buffer directly to adapter.write()
+    // and let ChunkWriteStrategy handle optimal MTU-level transmission without 512B blind cuts.
+    const explicitChunkSize = this.adapterOptions.chunkSize;
+    const chunkSize = explicitChunkSize ?? jobBuffer.length;
 
     while (this.jobOffset < jobBuffer.length) {
       if (this.paused) {
@@ -357,7 +362,20 @@ export class PrintJobManager implements IPrintJobManager {
       }
       const end = Math.min(this.jobOffset + chunkSize, jobBuffer.length);
       const chunk = jobBuffer.slice(this.jobOffset, end);
-      await this.adapter.write(deviceId, chunk.buffer, this.adapterOptions);
+      const currentOffset = this.jobOffset;
+
+      const writeOptions: IAdapterOptions = {
+        ...this.adapterOptions,
+        onProgress: (bytesWritten: number) => {
+          if (this.paused) return;
+          const currentTotal = Math.min(currentOffset + bytesWritten, total);
+          this.jobOffset = currentTotal;
+          this.logger.debug(`Processed ${this.jobOffset}/${total} bytes`);
+          this.onProgress?.(this.jobOffset, total);
+        },
+      };
+
+      await this.adapter.write(deviceId, chunk.buffer, writeOptions);
       this.jobOffset = end;
       this.logger.debug(`Processed ${this.jobOffset}/${total} bytes`);
       this.onProgress?.(this.jobOffset, total);

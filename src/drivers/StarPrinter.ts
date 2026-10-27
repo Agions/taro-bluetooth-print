@@ -7,6 +7,7 @@
  */
 
 import { IPrinterDriver, IQrOptions } from '@/types';
+import { IProtocolDriver } from './contracts';
 import { EncodingService } from '@/encoding';
 import { ImageProcessing } from '@/utils/image';
 import { Logger } from '@/utils/logger';
@@ -90,7 +91,8 @@ export interface StarImageOptions {
  * ];
  * ```
  */
-export class StarPrinter implements IPrinterDriver {
+export class StarPrinter implements IPrinterDriver, IProtocolDriver {
+  readonly protocol = 'STAR';
   private readonly logger = Logger.scope('StarPrinter');
   private readonly encodingService: EncodingService;
   private readonly useEncodingService: boolean;
@@ -99,6 +101,43 @@ export class StarPrinter implements IPrinterDriver {
   // Internal state
   private _boldEnabled = false;
   private _alignment: Alignment = 'left';
+  private commandQueue: Uint8Array[] = [];
+
+  /**
+   * Get all accumulated command buffers concatenated as a single Uint8Array
+   */
+  getBuffer(): Uint8Array {
+    let totalLength = 0;
+    for (const buf of this.commandQueue) {
+      totalLength += buf.length;
+    }
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buf of this.commandQueue) {
+      result.set(buf, offset);
+      offset += buf.length;
+    }
+    return result;
+  }
+
+  /**
+   * Clear all accumulated command buffers and reset driver state
+   */
+  clear(): void {
+    this.commandQueue = [];
+    this._boldEnabled = false;
+    this._alignment = 'left';
+  }
+
+  /**
+   * Helper to append generated command buffers into internal buffer queue
+   */
+  private record(buffers: Uint8Array[]): Uint8Array[] {
+    for (const b of buffers) {
+      this.commandQueue.push(b);
+    }
+    return buffers;
+  }
 
   /**
    * Creates a new StarPrinter driver instance
@@ -554,3 +593,9 @@ export class StarPrinter implements IPrinterDriver {
     return [new Uint8Array([0x1b, 0x61, alignValue])];
   }
 }
+
+/**
+ * Standard protocol driver implementation for STAR printers.
+ */
+export { StarPrinter as StarDriver };
+export type StarDriverOptions = StarPrinterOptions;
