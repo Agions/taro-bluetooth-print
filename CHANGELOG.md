@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.18.1] - 2026-10-27
+
+### Fixed
+
+- **代码风格与 Prettier 格式统一** — 调整 `DeviceManager.ts` 中 `TaroBLEApi` 方法签名的排版换行，满足 CI 静态代码检查约束。
+
 ## [2.18.0] - 2026-10-27
 
 ### Added

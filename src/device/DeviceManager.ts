@@ -126,10 +126,7 @@ interface TaroBLEApi {
   getBLEDeviceServices: (options: {
     deviceId: string;
   }) => Promise<{ services: Array<{ uuid: string }> }>;
-  getBLEDeviceCharacteristics: (options: {
-    deviceId: string;
-    serviceId: string;
-  }) => Promise<{
+  getBLEDeviceCharacteristics: (options: { deviceId: string; serviceId: string }) => Promise<{
     characteristics: Array<{
       uuid: string;
       properties: { write?: boolean; writeNoResponse?: boolean; writeWithoutResponse?: boolean };
